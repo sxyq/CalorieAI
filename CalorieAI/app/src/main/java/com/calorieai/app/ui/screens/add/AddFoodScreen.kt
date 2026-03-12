@@ -154,7 +154,7 @@ fun AddFoodScreen(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "输入示例：",
+                        text = "你这顿又吃了什么？😋",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

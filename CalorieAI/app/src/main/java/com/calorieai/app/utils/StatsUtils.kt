@@ -146,29 +146,37 @@ object StatsUtils {
      * 计算上月总结
      */
     fun computeLastMonthSummary(records: List<FoodRecord>): MonthSummary {
+        return computeMonthSummary(records, 1)
+    }
+
+    /**
+     * 计算指定月份总结（支持切换前几个月）
+     * @param offset 月份偏移量，1=上个月，2=上两个月，以此类推
+     */
+    fun computeMonthSummary(records: List<FoodRecord>, offset: Int): MonthSummary {
         val today = LocalDate.now()
-        val lastMonth = today.minusMonths(1)
-        val monthStart = lastMonth.withDayOfMonth(1)
-        val monthEnd = lastMonth.withDayOfMonth(lastMonth.lengthOfMonth())
-        
+        val targetMonth = today.minusMonths(offset.toLong())
+        val monthStart = targetMonth.withDayOfMonth(1)
+        val monthEnd = targetMonth.withDayOfMonth(targetMonth.lengthOfMonth())
+
         val monthRecords = records.filter {
             val recordDate = it.recordTime.toLocalDate()
             recordDate in monthStart..monthEnd
         }
-        
+
         val dailyCalories = monthRecords
             .groupBy { it.recordTime.toLocalDate() }
             .map { (_, dayRecords) -> dayRecords.sumOf { it.totalCalories } }
-        
+
         val mealTypeStats = MealType.values().associateWith { mealType ->
             monthRecords
                 .filter { it.mealType == mealType }
                 .sumOf { it.totalCalories }
         }
-        
+
         return MonthSummary(
-            year = lastMonth.year,
-            month = lastMonth.monthValue,
+            year = targetMonth.year,
+            month = targetMonth.monthValue,
             totalCalories = monthRecords.sumOf { it.totalCalories },
             avgDailyCalories = if (dailyCalories.isNotEmpty()) {
                 dailyCalories.average().toInt()
@@ -182,6 +190,44 @@ object StatsUtils {
             snackTotal = mealTypeStats[MealType.SNACK] ?: 0,
             totalRecords = monthRecords.size
         )
+    }
+
+    /**
+     * 计算指定日期范围内的月度趋势
+     */
+    fun computeMonthlyTrendForRange(
+        records: List<FoodRecord>,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): List<MonthlyStat> {
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM")
+
+        // 生成月份列表
+        val months = mutableListOf<String>()
+        var current = startDate.withDayOfMonth(1)
+        while (!current.isAfter(endDate)) {
+            months.add(current.format(formatter))
+            current = current.plusMonths(1)
+        }
+
+        return months.map { monthStr ->
+            val monthRecords = records.filter {
+                it.recordTime.toLocalDate().format(formatter) == monthStr
+            }
+
+            val dailyCalories = monthRecords
+                .groupBy { it.recordTime.toLocalDate() }
+                .map { (_, dayRecords) -> dayRecords.sumOf { it.totalCalories } }
+
+            MonthlyStat(
+                month = monthStr,
+                totalCalories = monthRecords.sumOf { it.totalCalories },
+                avgDailyCalories = if (dailyCalories.isNotEmpty()) {
+                    dailyCalories.average().toInt()
+                } else 0,
+                daysRecorded = dailyCalories.size
+            )
+        }
     }
 
     /**

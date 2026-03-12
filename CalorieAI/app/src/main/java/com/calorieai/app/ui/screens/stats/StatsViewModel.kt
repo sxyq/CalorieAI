@@ -2,7 +2,6 @@ package com.calorieai.app.ui.screens.stats
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.repository.FoodRecordRepository
 import com.calorieai.app.data.repository.UserSettingsRepository
@@ -22,19 +21,6 @@ class StatsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(StatsUiState())
     val uiState: StateFlow<StatsUiState> = _uiState.asStateFlow()
 
-    // 当前选中的月份（用于上月总结）
-    private val _selectedMonth = MutableStateFlow(LocalDate.now().minusMonths(1))
-    val selectedMonth: StateFlow<LocalDate> = _selectedMonth.asStateFlow()
-
-    // 趋势分析日期范围
-    private val _trendStartDate = MutableStateFlow(LocalDate.now().minusMonths(1))
-    val trendStartDate: StateFlow<LocalDate> = _trendStartDate.asStateFlow()
-
-    private val _trendEndDate = MutableStateFlow(LocalDate.now())
-    val trendEndDate: StateFlow<LocalDate> = _trendEndDate.asStateFlow()
-
-    private var allRecords: List<FoodRecord> = emptyList()
-
     init {
         loadStats()
     }
@@ -42,79 +28,84 @@ class StatsViewModel @Inject constructor(
     private fun loadStats() {
         viewModelScope.launch {
             foodRecordRepository.getAllRecords().collect { records ->
-                allRecords = records
-                updateStats()
+                val settings = userSettingsRepository.getSettingsOnce()
+                val targetCalories = settings?.dailyCalorieGoal ?: 2000
+
+                val todayStats = StatsUtils.computeTodayStats(records, targetCalories)
+                val mealTypeStats = StatsUtils.computeMealTypeStats(records)
+                val historyStats = StatsUtils.computeHistoryStats(records)
+                val weeklyStats = StatsUtils.computeWeeklyTrend(records)
+                val monthlyStats = StatsUtils.computeMonthlyTrend(records)
+                val streakDays = StatsUtils.computeStreakDays(records)
+
+                // 根据当前选择的月份计算总结
+                val currentMonthOffset = _uiState.value.selectedMonthOffset
+                val summary = StatsUtils.computeMonthSummary(records, currentMonthOffset)
+
+                _uiState.value = _uiState.value.copy(
+                    todayStats = todayStats,
+                    mealTypeStats = mealTypeStats,
+                    historyStats = historyStats,
+                    weeklyStats = weeklyStats,
+                    monthlyStats = monthlyStats,
+                    lastMonthSummary = summary,
+                    streakDays = streakDays,
+                    isLoading = false
+                )
             }
-        }
-    }
-
-    private fun updateStats() {
-        viewModelScope.launch {
-            val settings = userSettingsRepository.getSettingsOnce()
-            val targetCalories = settings?.dailyCalorieGoal ?: 2000
-
-            val todayStats = StatsUtils.computeTodayStats(allRecords, targetCalories)
-            val mealTypeStats = StatsUtils.computeMealTypeStats(allRecords)
-            val historyStats = StatsUtils.computeHistoryStats(allRecords)
-            val weeklyStats = StatsUtils.computeWeeklyTrend(allRecords)
-            val monthlyStats = StatsUtils.computeMonthlyTrend(allRecords)
-
-            // 根据选中的月份计算总结
-            val monthSummary = StatsUtils.computeMonthSummary(
-                allRecords,
-                _selectedMonth.value.year,
-                _selectedMonth.value.monthValue
-            )
-
-            // 根据日期范围计算趋势
-            val trendStats = StatsUtils.computeTrendInRange(
-                allRecords,
-                _trendStartDate.value,
-                _trendEndDate.value
-            )
-
-            val streakDays = StatsUtils.computeStreakDays(allRecords)
-
-            _uiState.value = StatsUiState(
-                todayStats = todayStats,
-                mealTypeStats = mealTypeStats,
-                historyStats = historyStats,
-                weeklyStats = weeklyStats,
-                monthlyStats = monthlyStats,
-                lastMonthSummary = monthSummary,
-                trendStats = trendStats,
-                streakDays = streakDays,
-                targetCalories = targetCalories
-            )
         }
     }
 
     /**
      * 切换月份（上月总结）
      */
-    fun changeMonth(monthsOffset: Int) {
-        _selectedMonth.value = _selectedMonth.value.plusMonths(monthsOffset.toLong())
-        updateStats()
+    fun changeMonth(offset: Int) {
+        _uiState.value = _uiState.value.copy(selectedMonthOffset = offset)
+        refreshMonthSummary()
     }
 
     /**
-     * 设置趋势分析开始日期
+     * 刷新月份总结
      */
-    fun setTrendStartDate(date: LocalDate) {
-        if (!date.isAfter(_trendEndDate.value)) {
-            _trendStartDate.value = date
-            updateStats()
+    private fun refreshMonthSummary() {
+        viewModelScope.launch {
+            val records = foodRecordRepository.getAllRecordsOnce()
+            val offset = _uiState.value.selectedMonthOffset
+            val summary = StatsUtils.computeMonthSummary(records, offset)
+            _uiState.value = _uiState.value.copy(lastMonthSummary = summary)
         }
     }
 
     /**
-     * 设置趋势分析结束日期
+     * 设置趋势分析日期范围
      */
-    fun setTrendEndDate(date: LocalDate) {
-        if (!date.isBefore(_trendStartDate.value)) {
-            _trendEndDate.value = date
-            updateStats()
+    fun setTrendDateRange(startDate: LocalDate, endDate: LocalDate) {
+        viewModelScope.launch {
+            val records = foodRecordRepository.getAllRecordsOnce()
+            val filteredRecords = records.filter {
+                val recordDate = java.time.Instant.ofEpochMilli(it.recordTime)
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toLocalDate()
+                recordDate in startDate..endDate
+            }
+
+            val weeklyStats = StatsUtils.computeWeeklyTrend(filteredRecords)
+            val monthlyStats = StatsUtils.computeMonthlyTrendForRange(filteredRecords, startDate, endDate)
+
+            _uiState.value = _uiState.value.copy(
+                trendStartDate = startDate,
+                trendEndDate = endDate,
+                weeklyStats = weeklyStats,
+                monthlyStats = monthlyStats
+            )
         }
+    }
+
+    /**
+     * 重置趋势日期范围
+     */
+    fun resetTrendDateRange() {
+        loadStats()
     }
 }
 
@@ -125,18 +116,9 @@ data class StatsUiState(
     val weeklyStats: List<WeeklyStat> = emptyList(),
     val monthlyStats: List<MonthlyStat> = emptyList(),
     val lastMonthSummary: MonthSummary? = null,
-    val trendStats: TrendStats? = null,
     val streakDays: Int = 0,
-    val targetCalories: Int = 2000
-)
-
-// 趋势统计数据
-data class TrendStats(
-    val startDate: LocalDate,
-    val endDate: LocalDate,
-    val avgCalories: Int,
-    val totalCalories: Int,
-    val daysRecorded: Int,
-    val maxDailyCalories: Int,
-    val minDailyCalories: Int
+    val selectedMonthOffset: Int = 1, // 默认显示上个月
+    val trendStartDate: LocalDate? = null,
+    val trendEndDate: LocalDate? = null,
+    val isLoading: Boolean = true
 )
