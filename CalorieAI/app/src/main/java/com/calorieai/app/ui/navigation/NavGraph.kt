@@ -67,6 +67,9 @@ fun NavGraph(navController: NavHostController) {
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
                 },
+                onNavigateToProfile = {
+                    navController.navigate(Screen.Profile.route)
+                },
                 onNavigateToResult = { recordId ->
                     navController.navigate(Screen.Result.createRoute(recordId))
                 }

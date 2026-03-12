@@ -282,6 +282,7 @@ private fun CalendarGrid(
                         val date = currentMonth.atDay(dayCount)
                         val isSelected = date == selectedDate
                         val isToday = date == LocalDate.now()
+                        val isFuture = date.isAfter(LocalDate.now())
                         val calories = calorieData[date] ?: 0
                         val isOverTarget = calories > targetCalories
 
@@ -289,9 +290,10 @@ private fun CalendarGrid(
                             date = date,
                             isSelected = isSelected,
                             isToday = isToday,
+                            isFuture = isFuture,
                             calories = calories,
                             isOverTarget = isOverTarget,
-                            onClick = { onDateSelected(date) },
+                            onClick = { if (!isFuture) onDateSelected(date) },
                             modifier = Modifier.weight(1f)
                         )
                         dayCount++
@@ -317,6 +319,7 @@ private fun DayCell(
     date: LocalDate,
     isSelected: Boolean,
     isToday: Boolean,
+    isFuture: Boolean,
     calories: Int,
     isOverTarget: Boolean,
     onClick: () -> Unit,
@@ -331,6 +334,7 @@ private fun DayCell(
     val textColor = when {
         isSelected -> MaterialTheme.colorScheme.onPrimary
         isToday -> MaterialTheme.colorScheme.onPrimaryContainer
+        isFuture -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
         else -> MaterialTheme.colorScheme.onSurface
     }
 
@@ -346,7 +350,13 @@ private fun DayCell(
             .padding(2.dp)
             .clip(CircleShape)
             .background(backgroundColor)
-            .clickable { onClick() },
+            .then(
+                if (!isFuture) {
+                    Modifier.clickable { onClick() }
+                } else {
+                    Modifier
+                }
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(

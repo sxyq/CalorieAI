@@ -166,7 +166,7 @@ private fun TopMenuPopupContent(
 
             MenuItem(
                 icon = Icons.Default.Edit,
-                title = "编辑资料",
+                title = "个人信息编辑",
                 onClick = { onMenuItemClick(MenuScreen.EditProfile) }
             )
         }

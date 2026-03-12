@@ -28,6 +28,7 @@ fun HomeScreen(
     onNavigateToAdd: () -> Unit,
     onNavigateToStats: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToProfile: () -> Unit,
     onNavigateToResult: (String) -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -63,7 +64,7 @@ fun HomeScreen(
                             when (menuScreen) {
                                 MenuScreen.Settings -> onNavigateToSettings()
                                 MenuScreen.Overview -> onNavigateToStats()
-                                MenuScreen.EditProfile -> { /* TODO: 编辑资料 */ }
+                                MenuScreen.EditProfile -> onNavigateToProfile()
                             }
                         }
                     )
