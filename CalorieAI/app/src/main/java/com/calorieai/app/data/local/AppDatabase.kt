@@ -10,7 +10,7 @@ import com.calorieai.app.data.model.UserSettings
 
 @Database(
     entities = [FoodRecord::class, UserSettings::class, AIConfig::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
