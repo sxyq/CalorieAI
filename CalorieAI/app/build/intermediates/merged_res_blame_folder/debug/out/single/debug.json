@@ -1,0 +1,98 @@
+[
+    {
+        "merged": "com.calorieai.app-merged_res-86:/mipmap-mdpi_ic_launcher.png.flat",
+        "source": "com.calorieai.app-main-88:/mipmap-mdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/xml_file_paths.xml.flat",
+        "source": "com.calorieai.app-main-88:/xml/file_paths.xml"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/mipmap-xxxhdpi_ic_launcher_foreground.png.flat",
+        "source": "com.calorieai.app-main-88:/mipmap-xxxhdpi/ic_launcher_foreground.png"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/drawable_ic_notification.xml.flat",
+        "source": "com.calorieai.app-main-88:/drawable/ic_notification.xml"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.calorieai.app-main-88:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/layout_widget_calorie.xml.flat",
+        "source": "com.calorieai.app-main-88:/layout/widget_calorie.xml"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/drawable_ic_add.xml.flat",
+        "source": "com.calorieai.app-main-88:/drawable/ic_add.xml"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "com.calorieai.app-main-88:/mipmap-xxxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/xml_data_extraction_rules.xml.flat",
+        "source": "com.calorieai.app-main-88:/xml/data_extraction_rules.xml"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/mipmap-xxhdpi_ic_launcher_round.png.flat",
+        "source": "com.calorieai.app-main-88:/mipmap-xxhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/mipmap-xxxhdpi_ic_launcher_round.png.flat",
+        "source": "com.calorieai.app-main-88:/mipmap-xxxhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "com.calorieai.app-main-88:/mipmap-xxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/mipmap-xhdpi_ic_launcher_round.png.flat",
+        "source": "com.calorieai.app-main-88:/mipmap-xhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/mipmap-xhdpi_ic_launcher_foreground.png.flat",
+        "source": "com.calorieai.app-main-88:/mipmap-xhdpi/ic_launcher_foreground.png"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/drawable_widget_background.xml.flat",
+        "source": "com.calorieai.app-main-88:/drawable/widget_background.xml"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/xml_calorie_widget_info.xml.flat",
+        "source": "com.calorieai.app-main-88:/xml/calorie_widget_info.xml"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/mipmap-mdpi_ic_launcher_round.png.flat",
+        "source": "com.calorieai.app-main-88:/mipmap-mdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/mipmap-mdpi_ic_launcher_foreground.png.flat",
+        "source": "com.calorieai.app-main-88:/mipmap-mdpi/ic_launcher_foreground.png"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/mipmap-xxhdpi_ic_launcher_foreground.png.flat",
+        "source": "com.calorieai.app-main-88:/mipmap-xxhdpi/ic_launcher_foreground.png"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/mipmap-hdpi_ic_launcher_round.png.flat",
+        "source": "com.calorieai.app-main-88:/mipmap-hdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/mipmap-hdpi_ic_launcher_foreground.png.flat",
+        "source": "com.calorieai.app-main-88:/mipmap-hdpi/ic_launcher_foreground.png"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/xml_backup_rules.xml.flat",
+        "source": "com.calorieai.app-main-88:/xml/backup_rules.xml"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "com.calorieai.app-main-88:/mipmap-xhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.calorieai.app-merged_res-86:/mipmap-hdpi_ic_launcher.png.flat",
+        "source": "com.calorieai.app-main-88:/mipmap-hdpi/ic_launcher.png"
+    }
+]

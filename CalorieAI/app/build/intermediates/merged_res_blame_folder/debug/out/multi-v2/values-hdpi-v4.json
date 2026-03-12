@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.calorieai.app-mergeDebugResources-84:/values-hdpi-v4/values-hdpi-v4.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-3\\3097de27c8abd91865db802d9f0a0a4f\\transformed\\appcompat-1.6.1\\res\\values-hdpi-v4\\values-hdpi-v4.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endLines": "6",
+                        "endColumns": "13",
+                        "endOffsets": "327"
+                    }
+                }
+            ]
+        }
+    ]
+}

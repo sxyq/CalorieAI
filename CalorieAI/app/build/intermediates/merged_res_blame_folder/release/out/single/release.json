@@ -1,0 +1,90 @@
+[
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\mipmap-hdpi_ic_launcher.png.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\mipmap-mdpi_ic_launcher_foreground.png.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher_foreground.png"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\layout_widget_calorie.xml.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\layout\\widget_calorie.xml"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\mipmap-anydpi-v26\\ic_launcher.xml"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\mipmap-xxxhdpi_ic_launcher_round.png.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher_round.png"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\mipmap-hdpi_ic_launcher_foreground.png.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher_foreground.png"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\xml_backup_rules.xml.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\xml\\backup_rules.xml"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\mipmap-xxhdpi_ic_launcher_foreground.png.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher_foreground.png"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\mipmap-xxxhdpi_ic_launcher_foreground.png.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher_foreground.png"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\mipmap-xxhdpi_ic_launcher_round.png.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher_round.png"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\drawable_widget_background.xml.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\drawable\\widget_background.xml"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\xml_data_extraction_rules.xml.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\xml\\data_extraction_rules.xml"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\mipmap-mdpi_ic_launcher.png.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\mipmap-hdpi_ic_launcher_round.png.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher_round.png"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\mipmap-xhdpi_ic_launcher_round.png.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher_round.png"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\xml_file_paths.xml.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\xml\\file_paths.xml"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\mipmap-mdpi_ic_launcher_round.png.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher_round.png"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\mipmap-xhdpi_ic_launcher_foreground.png.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher_foreground.png"
+    },
+    {
+        "merged": "D:\\Project\\health app\\CalorieAI\\app\\build\\intermediates\\merged_res\\release\\xml_calorie_widget_info.xml.flat",
+        "source": "D:\\Project\\health app\\CalorieAI\\app\\src\\main\\res\\xml\\calorie_widget_info.xml"
+    }
+]

@@ -1,0 +1,35 @@
+com.calorieai.app.test.app-annotation-experimental-1.4.0-0 C:\Users\syy\.gradle\caches\transforms-3\0514c1b01bf75d508adf6edcd4cb2ac8\transformed\annotation-experimental-1.4.0\res
+com.calorieai.app.test.app-profileinstaller-1.3.1-1 C:\Users\syy\.gradle\caches\transforms-3\05df8976ccffe9078f662f194946394e\transformed\profileinstaller-1.3.1\res
+com.calorieai.app.test.app-lifecycle-runtime-2.7.0-2 C:\Users\syy\.gradle\caches\transforms-3\0e040ec47406f103cb16996517176bb4\transformed\lifecycle-runtime-2.7.0\res
+com.calorieai.app.test.app-core-ktx-1.12.0-3 C:\Users\syy\.gradle\caches\transforms-3\115ee1a5a9b593ad3a2d03db2c3527c1\transformed\core-ktx-1.12.0\res
+com.calorieai.app.test.app-activity-1.8.2-4 C:\Users\syy\.gradle\caches\transforms-3\2b6fe61e200cada8b00e210b9ac840b6\transformed\activity-1.8.2\res
+com.calorieai.app.test.app-ui-release-5 C:\Users\syy\.gradle\caches\transforms-3\48d21db80fc0ddc1ec3742a40467c2eb\transformed\ui-release\res
+com.calorieai.app.test.app-ui-text-release-6 C:\Users\syy\.gradle\caches\transforms-3\4c0e410ae6a72fa8ee32bd7e370f5a54\transformed\ui-text-release\res
+com.calorieai.app.test.app-emoji2-1.3.0-7 C:\Users\syy\.gradle\caches\transforms-3\576923b79939de0b5f48c59077a0b632\transformed\emoji2-1.3.0\res
+com.calorieai.app.test.app-startup-runtime-1.1.1-8 C:\Users\syy\.gradle\caches\transforms-3\59aecb714a056bb917432ce7c13e7254\transformed\startup-runtime-1.1.1\res
+com.calorieai.app.test.app-savedstate-ktx-1.2.1-9 C:\Users\syy\.gradle\caches\transforms-3\5ee56c8dbb00678ef5a6ce0c43212a09\transformed\savedstate-ktx-1.2.1\res
+com.calorieai.app.test.app-lifecycle-livedata-core-2.7.0-10 C:\Users\syy\.gradle\caches\transforms-3\69af8cb7ac81712bb3365021e9c04f2b\transformed\lifecycle-livedata-core-2.7.0\res
+com.calorieai.app.test.app-lifecycle-viewmodel-2.7.0-11 C:\Users\syy\.gradle\caches\transforms-3\6ca37ce8bf752d023be185cf05e0361e\transformed\lifecycle-viewmodel-2.7.0\res
+com.calorieai.app.test.app-runtime-saveable-release-12 C:\Users\syy\.gradle\caches\transforms-3\6e90a9e88c20cc84ed422b726783eeaf\transformed\runtime-saveable-release\res
+com.calorieai.app.test.app-ui-geometry-release-13 C:\Users\syy\.gradle\caches\transforms-3\7f2c3f54c98a410393ae023d9aeddf81\transformed\ui-geometry-release\res
+com.calorieai.app.test.app-savedstate-1.2.1-14 C:\Users\syy\.gradle\caches\transforms-3\889e0130e2507bc9744232ba02563fe3\transformed\savedstate-1.2.1\res
+com.calorieai.app.test.app-customview-poolingcontainer-1.0.0-15 C:\Users\syy\.gradle\caches\transforms-3\899899f4cc2f8cea1d9c2961c7d53016\transformed\customview-poolingcontainer-1.0.0\res
+com.calorieai.app.test.app-lifecycle-viewmodel-ktx-2.7.0-16 C:\Users\syy\.gradle\caches\transforms-3\8c8bd0175dd777b6910888b26f952de6\transformed\lifecycle-viewmodel-ktx-2.7.0\res
+com.calorieai.app.test.app-core-1.12.0-17 C:\Users\syy\.gradle\caches\transforms-3\93a0fd1d519d00e9da6ed4cb0cb4a756\transformed\core-1.12.0\res
+com.calorieai.app.test.app-ui-test-release-18 C:\Users\syy\.gradle\caches\transforms-3\9522c4a8947875b97bc0cec257d92465\transformed\ui-test-release\res
+com.calorieai.app.test.app-lifecycle-runtime-ktx-2.7.0-19 C:\Users\syy\.gradle\caches\transforms-3\9ae1bb34a704a37491c4580b9b8f5c58\transformed\lifecycle-runtime-ktx-2.7.0\res
+com.calorieai.app.test.app-ui-test-junit4-release-20 C:\Users\syy\.gradle\caches\transforms-3\9d18c31eb1bec6b7fc5e48edd68ac967\transformed\ui-test-junit4-release\res
+com.calorieai.app.test.app-ui-unit-release-21 C:\Users\syy\.gradle\caches\transforms-3\ade92f0410878c8e1db4b695c22cfa89\transformed\ui-unit-release\res
+com.calorieai.app.test.app-runtime-release-22 C:\Users\syy\.gradle\caches\transforms-3\b059af0616c37180a28775325969abc4\transformed\runtime-release\res
+com.calorieai.app.test.app-core-1.5.0-23 C:\Users\syy\.gradle\caches\transforms-3\b7787b4b9d123308e7afb0de0509ecf0\transformed\core-1.5.0\res
+com.calorieai.app.test.app-core-runtime-2.2.0-24 C:\Users\syy\.gradle\caches\transforms-3\db22ac2f46eff8965b6345e9cd4cc617\transformed\core-runtime-2.2.0\res
+com.calorieai.app.test.app-activity-ktx-1.8.2-25 C:\Users\syy\.gradle\caches\transforms-3\dda9a6a61cb84e3320b00e9ac8ac5ac0\transformed\activity-ktx-1.8.2\res
+com.calorieai.app.test.app-ui-graphics-release-26 C:\Users\syy\.gradle\caches\transforms-3\e245b133cad558ba7a4196fa072f4393\transformed\ui-graphics-release\res
+com.calorieai.app.test.app-ui-util-release-27 C:\Users\syy\.gradle\caches\transforms-3\e322e07843e76395f53a207a12c6ec33\transformed\ui-util-release\res
+com.calorieai.app.test.app-lifecycle-process-2.7.0-28 C:\Users\syy\.gradle\caches\transforms-3\f1a22d25e2bc7726afbd55b638989714\transformed\lifecycle-process-2.7.0\res
+com.calorieai.app.test.app-lifecycle-viewmodel-savedstate-2.7.0-29 C:\Users\syy\.gradle\caches\transforms-3\f3c7c66cd30f8816f06733e951bfac10\transformed\lifecycle-viewmodel-savedstate-2.7.0\res
+com.calorieai.app.test.app-activity-compose-1.8.2-30 C:\Users\syy\.gradle\caches\transforms-3\f9f755ee3eb8f5b628c92cd8b247ccaf\transformed\activity-compose-1.8.2\res
+com.calorieai.app.test.app-androidTest-31 D:\Project\health app\CalorieAI\app\build\generated\res\resValues\androidTest\debug
+com.calorieai.app.test.app-mergeDebugAndroidTestResources-32 D:\Project\health app\CalorieAI\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\merged.dir
+com.calorieai.app.test.app-mergeDebugAndroidTestResources-33 D:\Project\health app\CalorieAI\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\stripped.dir
+com.calorieai.app.test.app-merged_res-34 D:\Project\health app\CalorieAI\app\build\intermediates\merged_res\debugAndroidTest
