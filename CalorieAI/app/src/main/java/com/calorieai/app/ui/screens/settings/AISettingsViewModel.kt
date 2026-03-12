@@ -3,10 +3,12 @@ package com.calorieai.app.ui.screens.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.AIConfig
+import com.calorieai.app.data.model.TokenUsageStats
 import com.calorieai.app.data.repository.AIConfigRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 
 @HiltViewModel
@@ -19,6 +21,7 @@ class AISettingsViewModel @Inject constructor(
 
     init {
         loadConfigs()
+        loadTokenUsageStats()
     }
 
     private fun loadConfigs() {
@@ -29,7 +32,7 @@ class AISettingsViewModel @Inject constructor(
                 aiConfigRepository.getAllConfigs(),
                 aiConfigRepository.getDefaultConfig()
             ) { configs, defaultConfig ->
-                AISettingsUiState(
+                _uiState.value.copy(
                     configs = configs,
                     defaultConfigId = defaultConfig?.id,
                     isLoading = false
@@ -37,6 +40,25 @@ class AISettingsViewModel @Inject constructor(
             }.collect { state ->
                 _uiState.value = state
             }
+        }
+    }
+
+    private fun loadTokenUsageStats() {
+        viewModelScope.launch {
+            // TODO: 从数据库加载真实的Token使用记录
+            // 这里使用模拟数据演示
+            val mockStats = TokenUsageStats(
+                totalTokens = 15000,
+                promptTokens = 10000,
+                completionTokens = 5000,
+                totalCost = 0.045,
+                requestCount = 25,
+                todayTokens = 1200,
+                todayCost = 0.0036,
+                monthTokens = 8000,
+                monthCost = 0.024
+            )
+            _uiState.value = _uiState.value.copy(tokenUsageStats = mockStats)
         }
     }
 
@@ -56,5 +78,6 @@ class AISettingsViewModel @Inject constructor(
 data class AISettingsUiState(
     val configs: List<AIConfig> = emptyList(),
     val defaultConfigId: String? = null,
+    val tokenUsageStats: TokenUsageStats? = null,
     val isLoading: Boolean = true
 )

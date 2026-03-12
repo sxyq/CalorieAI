@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.AIConfig
 import com.calorieai.app.data.model.AIProtocol
+import com.calorieai.app.ui.components.TokenUsageCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +49,11 @@ fun AISettingsScreen(
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
+            // Token使用统计
+            TokenUsageCard(stats = uiState.tokenUsageStats)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // 添加新配置按钮
             AddConfigButton(
                 onClick = { onNavigateToDetail(null) }
