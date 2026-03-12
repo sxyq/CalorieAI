@@ -543,7 +543,7 @@ public final class DaggerCalorieAIApplication_HiltComponents_SingletonC {
           return (T) new CameraViewModel();
 
           case 6: // com.calorieai.app.ui.screens.home.HomeViewModel 
-          return (T) new HomeViewModel(singletonCImpl.foodRecordRepositoryProvider.get());
+          return (T) new HomeViewModel(singletonCImpl.foodRecordRepositoryProvider.get(), singletonCImpl.userSettingsRepositoryProvider.get());
 
           case 7: // com.calorieai.app.ui.screens.settings.InteractionSettingsViewModel 
           return (T) new InteractionSettingsViewModel(singletonCImpl.userSettingsRepositoryProvider.get());

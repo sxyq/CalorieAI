@@ -377,6 +377,97 @@ public final class FoodRecordDao_Impl implements FoodRecordDao {
   }
 
   @Override
+  public Object getAllRecordsOnce(final Continuation<? super List<FoodRecord>> $completion) {
+    final String _sql = "SELECT * FROM food_records ORDER BY recordTime DESC";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<List<FoodRecord>>() {
+      @Override
+      @NonNull
+      public List<FoodRecord> call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfFoodName = CursorUtil.getColumnIndexOrThrow(_cursor, "foodName");
+          final int _cursorIndexOfUserInput = CursorUtil.getColumnIndexOrThrow(_cursor, "userInput");
+          final int _cursorIndexOfTotalCalories = CursorUtil.getColumnIndexOrThrow(_cursor, "totalCalories");
+          final int _cursorIndexOfProtein = CursorUtil.getColumnIndexOrThrow(_cursor, "protein");
+          final int _cursorIndexOfCarbs = CursorUtil.getColumnIndexOrThrow(_cursor, "carbs");
+          final int _cursorIndexOfFat = CursorUtil.getColumnIndexOrThrow(_cursor, "fat");
+          final int _cursorIndexOfIngredients = CursorUtil.getColumnIndexOrThrow(_cursor, "ingredients");
+          final int _cursorIndexOfMealType = CursorUtil.getColumnIndexOrThrow(_cursor, "mealType");
+          final int _cursorIndexOfRecordTime = CursorUtil.getColumnIndexOrThrow(_cursor, "recordTime");
+          final int _cursorIndexOfIconUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "iconUrl");
+          final int _cursorIndexOfIconLocalPath = CursorUtil.getColumnIndexOrThrow(_cursor, "iconLocalPath");
+          final int _cursorIndexOfIsStarred = CursorUtil.getColumnIndexOrThrow(_cursor, "isStarred");
+          final int _cursorIndexOfConfidence = CursorUtil.getColumnIndexOrThrow(_cursor, "confidence");
+          final int _cursorIndexOfNotes = CursorUtil.getColumnIndexOrThrow(_cursor, "notes");
+          final List<FoodRecord> _result = new ArrayList<FoodRecord>(_cursor.getCount());
+          while (_cursor.moveToNext()) {
+            final FoodRecord _item;
+            final String _tmpId;
+            _tmpId = _cursor.getString(_cursorIndexOfId);
+            final String _tmpFoodName;
+            _tmpFoodName = _cursor.getString(_cursorIndexOfFoodName);
+            final String _tmpUserInput;
+            _tmpUserInput = _cursor.getString(_cursorIndexOfUserInput);
+            final int _tmpTotalCalories;
+            _tmpTotalCalories = _cursor.getInt(_cursorIndexOfTotalCalories);
+            final float _tmpProtein;
+            _tmpProtein = _cursor.getFloat(_cursorIndexOfProtein);
+            final float _tmpCarbs;
+            _tmpCarbs = _cursor.getFloat(_cursorIndexOfCarbs);
+            final float _tmpFat;
+            _tmpFat = _cursor.getFloat(_cursorIndexOfFat);
+            final List<Ingredient> _tmpIngredients;
+            final String _tmp;
+            _tmp = _cursor.getString(_cursorIndexOfIngredients);
+            _tmpIngredients = __converters.toIngredientsList(_tmp);
+            final MealType _tmpMealType;
+            final String _tmp_1;
+            _tmp_1 = _cursor.getString(_cursorIndexOfMealType);
+            _tmpMealType = __converters.toMealType(_tmp_1);
+            final long _tmpRecordTime;
+            _tmpRecordTime = _cursor.getLong(_cursorIndexOfRecordTime);
+            final String _tmpIconUrl;
+            if (_cursor.isNull(_cursorIndexOfIconUrl)) {
+              _tmpIconUrl = null;
+            } else {
+              _tmpIconUrl = _cursor.getString(_cursorIndexOfIconUrl);
+            }
+            final String _tmpIconLocalPath;
+            if (_cursor.isNull(_cursorIndexOfIconLocalPath)) {
+              _tmpIconLocalPath = null;
+            } else {
+              _tmpIconLocalPath = _cursor.getString(_cursorIndexOfIconLocalPath);
+            }
+            final boolean _tmpIsStarred;
+            final int _tmp_2;
+            _tmp_2 = _cursor.getInt(_cursorIndexOfIsStarred);
+            _tmpIsStarred = _tmp_2 != 0;
+            final ConfidenceLevel _tmpConfidence;
+            final String _tmp_3;
+            _tmp_3 = _cursor.getString(_cursorIndexOfConfidence);
+            _tmpConfidence = __converters.toConfidenceLevel(_tmp_3);
+            final String _tmpNotes;
+            if (_cursor.isNull(_cursorIndexOfNotes)) {
+              _tmpNotes = null;
+            } else {
+              _tmpNotes = _cursor.getString(_cursorIndexOfNotes);
+            }
+            _item = new FoodRecord(_tmpId,_tmpFoodName,_tmpUserInput,_tmpTotalCalories,_tmpProtein,_tmpCarbs,_tmpFat,_tmpIngredients,_tmpMealType,_tmpRecordTime,_tmpIconUrl,_tmpIconLocalPath,_tmpIsStarred,_tmpConfidence,_tmpNotes);
+            _result.add(_item);
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
   public Flow<List<FoodRecord>> getRecordsBetween(final long startTime, final long endTime) {
     final String _sql = "SELECT * FROM food_records WHERE recordTime BETWEEN ? AND ? ORDER BY recordTime DESC";
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 2);
