@@ -35,14 +35,14 @@ public final class AppDatabase_Impl extends AppDatabase {
   @Override
   @NonNull
   protected SupportSQLiteOpenHelper createOpenHelper(@NonNull final DatabaseConfiguration config) {
-    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(4) {
+    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(5) {
       @Override
       public void createAllTables(@NonNull final SupportSQLiteDatabase db) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `food_records` (`id` TEXT NOT NULL, `foodName` TEXT NOT NULL, `userInput` TEXT NOT NULL, `totalCalories` INTEGER NOT NULL, `protein` REAL NOT NULL, `carbs` REAL NOT NULL, `fat` REAL NOT NULL, `ingredients` TEXT NOT NULL, `mealType` TEXT NOT NULL, `recordTime` INTEGER NOT NULL, `iconUrl` TEXT, `iconLocalPath` TEXT, `isStarred` INTEGER NOT NULL, `confidence` TEXT NOT NULL, `notes` TEXT, PRIMARY KEY(`id`))");
-        db.execSQL("CREATE TABLE IF NOT EXISTS `user_settings` (`id` INTEGER NOT NULL, `dailyCalorieGoal` INTEGER NOT NULL, `userName` TEXT, `userGender` TEXT, `userAge` INTEGER, `userHeight` REAL, `userWeight` REAL, `dietaryPreference` TEXT, `breakfastReminderTime` TEXT NOT NULL, `lunchReminderTime` TEXT NOT NULL, `dinnerReminderTime` TEXT NOT NULL, `isNotificationEnabled` INTEGER NOT NULL, `isDarkMode` INTEGER, `seedColor` TEXT, `selectedAIPresetId` TEXT, `customAIEndpoint` TEXT, `customAIModel` TEXT, `themeMode` TEXT NOT NULL, `useDeadlinerStyle` INTEGER NOT NULL, `hideDividers` INTEGER NOT NULL, `fontSize` TEXT NOT NULL, `enableAnimations` INTEGER NOT NULL, `feedbackType` TEXT NOT NULL, `enableVibration` INTEGER NOT NULL, `enableSound` INTEGER NOT NULL, `backgroundBehavior` TEXT NOT NULL, `startupPage` TEXT NOT NULL, `enableQuickAdd` INTEGER NOT NULL, `enableGoalReminder` INTEGER NOT NULL, `enableStreakReminder` INTEGER NOT NULL, `enableAutoBackup` INTEGER NOT NULL, `lastBackupTime` TEXT, `enableCloudSync` INTEGER NOT NULL, PRIMARY KEY(`id`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `user_settings` (`id` INTEGER NOT NULL, `dailyCalorieGoal` INTEGER NOT NULL, `userName` TEXT, `userId` TEXT, `userGender` TEXT, `userAge` INTEGER, `userHeight` REAL, `userWeight` REAL, `activityLevel` TEXT NOT NULL, `dietaryPreference` TEXT, `breakfastReminderTime` TEXT NOT NULL, `lunchReminderTime` TEXT NOT NULL, `dinnerReminderTime` TEXT NOT NULL, `isNotificationEnabled` INTEGER NOT NULL, `isDarkMode` INTEGER, `seedColor` TEXT, `selectedAIPresetId` TEXT, `customAIEndpoint` TEXT, `customAIModel` TEXT, `themeMode` TEXT NOT NULL, `useDeadlinerStyle` INTEGER NOT NULL, `hideDividers` INTEGER NOT NULL, `fontSize` TEXT NOT NULL, `enableAnimations` INTEGER NOT NULL, `feedbackType` TEXT NOT NULL, `enableVibration` INTEGER NOT NULL, `enableSound` INTEGER NOT NULL, `backgroundBehavior` TEXT NOT NULL, `startupPage` TEXT NOT NULL, `enableQuickAdd` INTEGER NOT NULL, `enableGoalReminder` INTEGER NOT NULL, `enableStreakReminder` INTEGER NOT NULL, `enableAutoBackup` INTEGER NOT NULL, `lastBackupTime` TEXT, `enableCloudSync` INTEGER NOT NULL, PRIMARY KEY(`id`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS `ai_configs` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `icon` TEXT NOT NULL, `iconType` TEXT NOT NULL, `protocol` TEXT NOT NULL, `apiUrl` TEXT NOT NULL, `apiKey` TEXT NOT NULL, `modelId` TEXT NOT NULL, `isImageUnderstanding` INTEGER NOT NULL, `isDefault` INTEGER NOT NULL, PRIMARY KEY(`id`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)");
-        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'deacebc90dcd9b7c1171e5237103add3')");
+        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '44d2c2f270e1249da129b68288e70f1f')");
       }
 
       @Override
@@ -118,14 +118,16 @@ public final class AppDatabase_Impl extends AppDatabase {
                   + " Expected:\n" + _infoFoodRecords + "\n"
                   + " Found:\n" + _existingFoodRecords);
         }
-        final HashMap<String, TableInfo.Column> _columnsUserSettings = new HashMap<String, TableInfo.Column>(33);
+        final HashMap<String, TableInfo.Column> _columnsUserSettings = new HashMap<String, TableInfo.Column>(35);
         _columnsUserSettings.put("id", new TableInfo.Column("id", "INTEGER", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsUserSettings.put("dailyCalorieGoal", new TableInfo.Column("dailyCalorieGoal", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsUserSettings.put("userName", new TableInfo.Column("userName", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserSettings.put("userId", new TableInfo.Column("userId", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsUserSettings.put("userGender", new TableInfo.Column("userGender", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsUserSettings.put("userAge", new TableInfo.Column("userAge", "INTEGER", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsUserSettings.put("userHeight", new TableInfo.Column("userHeight", "REAL", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsUserSettings.put("userWeight", new TableInfo.Column("userWeight", "REAL", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserSettings.put("activityLevel", new TableInfo.Column("activityLevel", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsUserSettings.put("dietaryPreference", new TableInfo.Column("dietaryPreference", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsUserSettings.put("breakfastReminderTime", new TableInfo.Column("breakfastReminderTime", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsUserSettings.put("lunchReminderTime", new TableInfo.Column("lunchReminderTime", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
@@ -183,7 +185,7 @@ public final class AppDatabase_Impl extends AppDatabase {
         }
         return new RoomOpenHelper.ValidationResult(true, null);
       }
-    }, "deacebc90dcd9b7c1171e5237103add3", "25e933a4f4a7b4ac3a2b24800270d53a");
+    }, "44d2c2f270e1249da129b68288e70f1f", "cbc3b71b9b86f2d0c1e689f67ffdba13");
     final SupportSQLiteOpenHelper.Configuration _sqliteConfig = SupportSQLiteOpenHelper.Configuration.builder(config.context).name(config.name).callback(_openCallback).build();
     final SupportSQLiteOpenHelper _helper = config.sqliteOpenHelperFactory.create(_sqliteConfig);
     return _helper;

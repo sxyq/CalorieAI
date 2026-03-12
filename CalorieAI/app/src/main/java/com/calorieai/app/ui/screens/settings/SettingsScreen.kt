@@ -30,6 +30,7 @@ fun SettingsScreen(
     onNavigateToBackup: () -> Unit,
     onNavigateToAISettings: () -> Unit,
     onNavigateToAbout: () -> Unit,
+    onNavigateToProfile: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -53,6 +54,16 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
+            // 个人信息
+            SettingGroupItem(
+                icon = Icons.Default.Person,
+                title = "个人信息",
+                subtitle = "头像、身体数据、每日目标",
+                onClick = onNavigateToProfile
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             // 界面外观
             SettingGroupItem(
                 icon = Icons.Default.Palette,

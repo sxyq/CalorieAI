@@ -11,6 +11,9 @@ interface FoodRecordDao {
     @Query("SELECT * FROM food_records ORDER BY recordTime DESC")
     fun getAllRecords(): Flow<List<FoodRecord>>
     
+    @Query("SELECT * FROM food_records ORDER BY recordTime DESC")
+    suspend fun getAllRecordsOnce(): List<FoodRecord>
+    
     @Query("SELECT * FROM food_records WHERE recordTime BETWEEN :startTime AND :endTime ORDER BY recordTime DESC")
     fun getRecordsBetween(startTime: Long, endTime: Long): Flow<List<FoodRecord>>
     

@@ -45,6 +45,11 @@ class FoodRecordRepository @Inject constructor(
     
     suspend fun getRecordById(id: String): FoodRecord? = foodRecordDao.getRecordById(id)
     
+    /**
+     * 获取所有记录（一次性）
+     */
+    suspend fun getAllRecordsOnce(): List<FoodRecord> = foodRecordDao.getAllRecordsOnce()
+    
     suspend fun addRecord(record: FoodRecord) = foodRecordDao.insertRecord(record)
     
     suspend fun updateRecord(record: FoodRecord) = foodRecordDao.updateRecord(record)

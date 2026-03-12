@@ -15,10 +15,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
-import com.calorieai.app.ui.components.DateSelector
+import com.calorieai.app.ui.components.ExpandableCalendarView
 import com.calorieai.app.ui.components.MenuScreen
 import com.calorieai.app.ui.components.TopMenuButton
 import java.text.SimpleDateFormat
+import java.time.LocalDate
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -83,19 +84,23 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // 日期选择器
-            DateSelector(
+            // 可展开日历
+            ExpandableCalendarView(
                 selectedDate = selectedDate,
                 onDateSelected = { date ->
                     viewModel.selectDate(date)
                 },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                calorieData = uiState.calorieData,
+                targetCalories = uiState.dailyGoal
             )
             
-            // 今日概览
+            // 今日概览（优化布局）
             TodayOverviewCard(
                 totalCalories = uiState.totalCalories,
                 dailyGoal = uiState.dailyGoal,
+                bmr = uiState.bmr,
+                exerciseCalories = uiState.exerciseCalories,
                 selectedDate = selectedDate
             )
             
@@ -136,10 +141,13 @@ fun HomeScreen(
 fun TodayOverviewCard(
     totalCalories: Int,
     dailyGoal: Int,
+    bmr: Int,
+    exerciseCalories: Int,
     selectedDate: java.time.LocalDate
 ) {
     val progress = (totalCalories.toFloat() / dailyGoal).coerceIn(0f, 1f)
     val remaining = dailyGoal - totalCalories
+    val netCalories = totalCalories - bmr - exerciseCalories // 热量差值（正为盈余，负为缺口）
     
     // 根据是否是今天显示不同的标题
     val today = java.time.LocalDate.now()
@@ -159,17 +167,40 @@ fun TodayOverviewCard(
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            // 标题和添加运动按钮
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                // 只有今天才显示添加运动按钮
+                if (selectedDate == today) {
+                    TextButton(
+                        onClick = { /* TODO: 打开运动消耗添加对话框 */ }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DirectionsRun,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("添加运动")
+                    }
+                }
+            }
             
             Spacer(modifier = Modifier.height(16.dp))
             
+            // 主要数据行：已摄入 | 目标 | 剩余
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 CalorieInfo(
                     value = totalCalories.toString(),
@@ -189,8 +220,9 @@ fun TodayOverviewCard(
                 )
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             
+            // 进度条
             LinearProgressIndicator(
                 progress = { progress },
                 modifier = Modifier
@@ -202,6 +234,41 @@ fun TodayOverviewCard(
                     else -> MaterialTheme.colorScheme.primary
                 }
             )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // 代谢和运动数据（仅今天显示）
+            if (selectedDate == today && bmr > 0) {
+                HorizontalDivider()
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    CalorieInfoSmall(
+                        value = bmr.toString(),
+                        label = "基础代谢",
+                        icon = "🔥"
+                    )
+                    CalorieInfoSmall(
+                        value = "+${exerciseCalories}",
+                        label = "运动消耗",
+                        icon = "💪"
+                    )
+                    CalorieInfoSmall(
+                        value = "${if (netCalories >= 0) "+" else ""}$netCalories",
+                        label = "热量差值",
+                        icon = "⚖️",
+                        color = when {
+                            netCalories > 500 -> MaterialTheme.colorScheme.error
+                            netCalories < -500 -> MaterialTheme.colorScheme.tertiary
+                            else -> MaterialTheme.colorScheme.primary
+                        }
+                    )
+                }
+            }
         }
     }
 }
@@ -222,6 +289,32 @@ fun CalorieInfo(
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun CalorieInfoSmall(
+    value: String,
+    label: String,
+    icon: String,
+    color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = icon,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }

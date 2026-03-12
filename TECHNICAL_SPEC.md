@@ -1382,6 +1382,183 @@ sealed class VoiceState {
 
 ---
 
+### ProfileScreen（个人信息页面）
+
+**位置**: `ui/screens/settings/ProfileScreen.kt`
+
+**功能描述**:
+参考Deadliner风格，支持编辑头像、ID、身体数据，计算基础代谢率(BMR)和每日总消耗(TDEE)。
+
+**组件**:
+
+#### 1. ProfileScreen（主页面）
+```kotlin
+@Composable
+fun ProfileScreen(
+    onNavigateBack: () -> Unit,
+    viewModel: ProfileViewModel = hiltViewModel()
+)
+```
+**功能**:
+- 头像编辑（点击弹出选择器）
+- 昵称和ID输入
+- 身体数据录入
+- BMR/TDEE计算展示
+- 每日热量目标设置
+
+#### 2. ProfileAvatarSection（头像区域）
+```kotlin
+@Composable
+private fun ProfileAvatarSection(
+    avatarUrl: String?,
+    userName: String,
+    userId: String,
+    onAvatarClick: () -> Unit,
+    onUserNameChange: (String) -> Unit,
+    onUserIdChange: (String) -> Unit
+)
+```
+
+#### 3. BodyDataSection（身体数据）
+```kotlin
+@Composable
+private fun BodyDataSection(
+    gender: String,
+    age: Int?,
+    height: Float?,
+    weight: Float?,
+    onGenderChange: (String) -> Unit,
+    onAgeChange: (Int?) -> Unit,
+    onHeightChange: (Float?) -> Unit,
+    onWeightChange: (Float?) -> Unit
+)
+```
+
+#### 4. MetabolismSection（代谢计算）
+```kotlin
+@Composable
+private fun MetabolismSection(
+    bmr: Int,
+    tdee: Int,
+    activityLevel: String,
+    onActivityLevelChange: (String) -> Unit
+)
+```
+**活动水平选项**:
+- SEDENTARY: 久坐不动 (×1.2)
+- LIGHT: 轻度活动 (×1.375)
+- MODERATE: 中度活动 (×1.55)
+- ACTIVE: 高度活动 (×1.725)
+- VERY_ACTIVE: 极度活动 (×1.9)
+
+#### 5. CalorieGoalSection（每日目标）
+```kotlin
+@Composable
+private fun CalorieGoalSection(
+    calorieGoal: Int,
+    tdee: Int,
+    onCalorieGoalChange: (Int) -> Unit
+)
+```
+**快捷设置按钮**:
+- BMR: 基础代谢率
+- TDEE: 每日总消耗
+- 减脂: TDEE × 0.8
+- 增肌: TDEE × 1.1
+
+**计算公式**:
+```kotlin
+// BMR计算（Mifflin-St Jeor公式）
+fun calculateBMR(gender: String, weight: Float?, height: Float?, age: Int?): Int
+// 男性: (10 × 体重) + (6.25 × 身高) - (5 × 年龄) + 5
+// 女性: (10 × 体重) + (6.25 × 身高) - (5 × 年龄) - 161
+
+// TDEE计算
+fun calculateTDEE(bmr: Int, activityLevel: String): Int
+// TDEE = BMR × 活动系数
+```
+
+---
+
+### ProfileViewModel（个人信息ViewModel）
+
+**位置**: `ui/screens/settings/ProfileViewModel.kt`
+
+**变量**:
+```kotlin
+private val _uiState = MutableStateFlow(ProfileUiState())
+val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+```
+
+**ProfileUiState**:
+```kotlin
+data class ProfileUiState(
+    val avatarUrl: String? = null,
+    val userName: String = "",
+    val userId: String = "",
+    val gender: String = "MALE",
+    val age: Int? = null,
+    val height: Float? = null,
+    val weight: Float? = null,
+    val activityLevel: String = "SEDENTARY",
+    val calorieGoal: Int = 2000
+)
+```
+
+**函数**:
+```kotlin
+fun updateUserName(name: String)
+fun updateUserId(id: String)
+fun updateGender(gender: String)
+fun updateAge(age: Int?)
+fun updateHeight(height: Float?)
+fun updateWeight(weight: Float?)
+fun updateActivityLevel(level: String)
+fun updateCalorieGoal(goal: Int)
+fun saveProfile() // 保存到UserSettingsRepository
+```
+
+---
+
+### ExpandableCalendarView（可展开日历组件）
+
+**位置**: `ui/components/CalendarView.kt`
+
+**功能描述**:
+点击日期选择器可以展开/收起日历视图，查看近期摄入记录。
+
+**组件**:
+
+#### 1. ExpandableCalendarView（主组件）
+```kotlin
+@Composable
+fun ExpandableCalendarView(
+    selectedDate: LocalDate,
+    onDateSelected: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier,
+    calorieData: Map<LocalDate, Int> = emptyMap(),
+    targetCalories: Int = 2000
+)
+```
+
+#### 2. CalendarHeader（日历头部）
+- 显示当前选中日期
+- 展开/收起图标
+- 点击可切换展开状态
+
+#### 3. CalendarContent（日历内容）
+- 月份导航（< 2024年03月 >）
+- 星期标题（日一二三四五六）
+- 日期网格
+
+#### 4. DayCell（日期单元格）
+- 显示日期数字
+- 选中状态高亮
+- 今天特殊标记
+- 热量记录指示点（达标绿色/超标红色）
+
+---
+
 ## 导航结构
 
 ```kotlin
@@ -1394,6 +1571,7 @@ sealed class Screen(val route: String) {
     object Settings : Screen("settings")
     object AISettings : Screen("ai_settings")
     object AIConfigDetail : Screen("ai_config_detail?configId={configId}")
+    object Profile : Screen("profile")  // 新增：个人信息页面
 }
 ```
 
@@ -1410,6 +1588,7 @@ sealed class Screen(val route: String) {
 | 2026-03-12 | v1.4 | 完成动画与交互优化 | AI Assistant |
 | 2026-03-12 | v1.5 | 完成数据统计页面重构 | AI Assistant |
 | 2026-03-12 | v1.6 | 完成主题颜色适配和语音输入优化 | AI Assistant |
+| 2026-03-12 | v1.7 | 完成个人信息页面、主题切换、日历组件 | AI Assistant |
 
 ---
 
@@ -1478,6 +1657,22 @@ sealed class Screen(val route: String) {
   - VoiceWaveform: 语音波形动画效果
   - 实时状态显示（聆听中/处理中/成功/错误）
   - 权限处理流程
+- **主题切换功能** ✅
+  - MainActivity集成主题状态监听
+  - 支持浅色/深色/跟随系统三种模式
+  - 实时主题切换
+- **可展开日历组件** ✅
+  - ExpandableCalendarView: 点击展开/收起日历
+  - 月份导航（上一月/下一月）
+  - 日期选择功能
+  - 热量记录指示点（达标/超标）
+- **个人信息页面** ✅
+  - ProfileScreen: 编辑头像、昵称、ID
+  - 身体数据录入（性别、年龄、身高、体重）
+  - 基础代谢率(BMR)计算（Mifflin-St Jeor公式）
+  - 每日总消耗(TDEE)计算
+  - 活动水平选择
+  - 每日热量目标设置（支持快捷设置：BMR/TDEE/减脂/增肌）
 
 ### 待开发功能
 

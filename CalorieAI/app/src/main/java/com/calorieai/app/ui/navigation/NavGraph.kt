@@ -17,6 +17,7 @@ import com.calorieai.app.ui.screens.settings.AppearanceSettingsScreen
 import com.calorieai.app.ui.screens.settings.BackupSettingsScreen
 import com.calorieai.app.ui.screens.settings.InteractionSettingsScreen
 import com.calorieai.app.ui.screens.settings.NotificationSettingsScreen
+import com.calorieai.app.ui.screens.settings.ProfileScreen
 import com.calorieai.app.ui.screens.settings.SettingsScreen
 import com.calorieai.app.ui.screens.stats.StatsScreen
 
@@ -46,6 +47,7 @@ sealed class Screen(val route: String) {
         }
     }
     object About : Screen("about")
+    object Profile : Screen("profile")
 }
 
 @Composable
@@ -164,6 +166,9 @@ fun NavGraph(navController: NavHostController) {
                 },
                 onNavigateToAbout = {
                     navController.navigate(Screen.About.route)
+                },
+                onNavigateToProfile = {
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -223,6 +228,14 @@ fun NavGraph(navController: NavHostController) {
 
         composable(Screen.About.route) {
             AboutScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Screen.Profile.route) {
+            ProfileScreen(
                 onNavigateBack = {
                     navController.popBackStack()
                 }

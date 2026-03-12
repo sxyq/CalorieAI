@@ -15,6 +15,7 @@ import com.calorieai.app.ui.screens.settings.AppearanceSettingsViewModel_HiltMod
 import com.calorieai.app.ui.screens.settings.BackupSettingsViewModel_HiltModules;
 import com.calorieai.app.ui.screens.settings.InteractionSettingsViewModel_HiltModules;
 import com.calorieai.app.ui.screens.settings.NotificationSettingsViewModel_HiltModules;
+import com.calorieai.app.ui.screens.settings.ProfileViewModel_HiltModules;
 import com.calorieai.app.ui.screens.settings.SettingsViewModel_HiltModules;
 import com.calorieai.app.ui.screens.stats.StatsViewModel_HiltModules;
 import dagger.Binds;
@@ -185,6 +186,7 @@ public final class CalorieAIApplication_HiltComponents {
           InteractionSettingsViewModel_HiltModules.KeyModule.class,
           ManualAddViewModel_HiltModules.KeyModule.class,
           NotificationSettingsViewModel_HiltModules.KeyModule.class,
+          ProfileViewModel_HiltModules.KeyModule.class,
           ResultViewModel_HiltModules.KeyModule.class,
           SettingsViewModel_HiltModules.KeyModule.class,
           StatsViewModel_HiltModules.KeyModule.class
@@ -234,6 +236,7 @@ public final class CalorieAIApplication_HiltComponents {
           InteractionSettingsViewModel_HiltModules.BindsModule.class,
           ManualAddViewModel_HiltModules.BindsModule.class,
           NotificationSettingsViewModel_HiltModules.BindsModule.class,
+          ProfileViewModel_HiltModules.BindsModule.class,
           ResultViewModel_HiltModules.BindsModule.class,
           SettingsViewModel_HiltModules.BindsModule.class,
           StatsViewModel_HiltModules.BindsModule.class

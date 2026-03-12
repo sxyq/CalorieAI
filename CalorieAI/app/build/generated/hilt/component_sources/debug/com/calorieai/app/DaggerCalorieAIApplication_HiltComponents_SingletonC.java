@@ -39,10 +39,13 @@ import com.calorieai.app.ui.screens.settings.InteractionSettingsViewModel;
 import com.calorieai.app.ui.screens.settings.InteractionSettingsViewModel_HiltModules_KeyModule_ProvideFactory;
 import com.calorieai.app.ui.screens.settings.NotificationSettingsViewModel;
 import com.calorieai.app.ui.screens.settings.NotificationSettingsViewModel_HiltModules_KeyModule_ProvideFactory;
+import com.calorieai.app.ui.screens.settings.ProfileViewModel;
+import com.calorieai.app.ui.screens.settings.ProfileViewModel_HiltModules_KeyModule_ProvideFactory;
 import com.calorieai.app.ui.screens.settings.SettingsViewModel;
 import com.calorieai.app.ui.screens.settings.SettingsViewModel_HiltModules_KeyModule_ProvideFactory;
 import com.calorieai.app.ui.screens.stats.StatsViewModel;
 import com.calorieai.app.ui.screens.stats.StatsViewModel_HiltModules_KeyModule_ProvideFactory;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import dagger.hilt.android.ActivityRetainedLifecycle;
 import dagger.hilt.android.ViewModelLifecycle;
 import dagger.hilt.android.internal.builders.ActivityComponentBuilder;
@@ -391,6 +394,7 @@ public final class DaggerCalorieAIApplication_HiltComponents_SingletonC {
 
     @Override
     public void injectMainActivity(MainActivity mainActivity) {
+      injectMainActivity2(mainActivity);
     }
 
     @Override
@@ -400,7 +404,7 @@ public final class DaggerCalorieAIApplication_HiltComponents_SingletonC {
 
     @Override
     public Set<String> getViewModelKeys() {
-      return SetBuilder.<String>newSetBuilder(13).add(AIConfigDetailViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(AISettingsViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(AddFoodViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(AppearanceSettingsViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(BackupSettingsViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(CameraViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(HomeViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(InteractionSettingsViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(ManualAddViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(NotificationSettingsViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(ResultViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(SettingsViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(StatsViewModel_HiltModules_KeyModule_ProvideFactory.provide()).build();
+      return SetBuilder.<String>newSetBuilder(14).add(AIConfigDetailViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(AISettingsViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(AddFoodViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(AppearanceSettingsViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(BackupSettingsViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(CameraViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(HomeViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(InteractionSettingsViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(ManualAddViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(NotificationSettingsViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(ProfileViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(ResultViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(SettingsViewModel_HiltModules_KeyModule_ProvideFactory.provide()).add(StatsViewModel_HiltModules_KeyModule_ProvideFactory.provide()).build();
     }
 
     @Override
@@ -416,6 +420,12 @@ public final class DaggerCalorieAIApplication_HiltComponents_SingletonC {
     @Override
     public ViewComponentBuilder viewComponentBuilder() {
       return new ViewCBuilder(singletonCImpl, activityRetainedCImpl, activityCImpl);
+    }
+
+    @CanIgnoreReturnValue
+    private MainActivity injectMainActivity2(MainActivity instance) {
+      MainActivity_MembersInjector.injectUserSettingsRepository(instance, singletonCImpl.userSettingsRepositoryProvider.get());
+      return instance;
     }
   }
 
@@ -446,6 +456,8 @@ public final class DaggerCalorieAIApplication_HiltComponents_SingletonC {
 
     private Provider<NotificationSettingsViewModel> notificationSettingsViewModelProvider;
 
+    private Provider<ProfileViewModel> profileViewModelProvider;
+
     private Provider<ResultViewModel> resultViewModelProvider;
 
     private Provider<SettingsViewModel> settingsViewModelProvider;
@@ -475,14 +487,15 @@ public final class DaggerCalorieAIApplication_HiltComponents_SingletonC {
       this.interactionSettingsViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 7);
       this.manualAddViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 8);
       this.notificationSettingsViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 9);
-      this.resultViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 10);
-      this.settingsViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 11);
-      this.statsViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 12);
+      this.profileViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 10);
+      this.resultViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 11);
+      this.settingsViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 12);
+      this.statsViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 13);
     }
 
     @Override
     public Map<String, javax.inject.Provider<ViewModel>> getHiltViewModelMap() {
-      return MapBuilder.<String, javax.inject.Provider<ViewModel>>newMapBuilder(13).put("com.calorieai.app.ui.screens.settings.AIConfigDetailViewModel", ((Provider) aIConfigDetailViewModelProvider)).put("com.calorieai.app.ui.screens.settings.AISettingsViewModel", ((Provider) aISettingsViewModelProvider)).put("com.calorieai.app.ui.screens.add.AddFoodViewModel", ((Provider) addFoodViewModelProvider)).put("com.calorieai.app.ui.screens.settings.AppearanceSettingsViewModel", ((Provider) appearanceSettingsViewModelProvider)).put("com.calorieai.app.ui.screens.settings.BackupSettingsViewModel", ((Provider) backupSettingsViewModelProvider)).put("com.calorieai.app.ui.screens.camera.CameraViewModel", ((Provider) cameraViewModelProvider)).put("com.calorieai.app.ui.screens.home.HomeViewModel", ((Provider) homeViewModelProvider)).put("com.calorieai.app.ui.screens.settings.InteractionSettingsViewModel", ((Provider) interactionSettingsViewModelProvider)).put("com.calorieai.app.ui.screens.add.ManualAddViewModel", ((Provider) manualAddViewModelProvider)).put("com.calorieai.app.ui.screens.settings.NotificationSettingsViewModel", ((Provider) notificationSettingsViewModelProvider)).put("com.calorieai.app.ui.screens.result.ResultViewModel", ((Provider) resultViewModelProvider)).put("com.calorieai.app.ui.screens.settings.SettingsViewModel", ((Provider) settingsViewModelProvider)).put("com.calorieai.app.ui.screens.stats.StatsViewModel", ((Provider) statsViewModelProvider)).build();
+      return MapBuilder.<String, javax.inject.Provider<ViewModel>>newMapBuilder(14).put("com.calorieai.app.ui.screens.settings.AIConfigDetailViewModel", ((Provider) aIConfigDetailViewModelProvider)).put("com.calorieai.app.ui.screens.settings.AISettingsViewModel", ((Provider) aISettingsViewModelProvider)).put("com.calorieai.app.ui.screens.add.AddFoodViewModel", ((Provider) addFoodViewModelProvider)).put("com.calorieai.app.ui.screens.settings.AppearanceSettingsViewModel", ((Provider) appearanceSettingsViewModelProvider)).put("com.calorieai.app.ui.screens.settings.BackupSettingsViewModel", ((Provider) backupSettingsViewModelProvider)).put("com.calorieai.app.ui.screens.camera.CameraViewModel", ((Provider) cameraViewModelProvider)).put("com.calorieai.app.ui.screens.home.HomeViewModel", ((Provider) homeViewModelProvider)).put("com.calorieai.app.ui.screens.settings.InteractionSettingsViewModel", ((Provider) interactionSettingsViewModelProvider)).put("com.calorieai.app.ui.screens.add.ManualAddViewModel", ((Provider) manualAddViewModelProvider)).put("com.calorieai.app.ui.screens.settings.NotificationSettingsViewModel", ((Provider) notificationSettingsViewModelProvider)).put("com.calorieai.app.ui.screens.settings.ProfileViewModel", ((Provider) profileViewModelProvider)).put("com.calorieai.app.ui.screens.result.ResultViewModel", ((Provider) resultViewModelProvider)).put("com.calorieai.app.ui.screens.settings.SettingsViewModel", ((Provider) settingsViewModelProvider)).put("com.calorieai.app.ui.screens.stats.StatsViewModel", ((Provider) statsViewModelProvider)).build();
     }
 
     @Override
@@ -541,13 +554,16 @@ public final class DaggerCalorieAIApplication_HiltComponents_SingletonC {
           case 9: // com.calorieai.app.ui.screens.settings.NotificationSettingsViewModel 
           return (T) new NotificationSettingsViewModel(singletonCImpl.userSettingsRepositoryProvider.get());
 
-          case 10: // com.calorieai.app.ui.screens.result.ResultViewModel 
+          case 10: // com.calorieai.app.ui.screens.settings.ProfileViewModel 
+          return (T) new ProfileViewModel(singletonCImpl.userSettingsRepositoryProvider.get());
+
+          case 11: // com.calorieai.app.ui.screens.result.ResultViewModel 
           return (T) new ResultViewModel(singletonCImpl.foodRecordRepositoryProvider.get());
 
-          case 11: // com.calorieai.app.ui.screens.settings.SettingsViewModel 
+          case 12: // com.calorieai.app.ui.screens.settings.SettingsViewModel 
           return (T) new SettingsViewModel(singletonCImpl.userSettingsRepositoryProvider.get());
 
-          case 12: // com.calorieai.app.ui.screens.stats.StatsViewModel 
+          case 13: // com.calorieai.app.ui.screens.stats.StatsViewModel 
           return (T) new StatsViewModel(singletonCImpl.foodRecordRepositoryProvider.get(), singletonCImpl.userSettingsRepositoryProvider.get());
 
           default: throw new AssertionError(id);
@@ -632,16 +648,20 @@ public final class DaggerCalorieAIApplication_HiltComponents_SingletonC {
 
     private Provider<AppDatabase> provideAppDatabaseProvider;
 
+    private Provider<UserSettingsRepository> userSettingsRepositoryProvider;
+
     private Provider<AIConfigRepository> aIConfigRepositoryProvider;
 
     private Provider<FoodRecordRepository> foodRecordRepositoryProvider;
-
-    private Provider<UserSettingsRepository> userSettingsRepositoryProvider;
 
     private SingletonCImpl(ApplicationContextModule applicationContextModuleParam) {
       this.applicationContextModule = applicationContextModuleParam;
       initialize(applicationContextModuleParam);
 
+    }
+
+    private UserSettingsDao userSettingsDao() {
+      return DatabaseModule_ProvideUserSettingsDaoFactory.provideUserSettingsDao(provideAppDatabaseProvider.get());
     }
 
     private AIConfigDao aIConfigDao() {
@@ -652,16 +672,12 @@ public final class DaggerCalorieAIApplication_HiltComponents_SingletonC {
       return DatabaseModule_ProvideFoodRecordDaoFactory.provideFoodRecordDao(provideAppDatabaseProvider.get());
     }
 
-    private UserSettingsDao userSettingsDao() {
-      return DatabaseModule_ProvideUserSettingsDaoFactory.provideUserSettingsDao(provideAppDatabaseProvider.get());
-    }
-
     @SuppressWarnings("unchecked")
     private void initialize(final ApplicationContextModule applicationContextModuleParam) {
       this.provideAppDatabaseProvider = DoubleCheck.provider(new SwitchingProvider<AppDatabase>(singletonCImpl, 1));
-      this.aIConfigRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<AIConfigRepository>(singletonCImpl, 0));
-      this.foodRecordRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<FoodRecordRepository>(singletonCImpl, 2));
-      this.userSettingsRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<UserSettingsRepository>(singletonCImpl, 3));
+      this.userSettingsRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<UserSettingsRepository>(singletonCImpl, 0));
+      this.aIConfigRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<AIConfigRepository>(singletonCImpl, 2));
+      this.foodRecordRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<FoodRecordRepository>(singletonCImpl, 3));
     }
 
     @Override
@@ -697,17 +713,17 @@ public final class DaggerCalorieAIApplication_HiltComponents_SingletonC {
       @Override
       public T get() {
         switch (id) {
-          case 0: // com.calorieai.app.data.repository.AIConfigRepository 
-          return (T) new AIConfigRepository(singletonCImpl.aIConfigDao());
+          case 0: // com.calorieai.app.data.repository.UserSettingsRepository 
+          return (T) new UserSettingsRepository(singletonCImpl.userSettingsDao());
 
           case 1: // com.calorieai.app.data.local.AppDatabase 
           return (T) DatabaseModule_ProvideAppDatabaseFactory.provideAppDatabase(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule));
 
-          case 2: // com.calorieai.app.data.repository.FoodRecordRepository 
-          return (T) new FoodRecordRepository(singletonCImpl.foodRecordDao());
+          case 2: // com.calorieai.app.data.repository.AIConfigRepository 
+          return (T) new AIConfigRepository(singletonCImpl.aIConfigDao());
 
-          case 3: // com.calorieai.app.data.repository.UserSettingsRepository 
-          return (T) new UserSettingsRepository(singletonCImpl.userSettingsDao());
+          case 3: // com.calorieai.app.data.repository.FoodRecordRepository 
+          return (T) new FoodRecordRepository(singletonCImpl.foodRecordDao());
 
           default: throw new AssertionError(id);
         }
