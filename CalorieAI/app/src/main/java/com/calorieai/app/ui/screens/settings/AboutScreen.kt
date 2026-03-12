@@ -1,9 +1,6 @@
 package com.calorieai.app.ui.screens.settings
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -30,12 +26,8 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(
-    onNavigateBack: () -> Unit,
-    onNavigateToLicense: () -> Unit = {},
-    onNavigateToPrivacy: () -> Unit = {}
+    onNavigateBack: () -> Unit
 ) {
-    val context = LocalContext.current
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -74,41 +66,37 @@ fun AboutScreen(
                 )
             }
 
-            // 法律信息
+            // 法律信息（暂不可点击）
             SettingsSection(title = "法律信息") {
                 AboutItem(
                     title = "开源许可证",
                     subtitle = "查看第三方开源库许可",
                     icon = Icons.Default.Policy,
-                    onClick = onNavigateToLicense
+                    showArrow = false
                 )
                 SettingsSectionDivider()
                 AboutItem(
                     title = "隐私政策",
                     subtitle = "了解我们如何保护您的隐私",
                     icon = Icons.Default.Policy,
-                    onClick = onNavigateToPrivacy
+                    showArrow = false
                 )
             }
 
-            // 更多
+            // 更多（暂不可点击）
             SettingsSection(title = "更多") {
                 AboutItem(
                     title = "项目主页",
                     subtitle = "访问GitHub项目页面",
                     icon = Icons.Default.Info,
-                    onClick = {
-                        openUrl(context, "https://github.com/calorieai/calorie-ai")
-                    }
+                    showArrow = false
                 )
                 SettingsSectionDivider()
                 AboutItem(
                     title = "反馈问题",
                     subtitle = "在GitHub上提交Issue",
                     icon = Icons.Default.Info,
-                    onClick = {
-                        openUrl(context, "https://github.com/calorieai/calorie-ai/issues")
-                    }
+                    showArrow = false
                 )
             }
 
@@ -195,13 +183,11 @@ private fun AboutItem(
     title: String,
     subtitle: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    showArrow: Boolean = true,
-    onClick: (() -> Unit)? = null
+    showArrow: Boolean = true
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .padding(horizontal = 24.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -234,12 +220,4 @@ private fun AboutItem(
             )
         }
     }
-}
-
-/**
- * 打开URL
- */
-private fun openUrl(context: android.content.Context, url: String) {
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-    context.startActivity(intent)
 }

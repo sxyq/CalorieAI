@@ -57,41 +57,11 @@ fun AppearanceSettingsScreen(
                 )
             }
 
-            // 主界面风格
-            SettingsSection(title = "主界面") {
-                SettingsSwitchItem(
-                    title = "主界面风格",
-                    subtitle = "调整Deadliner的布局与显示风格",
-                    checked = uiState.useDeadlinerStyle,
-                    onCheckedChange = viewModel::updateDeadlinerStyle
-                )
-            }
-
-            // 设计
-            SettingsSection(title = "设计") {
-                SettingsSwitchItem(
-                    title = "分割线留白设计",
-                    subtitle = "开启后，界面中的分割线将会被隐藏",
-                    checked = uiState.hideDividers,
-                    onCheckedChange = viewModel::updateHideDividers
-                )
-            }
-
             // 字体大小
             SettingsSection(title = "字体") {
                 FontSizeSelector(
                     selectedSize = uiState.fontSize,
                     onSizeSelected = viewModel::updateFontSize
-                )
-            }
-
-            // 界面动画
-            SettingsSection(title = "动画") {
-                SettingsSwitchItem(
-                    title = "界面动画",
-                    subtitle = "开启界面切换和列表动画效果",
-                    checked = uiState.enableAnimations,
-                    onCheckedChange = viewModel::updateEnableAnimations
                 )
             }
 
