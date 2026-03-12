@@ -4,7 +4,7 @@
             "outputFile": "com.calorieai.app-mergeDebugResources-84:/values-land/values-land.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-3\\3097de27c8abd91865db802d9f0a0a4f\\transformed\\appcompat-1.6.1\\res\\values-land\\values-land.xml",
+                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-4\\22fcaa70593b070ea38c308142add73c\\transformed\\appcompat-1.6.1\\res\\values-land\\values-land.xml",
                     "from": {
                         "startLines": "2,3,4",
                         "startColumns": "4,4,4",
@@ -14,7 +14,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-3\\b7755591c82a1b20e4cb856c0b554751\\transformed\\material-1.11.0\\res\\values-land\\values-land.xml",
+                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-4\\7f45304220aeea7cedfbc49ddecd0fc7\\transformed\\material-1.11.0\\res\\values-land\\values-land.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,26,35,40",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",

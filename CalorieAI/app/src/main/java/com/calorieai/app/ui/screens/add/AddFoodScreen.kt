@@ -1,12 +1,12 @@
 package com.calorieai.app.ui.screens.add
 
 import android.Manifest
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,8 +18,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.MealType
+import com.calorieai.app.data.model.getMealTypeName
 import com.calorieai.app.service.voice.VoiceInputHelper
-import com.calorieai.app.ui.screens.home.getMealTypeName
+import com.calorieai.app.ui.components.VoiceInputDialog
 import javax.inject.Inject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,6 +32,53 @@ fun AddFoodScreen(
     viewModel: AddFoodViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    
+    // 语音输入状态
+    var showVoiceDialog by remember { mutableStateOf(false) }
+    var isListening by remember { mutableStateOf(false) }
+    var showPermissionDialog by remember { mutableStateOf(false) }
+    
+    // 语音输入帮助类
+    val voiceHelper = remember { VoiceInputHelper() }
+    val voiceState by voiceHelper.voiceState.collectAsState()
+    
+    // 权限请求
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // 权限已授予，开始录音
+            startVoiceInput(context, voiceHelper, onStart = {
+                isListening = true
+                showVoiceDialog = true
+            })
+        } else {
+            // 权限被拒绝，显示说明对话框
+            showPermissionDialog = true
+        }
+    }
+    
+    // 监听语音状态
+    LaunchedEffect(voiceState) {
+        when (val state = voiceState) {
+            is com.calorieai.app.service.voice.VoiceState.Success -> {
+                // 识别成功，更新文本
+                viewModel.onFoodDescriptionChange(
+                    if (uiState.foodDescription.isBlank()) state.text 
+                    else "${uiState.foodDescription} ${state.text}"
+                )
+                // 关闭对话框
+                showVoiceDialog = false
+                isListening = false
+            }
+            is com.calorieai.app.service.voice.VoiceState.Error -> {
+                // 错误发生，保持对话框显示错误信息
+                isListening = false
+            }
+            else -> {}
+        }
+    }
     
     Scaffold(
         topBar = {
@@ -38,7 +86,7 @@ fun AddFoodScreen(
                 title = { Text("记录食物") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
                 }
             )
@@ -54,12 +102,25 @@ fun AddFoodScreen(
             // 输入方式选择
             InputMethodSelector(
                 onCameraClick = onNavigateToCamera,
-                onVoiceResult = { text ->
-                    viewModel.onFoodDescriptionChange(
-                        if (uiState.foodDescription.isBlank()) text 
-                        else "${uiState.foodDescription} $text"
-                    )
-                }
+                onVoiceClick = {
+                    when {
+                        isListening -> {
+                            voiceHelper.stopListening()
+                            isListening = false
+                            showVoiceDialog = false
+                        }
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED -> {
+                            startVoiceInput(context, voiceHelper, onStart = {
+                                isListening = true
+                                showVoiceDialog = true
+                            })
+                        }
+                        else -> {
+                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        }
+                    }
+                },
+                isVoiceListening = isListening
             )
             
             // 餐次选择
@@ -87,8 +148,9 @@ fun AddFoodScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                ),
+                shape = MaterialTheme.shapes.medium
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
@@ -110,7 +172,8 @@ fun AddFoodScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = uiState.foodDescription.isNotBlank() && !uiState.isLoading
+                enabled = uiState.foodDescription.isNotBlank() && !uiState.isLoading,
+                shape = MaterialTheme.shapes.large
             ) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(
@@ -123,102 +186,21 @@ fun AddFoodScreen(
             }
         }
     }
-}
-
-@Composable
-fun InputMethodSelector(
-    onCameraClick: () -> Unit,
-    onVoiceResult: (String) -> Unit
-) {
-    val context = LocalContext.current
-    var isListening by remember { mutableStateOf(false) }
-    var showPermissionDialog by remember { mutableStateOf(false) }
     
-    // 权限请求
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (!isGranted) {
-            // 权限被拒绝，显示说明对话框
-            showPermissionDialog = true
+    // 语音输入对话框
+    VoiceInputDialog(
+        isVisible = showVoiceDialog,
+        voiceState = voiceState,
+        onDismiss = {
+            voiceHelper.stopListening()
+            isListening = false
+            showVoiceDialog = false
+        },
+        onStopRecording = {
+            voiceHelper.stopListening()
+            isListening = false
         }
-    }
-    
-    // 语音输入帮助类
-    val voiceHelper = remember { VoiceInputHelper() }
-    val voiceState by voiceHelper.voiceState.collectAsState()
-    
-    // 监听语音状态
-    LaunchedEffect(voiceState) {
-        when (val state = voiceState) {
-            is com.calorieai.app.service.voice.VoiceState.Success -> {
-                onVoiceResult(state.text)
-                isListening = false
-            }
-            is com.calorieai.app.service.voice.VoiceState.Error -> {
-                isListening = false
-            }
-            else -> {}
-        }
-    }
-    
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // 拍照按钮
-        OutlinedButton(
-            onClick = onCameraClick,
-            modifier = Modifier.weight(1f)
-        ) {
-            Icon(Icons.Default.CameraAlt, contentDescription = null)
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("拍照识别")
-        }
-        
-        // 语音按钮
-        OutlinedButton(
-            onClick = {
-                when {
-                    isListening -> {
-                        voiceHelper.stopListening()
-                        isListening = false
-                    }
-                    ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED -> {
-                        isListening = true
-                        voiceHelper.startListening(
-                            context = context,
-                            onResult = { text ->
-                                onVoiceResult(text)
-                                isListening = false
-                            },
-                            onError = { _ ->
-                                isListening = false
-                            }
-                        )
-                    }
-                    else -> {
-                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                    }
-                }
-            },
-            modifier = Modifier.weight(1f),
-            colors = if (isListening) {
-                ButtonDefaults.outlinedButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            } else {
-                ButtonDefaults.outlinedButtonColors()
-            }
-        ) {
-            Icon(
-                if (isListening) Icons.Default.Mic else Icons.Default.MicNone,
-                contentDescription = null
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(if (isListening) " listening..." else "语音输入")
-        }
-    }
+    )
     
     // 权限说明对话框
     if (showPermissionDialog) {
@@ -252,6 +234,71 @@ fun InputMethodSelector(
     DisposableEffect(Unit) {
         onDispose {
             voiceHelper.destroy()
+        }
+    }
+}
+
+/**
+ * 开始语音输入
+ */
+private fun startVoiceInput(
+    context: android.content.Context,
+    voiceHelper: VoiceInputHelper,
+    onStart: () -> Unit
+) {
+    onStart()
+    voiceHelper.startListening(
+        context = context,
+        onResult = { _ ->
+            // 结果通过StateFlow传递
+        },
+        onError = { _ ->
+            // 错误通过StateFlow传递
+        }
+    )
+}
+
+@Composable
+fun InputMethodSelector(
+    onCameraClick: () -> Unit,
+    onVoiceClick: () -> Unit,
+    isVoiceListening: Boolean
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // 拍照按钮
+        OutlinedButton(
+            onClick = onCameraClick,
+            modifier = Modifier.weight(1f),
+            shape = MaterialTheme.shapes.medium
+        ) {
+            Icon(Icons.Default.CameraAlt, contentDescription = null)
+            Spacer(modifier = Modifier.width(4.dp))
+            Text("拍照识别")
+        }
+        
+        // 语音按钮
+        OutlinedButton(
+            onClick = onVoiceClick,
+            modifier = Modifier.weight(1f),
+            shape = MaterialTheme.shapes.medium,
+            colors = if (isVoiceListening) {
+                ButtonDefaults.outlinedButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            } else {
+                ButtonDefaults.outlinedButtonColors()
+            }
+        ) {
+            Icon(
+                if (isVoiceListening) Icons.Default.Mic else Icons.Default.MicNone,
+                contentDescription = null
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(if (isVoiceListening) "录音中..." else "语音输入")
         }
     }
 }

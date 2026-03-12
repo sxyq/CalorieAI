@@ -19,6 +19,20 @@ class FoodRecordRepository @Inject constructor(
         return foodRecordDao.getRecordsBetween(startOfDay, endOfDay)
     }
     
+    /**
+     * 获取指定日期范围的记录
+     */
+    fun getRecordsByDateRange(startTime: Long, endTime: Long): Flow<List<FoodRecord>> {
+        return foodRecordDao.getRecordsBetween(startTime, endTime)
+    }
+    
+    /**
+     * 获取指定日期范围的总热量
+     */
+    fun getTotalCaloriesByDateRange(startTime: Long, endTime: Long): Flow<Int?> {
+        return foodRecordDao.getTotalCaloriesBetween(startTime, endTime)
+    }
+    
     fun getRecordsByMealType(mealType: MealType): Flow<List<FoodRecord>> {
         val (startOfDay, endOfDay) = getTodayRange()
         return foodRecordDao.getRecordsByMealType(mealType, startOfDay, endOfDay)

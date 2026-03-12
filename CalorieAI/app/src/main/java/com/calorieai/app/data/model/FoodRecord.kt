@@ -38,6 +38,15 @@ enum class MealType {
     BREAKFAST, LUNCH, DINNER, SNACK
 }
 
+fun getMealTypeName(mealType: MealType): String {
+    return when (mealType) {
+        MealType.BREAKFAST -> "早餐"
+        MealType.LUNCH -> "午餐"
+        MealType.DINNER -> "晚餐"
+        MealType.SNACK -> "加餐"
+    }
+}
+
 enum class ConfidenceLevel {
     HIGH, MEDIUM, LOW
 }

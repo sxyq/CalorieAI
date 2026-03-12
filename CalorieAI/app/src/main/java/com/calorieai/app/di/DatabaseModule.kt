@@ -2,6 +2,7 @@ package com.calorieai.app.di
 
 import android.content.Context
 import androidx.room.Room
+import com.calorieai.app.data.local.AIConfigDao
 import com.calorieai.app.data.local.AppDatabase
 import com.calorieai.app.data.local.FoodRecordDao
 import com.calorieai.app.data.local.UserSettingsDao
@@ -36,5 +37,10 @@ object DatabaseModule {
     @Provides
     fun provideUserSettingsDao(database: AppDatabase): UserSettingsDao {
         return database.userSettingsDao()
+    }
+
+    @Provides
+    fun provideAIConfigDao(database: AppDatabase): AIConfigDao {
+        return database.aiConfigDao()
     }
 }

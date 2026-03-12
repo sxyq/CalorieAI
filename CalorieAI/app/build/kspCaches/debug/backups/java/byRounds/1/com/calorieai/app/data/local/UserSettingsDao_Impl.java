@@ -50,7 +50,7 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "INSERT OR REPLACE INTO `user_settings` (`id`,`dailyCalorieGoal`,`userName`,`userGender`,`userAge`,`userHeight`,`userWeight`,`dietaryPreference`,`breakfastReminderTime`,`lunchReminderTime`,`dinnerReminderTime`,`isNotificationEnabled`,`isDarkMode`,`seedColor`,`selectedAIPresetId`,`customAIEndpoint`,`customAIModel`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        return "INSERT OR REPLACE INTO `user_settings` (`id`,`dailyCalorieGoal`,`userName`,`userGender`,`userAge`,`userHeight`,`userWeight`,`dietaryPreference`,`breakfastReminderTime`,`lunchReminderTime`,`dinnerReminderTime`,`isNotificationEnabled`,`isDarkMode`,`seedColor`,`selectedAIPresetId`,`customAIEndpoint`,`customAIModel`,`themeMode`,`useDeadlinerStyle`,`hideDividers`,`fontSize`,`enableAnimations`,`feedbackType`,`enableVibration`,`enableSound`,`backgroundBehavior`,`startupPage`,`enableQuickAdd`,`enableGoalReminder`,`enableStreakReminder`,`enableAutoBackup`,`lastBackupTime`,`enableCloudSync`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
       }
 
       @Override
@@ -119,13 +119,43 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
         } else {
           statement.bindString(17, entity.getCustomAIModel());
         }
+        statement.bindString(18, entity.getThemeMode());
+        final int _tmp_2 = entity.getUseDeadlinerStyle() ? 1 : 0;
+        statement.bindLong(19, _tmp_2);
+        final int _tmp_3 = entity.getHideDividers() ? 1 : 0;
+        statement.bindLong(20, _tmp_3);
+        statement.bindString(21, entity.getFontSize());
+        final int _tmp_4 = entity.getEnableAnimations() ? 1 : 0;
+        statement.bindLong(22, _tmp_4);
+        statement.bindString(23, entity.getFeedbackType());
+        final int _tmp_5 = entity.getEnableVibration() ? 1 : 0;
+        statement.bindLong(24, _tmp_5);
+        final int _tmp_6 = entity.getEnableSound() ? 1 : 0;
+        statement.bindLong(25, _tmp_6);
+        statement.bindString(26, entity.getBackgroundBehavior());
+        statement.bindString(27, entity.getStartupPage());
+        final int _tmp_7 = entity.getEnableQuickAdd() ? 1 : 0;
+        statement.bindLong(28, _tmp_7);
+        final int _tmp_8 = entity.getEnableGoalReminder() ? 1 : 0;
+        statement.bindLong(29, _tmp_8);
+        final int _tmp_9 = entity.getEnableStreakReminder() ? 1 : 0;
+        statement.bindLong(30, _tmp_9);
+        final int _tmp_10 = entity.getEnableAutoBackup() ? 1 : 0;
+        statement.bindLong(31, _tmp_10);
+        if (entity.getLastBackupTime() == null) {
+          statement.bindNull(32);
+        } else {
+          statement.bindString(32, entity.getLastBackupTime());
+        }
+        final int _tmp_11 = entity.getEnableCloudSync() ? 1 : 0;
+        statement.bindLong(33, _tmp_11);
       }
     };
     this.__updateAdapterOfUserSettings = new EntityDeletionOrUpdateAdapter<UserSettings>(__db) {
       @Override
       @NonNull
       protected String createQuery() {
-        return "UPDATE OR ABORT `user_settings` SET `id` = ?,`dailyCalorieGoal` = ?,`userName` = ?,`userGender` = ?,`userAge` = ?,`userHeight` = ?,`userWeight` = ?,`dietaryPreference` = ?,`breakfastReminderTime` = ?,`lunchReminderTime` = ?,`dinnerReminderTime` = ?,`isNotificationEnabled` = ?,`isDarkMode` = ?,`seedColor` = ?,`selectedAIPresetId` = ?,`customAIEndpoint` = ?,`customAIModel` = ? WHERE `id` = ?";
+        return "UPDATE OR ABORT `user_settings` SET `id` = ?,`dailyCalorieGoal` = ?,`userName` = ?,`userGender` = ?,`userAge` = ?,`userHeight` = ?,`userWeight` = ?,`dietaryPreference` = ?,`breakfastReminderTime` = ?,`lunchReminderTime` = ?,`dinnerReminderTime` = ?,`isNotificationEnabled` = ?,`isDarkMode` = ?,`seedColor` = ?,`selectedAIPresetId` = ?,`customAIEndpoint` = ?,`customAIModel` = ?,`themeMode` = ?,`useDeadlinerStyle` = ?,`hideDividers` = ?,`fontSize` = ?,`enableAnimations` = ?,`feedbackType` = ?,`enableVibration` = ?,`enableSound` = ?,`backgroundBehavior` = ?,`startupPage` = ?,`enableQuickAdd` = ?,`enableGoalReminder` = ?,`enableStreakReminder` = ?,`enableAutoBackup` = ?,`lastBackupTime` = ?,`enableCloudSync` = ? WHERE `id` = ?";
       }
 
       @Override
@@ -194,7 +224,37 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
         } else {
           statement.bindString(17, entity.getCustomAIModel());
         }
-        statement.bindLong(18, entity.getId());
+        statement.bindString(18, entity.getThemeMode());
+        final int _tmp_2 = entity.getUseDeadlinerStyle() ? 1 : 0;
+        statement.bindLong(19, _tmp_2);
+        final int _tmp_3 = entity.getHideDividers() ? 1 : 0;
+        statement.bindLong(20, _tmp_3);
+        statement.bindString(21, entity.getFontSize());
+        final int _tmp_4 = entity.getEnableAnimations() ? 1 : 0;
+        statement.bindLong(22, _tmp_4);
+        statement.bindString(23, entity.getFeedbackType());
+        final int _tmp_5 = entity.getEnableVibration() ? 1 : 0;
+        statement.bindLong(24, _tmp_5);
+        final int _tmp_6 = entity.getEnableSound() ? 1 : 0;
+        statement.bindLong(25, _tmp_6);
+        statement.bindString(26, entity.getBackgroundBehavior());
+        statement.bindString(27, entity.getStartupPage());
+        final int _tmp_7 = entity.getEnableQuickAdd() ? 1 : 0;
+        statement.bindLong(28, _tmp_7);
+        final int _tmp_8 = entity.getEnableGoalReminder() ? 1 : 0;
+        statement.bindLong(29, _tmp_8);
+        final int _tmp_9 = entity.getEnableStreakReminder() ? 1 : 0;
+        statement.bindLong(30, _tmp_9);
+        final int _tmp_10 = entity.getEnableAutoBackup() ? 1 : 0;
+        statement.bindLong(31, _tmp_10);
+        if (entity.getLastBackupTime() == null) {
+          statement.bindNull(32);
+        } else {
+          statement.bindString(32, entity.getLastBackupTime());
+        }
+        final int _tmp_11 = entity.getEnableCloudSync() ? 1 : 0;
+        statement.bindLong(33, _tmp_11);
+        statement.bindLong(34, entity.getId());
       }
     };
     this.__preparedStmtOfUpdateDailyGoal = new SharedSQLiteStatement(__db) {
@@ -217,6 +277,25 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
 
   @Override
   public Object insertSettings(final UserSettings settings,
+      final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        __db.beginTransaction();
+        try {
+          __insertionAdapterOfUserSettings.insert(settings);
+          __db.setTransactionSuccessful();
+          return Unit.INSTANCE;
+        } finally {
+          __db.endTransaction();
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object insertOrUpdate(final UserSettings settings,
       final Continuation<? super Unit> $completion) {
     return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
       @Override
@@ -332,6 +411,22 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
           final int _cursorIndexOfSelectedAIPresetId = CursorUtil.getColumnIndexOrThrow(_cursor, "selectedAIPresetId");
           final int _cursorIndexOfCustomAIEndpoint = CursorUtil.getColumnIndexOrThrow(_cursor, "customAIEndpoint");
           final int _cursorIndexOfCustomAIModel = CursorUtil.getColumnIndexOrThrow(_cursor, "customAIModel");
+          final int _cursorIndexOfThemeMode = CursorUtil.getColumnIndexOrThrow(_cursor, "themeMode");
+          final int _cursorIndexOfUseDeadlinerStyle = CursorUtil.getColumnIndexOrThrow(_cursor, "useDeadlinerStyle");
+          final int _cursorIndexOfHideDividers = CursorUtil.getColumnIndexOrThrow(_cursor, "hideDividers");
+          final int _cursorIndexOfFontSize = CursorUtil.getColumnIndexOrThrow(_cursor, "fontSize");
+          final int _cursorIndexOfEnableAnimations = CursorUtil.getColumnIndexOrThrow(_cursor, "enableAnimations");
+          final int _cursorIndexOfFeedbackType = CursorUtil.getColumnIndexOrThrow(_cursor, "feedbackType");
+          final int _cursorIndexOfEnableVibration = CursorUtil.getColumnIndexOrThrow(_cursor, "enableVibration");
+          final int _cursorIndexOfEnableSound = CursorUtil.getColumnIndexOrThrow(_cursor, "enableSound");
+          final int _cursorIndexOfBackgroundBehavior = CursorUtil.getColumnIndexOrThrow(_cursor, "backgroundBehavior");
+          final int _cursorIndexOfStartupPage = CursorUtil.getColumnIndexOrThrow(_cursor, "startupPage");
+          final int _cursorIndexOfEnableQuickAdd = CursorUtil.getColumnIndexOrThrow(_cursor, "enableQuickAdd");
+          final int _cursorIndexOfEnableGoalReminder = CursorUtil.getColumnIndexOrThrow(_cursor, "enableGoalReminder");
+          final int _cursorIndexOfEnableStreakReminder = CursorUtil.getColumnIndexOrThrow(_cursor, "enableStreakReminder");
+          final int _cursorIndexOfEnableAutoBackup = CursorUtil.getColumnIndexOrThrow(_cursor, "enableAutoBackup");
+          final int _cursorIndexOfLastBackupTime = CursorUtil.getColumnIndexOrThrow(_cursor, "lastBackupTime");
+          final int _cursorIndexOfEnableCloudSync = CursorUtil.getColumnIndexOrThrow(_cursor, "enableCloudSync");
           final UserSettings _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -416,7 +511,63 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
             } else {
               _tmpCustomAIModel = _cursor.getString(_cursorIndexOfCustomAIModel);
             }
-            _result = new UserSettings(_tmpId,_tmpDailyCalorieGoal,_tmpUserName,_tmpUserGender,_tmpUserAge,_tmpUserHeight,_tmpUserWeight,_tmpDietaryPreference,_tmpBreakfastReminderTime,_tmpLunchReminderTime,_tmpDinnerReminderTime,_tmpIsNotificationEnabled,_tmpIsDarkMode,_tmpSeedColor,_tmpSelectedAIPresetId,_tmpCustomAIEndpoint,_tmpCustomAIModel);
+            final String _tmpThemeMode;
+            _tmpThemeMode = _cursor.getString(_cursorIndexOfThemeMode);
+            final boolean _tmpUseDeadlinerStyle;
+            final int _tmp_2;
+            _tmp_2 = _cursor.getInt(_cursorIndexOfUseDeadlinerStyle);
+            _tmpUseDeadlinerStyle = _tmp_2 != 0;
+            final boolean _tmpHideDividers;
+            final int _tmp_3;
+            _tmp_3 = _cursor.getInt(_cursorIndexOfHideDividers);
+            _tmpHideDividers = _tmp_3 != 0;
+            final String _tmpFontSize;
+            _tmpFontSize = _cursor.getString(_cursorIndexOfFontSize);
+            final boolean _tmpEnableAnimations;
+            final int _tmp_4;
+            _tmp_4 = _cursor.getInt(_cursorIndexOfEnableAnimations);
+            _tmpEnableAnimations = _tmp_4 != 0;
+            final String _tmpFeedbackType;
+            _tmpFeedbackType = _cursor.getString(_cursorIndexOfFeedbackType);
+            final boolean _tmpEnableVibration;
+            final int _tmp_5;
+            _tmp_5 = _cursor.getInt(_cursorIndexOfEnableVibration);
+            _tmpEnableVibration = _tmp_5 != 0;
+            final boolean _tmpEnableSound;
+            final int _tmp_6;
+            _tmp_6 = _cursor.getInt(_cursorIndexOfEnableSound);
+            _tmpEnableSound = _tmp_6 != 0;
+            final String _tmpBackgroundBehavior;
+            _tmpBackgroundBehavior = _cursor.getString(_cursorIndexOfBackgroundBehavior);
+            final String _tmpStartupPage;
+            _tmpStartupPage = _cursor.getString(_cursorIndexOfStartupPage);
+            final boolean _tmpEnableQuickAdd;
+            final int _tmp_7;
+            _tmp_7 = _cursor.getInt(_cursorIndexOfEnableQuickAdd);
+            _tmpEnableQuickAdd = _tmp_7 != 0;
+            final boolean _tmpEnableGoalReminder;
+            final int _tmp_8;
+            _tmp_8 = _cursor.getInt(_cursorIndexOfEnableGoalReminder);
+            _tmpEnableGoalReminder = _tmp_8 != 0;
+            final boolean _tmpEnableStreakReminder;
+            final int _tmp_9;
+            _tmp_9 = _cursor.getInt(_cursorIndexOfEnableStreakReminder);
+            _tmpEnableStreakReminder = _tmp_9 != 0;
+            final boolean _tmpEnableAutoBackup;
+            final int _tmp_10;
+            _tmp_10 = _cursor.getInt(_cursorIndexOfEnableAutoBackup);
+            _tmpEnableAutoBackup = _tmp_10 != 0;
+            final String _tmpLastBackupTime;
+            if (_cursor.isNull(_cursorIndexOfLastBackupTime)) {
+              _tmpLastBackupTime = null;
+            } else {
+              _tmpLastBackupTime = _cursor.getString(_cursorIndexOfLastBackupTime);
+            }
+            final boolean _tmpEnableCloudSync;
+            final int _tmp_11;
+            _tmp_11 = _cursor.getInt(_cursorIndexOfEnableCloudSync);
+            _tmpEnableCloudSync = _tmp_11 != 0;
+            _result = new UserSettings(_tmpId,_tmpDailyCalorieGoal,_tmpUserName,_tmpUserGender,_tmpUserAge,_tmpUserHeight,_tmpUserWeight,_tmpDietaryPreference,_tmpBreakfastReminderTime,_tmpLunchReminderTime,_tmpDinnerReminderTime,_tmpIsNotificationEnabled,_tmpIsDarkMode,_tmpSeedColor,_tmpSelectedAIPresetId,_tmpCustomAIEndpoint,_tmpCustomAIModel,_tmpThemeMode,_tmpUseDeadlinerStyle,_tmpHideDividers,_tmpFontSize,_tmpEnableAnimations,_tmpFeedbackType,_tmpEnableVibration,_tmpEnableSound,_tmpBackgroundBehavior,_tmpStartupPage,_tmpEnableQuickAdd,_tmpEnableGoalReminder,_tmpEnableStreakReminder,_tmpEnableAutoBackup,_tmpLastBackupTime,_tmpEnableCloudSync);
           } else {
             _result = null;
           }
@@ -461,6 +612,22 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
           final int _cursorIndexOfSelectedAIPresetId = CursorUtil.getColumnIndexOrThrow(_cursor, "selectedAIPresetId");
           final int _cursorIndexOfCustomAIEndpoint = CursorUtil.getColumnIndexOrThrow(_cursor, "customAIEndpoint");
           final int _cursorIndexOfCustomAIModel = CursorUtil.getColumnIndexOrThrow(_cursor, "customAIModel");
+          final int _cursorIndexOfThemeMode = CursorUtil.getColumnIndexOrThrow(_cursor, "themeMode");
+          final int _cursorIndexOfUseDeadlinerStyle = CursorUtil.getColumnIndexOrThrow(_cursor, "useDeadlinerStyle");
+          final int _cursorIndexOfHideDividers = CursorUtil.getColumnIndexOrThrow(_cursor, "hideDividers");
+          final int _cursorIndexOfFontSize = CursorUtil.getColumnIndexOrThrow(_cursor, "fontSize");
+          final int _cursorIndexOfEnableAnimations = CursorUtil.getColumnIndexOrThrow(_cursor, "enableAnimations");
+          final int _cursorIndexOfFeedbackType = CursorUtil.getColumnIndexOrThrow(_cursor, "feedbackType");
+          final int _cursorIndexOfEnableVibration = CursorUtil.getColumnIndexOrThrow(_cursor, "enableVibration");
+          final int _cursorIndexOfEnableSound = CursorUtil.getColumnIndexOrThrow(_cursor, "enableSound");
+          final int _cursorIndexOfBackgroundBehavior = CursorUtil.getColumnIndexOrThrow(_cursor, "backgroundBehavior");
+          final int _cursorIndexOfStartupPage = CursorUtil.getColumnIndexOrThrow(_cursor, "startupPage");
+          final int _cursorIndexOfEnableQuickAdd = CursorUtil.getColumnIndexOrThrow(_cursor, "enableQuickAdd");
+          final int _cursorIndexOfEnableGoalReminder = CursorUtil.getColumnIndexOrThrow(_cursor, "enableGoalReminder");
+          final int _cursorIndexOfEnableStreakReminder = CursorUtil.getColumnIndexOrThrow(_cursor, "enableStreakReminder");
+          final int _cursorIndexOfEnableAutoBackup = CursorUtil.getColumnIndexOrThrow(_cursor, "enableAutoBackup");
+          final int _cursorIndexOfLastBackupTime = CursorUtil.getColumnIndexOrThrow(_cursor, "lastBackupTime");
+          final int _cursorIndexOfEnableCloudSync = CursorUtil.getColumnIndexOrThrow(_cursor, "enableCloudSync");
           final UserSettings _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -545,7 +712,260 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
             } else {
               _tmpCustomAIModel = _cursor.getString(_cursorIndexOfCustomAIModel);
             }
-            _result = new UserSettings(_tmpId,_tmpDailyCalorieGoal,_tmpUserName,_tmpUserGender,_tmpUserAge,_tmpUserHeight,_tmpUserWeight,_tmpDietaryPreference,_tmpBreakfastReminderTime,_tmpLunchReminderTime,_tmpDinnerReminderTime,_tmpIsNotificationEnabled,_tmpIsDarkMode,_tmpSeedColor,_tmpSelectedAIPresetId,_tmpCustomAIEndpoint,_tmpCustomAIModel);
+            final String _tmpThemeMode;
+            _tmpThemeMode = _cursor.getString(_cursorIndexOfThemeMode);
+            final boolean _tmpUseDeadlinerStyle;
+            final int _tmp_2;
+            _tmp_2 = _cursor.getInt(_cursorIndexOfUseDeadlinerStyle);
+            _tmpUseDeadlinerStyle = _tmp_2 != 0;
+            final boolean _tmpHideDividers;
+            final int _tmp_3;
+            _tmp_3 = _cursor.getInt(_cursorIndexOfHideDividers);
+            _tmpHideDividers = _tmp_3 != 0;
+            final String _tmpFontSize;
+            _tmpFontSize = _cursor.getString(_cursorIndexOfFontSize);
+            final boolean _tmpEnableAnimations;
+            final int _tmp_4;
+            _tmp_4 = _cursor.getInt(_cursorIndexOfEnableAnimations);
+            _tmpEnableAnimations = _tmp_4 != 0;
+            final String _tmpFeedbackType;
+            _tmpFeedbackType = _cursor.getString(_cursorIndexOfFeedbackType);
+            final boolean _tmpEnableVibration;
+            final int _tmp_5;
+            _tmp_5 = _cursor.getInt(_cursorIndexOfEnableVibration);
+            _tmpEnableVibration = _tmp_5 != 0;
+            final boolean _tmpEnableSound;
+            final int _tmp_6;
+            _tmp_6 = _cursor.getInt(_cursorIndexOfEnableSound);
+            _tmpEnableSound = _tmp_6 != 0;
+            final String _tmpBackgroundBehavior;
+            _tmpBackgroundBehavior = _cursor.getString(_cursorIndexOfBackgroundBehavior);
+            final String _tmpStartupPage;
+            _tmpStartupPage = _cursor.getString(_cursorIndexOfStartupPage);
+            final boolean _tmpEnableQuickAdd;
+            final int _tmp_7;
+            _tmp_7 = _cursor.getInt(_cursorIndexOfEnableQuickAdd);
+            _tmpEnableQuickAdd = _tmp_7 != 0;
+            final boolean _tmpEnableGoalReminder;
+            final int _tmp_8;
+            _tmp_8 = _cursor.getInt(_cursorIndexOfEnableGoalReminder);
+            _tmpEnableGoalReminder = _tmp_8 != 0;
+            final boolean _tmpEnableStreakReminder;
+            final int _tmp_9;
+            _tmp_9 = _cursor.getInt(_cursorIndexOfEnableStreakReminder);
+            _tmpEnableStreakReminder = _tmp_9 != 0;
+            final boolean _tmpEnableAutoBackup;
+            final int _tmp_10;
+            _tmp_10 = _cursor.getInt(_cursorIndexOfEnableAutoBackup);
+            _tmpEnableAutoBackup = _tmp_10 != 0;
+            final String _tmpLastBackupTime;
+            if (_cursor.isNull(_cursorIndexOfLastBackupTime)) {
+              _tmpLastBackupTime = null;
+            } else {
+              _tmpLastBackupTime = _cursor.getString(_cursorIndexOfLastBackupTime);
+            }
+            final boolean _tmpEnableCloudSync;
+            final int _tmp_11;
+            _tmp_11 = _cursor.getInt(_cursorIndexOfEnableCloudSync);
+            _tmpEnableCloudSync = _tmp_11 != 0;
+            _result = new UserSettings(_tmpId,_tmpDailyCalorieGoal,_tmpUserName,_tmpUserGender,_tmpUserAge,_tmpUserHeight,_tmpUserWeight,_tmpDietaryPreference,_tmpBreakfastReminderTime,_tmpLunchReminderTime,_tmpDinnerReminderTime,_tmpIsNotificationEnabled,_tmpIsDarkMode,_tmpSeedColor,_tmpSelectedAIPresetId,_tmpCustomAIEndpoint,_tmpCustomAIModel,_tmpThemeMode,_tmpUseDeadlinerStyle,_tmpHideDividers,_tmpFontSize,_tmpEnableAnimations,_tmpFeedbackType,_tmpEnableVibration,_tmpEnableSound,_tmpBackgroundBehavior,_tmpStartupPage,_tmpEnableQuickAdd,_tmpEnableGoalReminder,_tmpEnableStreakReminder,_tmpEnableAutoBackup,_tmpLastBackupTime,_tmpEnableCloudSync);
+          } else {
+            _result = null;
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object getSettingsOnce(final Continuation<? super UserSettings> $completion) {
+    final String _sql = "SELECT * FROM user_settings WHERE id = 1";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<UserSettings>() {
+      @Override
+      @Nullable
+      public UserSettings call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfDailyCalorieGoal = CursorUtil.getColumnIndexOrThrow(_cursor, "dailyCalorieGoal");
+          final int _cursorIndexOfUserName = CursorUtil.getColumnIndexOrThrow(_cursor, "userName");
+          final int _cursorIndexOfUserGender = CursorUtil.getColumnIndexOrThrow(_cursor, "userGender");
+          final int _cursorIndexOfUserAge = CursorUtil.getColumnIndexOrThrow(_cursor, "userAge");
+          final int _cursorIndexOfUserHeight = CursorUtil.getColumnIndexOrThrow(_cursor, "userHeight");
+          final int _cursorIndexOfUserWeight = CursorUtil.getColumnIndexOrThrow(_cursor, "userWeight");
+          final int _cursorIndexOfDietaryPreference = CursorUtil.getColumnIndexOrThrow(_cursor, "dietaryPreference");
+          final int _cursorIndexOfBreakfastReminderTime = CursorUtil.getColumnIndexOrThrow(_cursor, "breakfastReminderTime");
+          final int _cursorIndexOfLunchReminderTime = CursorUtil.getColumnIndexOrThrow(_cursor, "lunchReminderTime");
+          final int _cursorIndexOfDinnerReminderTime = CursorUtil.getColumnIndexOrThrow(_cursor, "dinnerReminderTime");
+          final int _cursorIndexOfIsNotificationEnabled = CursorUtil.getColumnIndexOrThrow(_cursor, "isNotificationEnabled");
+          final int _cursorIndexOfIsDarkMode = CursorUtil.getColumnIndexOrThrow(_cursor, "isDarkMode");
+          final int _cursorIndexOfSeedColor = CursorUtil.getColumnIndexOrThrow(_cursor, "seedColor");
+          final int _cursorIndexOfSelectedAIPresetId = CursorUtil.getColumnIndexOrThrow(_cursor, "selectedAIPresetId");
+          final int _cursorIndexOfCustomAIEndpoint = CursorUtil.getColumnIndexOrThrow(_cursor, "customAIEndpoint");
+          final int _cursorIndexOfCustomAIModel = CursorUtil.getColumnIndexOrThrow(_cursor, "customAIModel");
+          final int _cursorIndexOfThemeMode = CursorUtil.getColumnIndexOrThrow(_cursor, "themeMode");
+          final int _cursorIndexOfUseDeadlinerStyle = CursorUtil.getColumnIndexOrThrow(_cursor, "useDeadlinerStyle");
+          final int _cursorIndexOfHideDividers = CursorUtil.getColumnIndexOrThrow(_cursor, "hideDividers");
+          final int _cursorIndexOfFontSize = CursorUtil.getColumnIndexOrThrow(_cursor, "fontSize");
+          final int _cursorIndexOfEnableAnimations = CursorUtil.getColumnIndexOrThrow(_cursor, "enableAnimations");
+          final int _cursorIndexOfFeedbackType = CursorUtil.getColumnIndexOrThrow(_cursor, "feedbackType");
+          final int _cursorIndexOfEnableVibration = CursorUtil.getColumnIndexOrThrow(_cursor, "enableVibration");
+          final int _cursorIndexOfEnableSound = CursorUtil.getColumnIndexOrThrow(_cursor, "enableSound");
+          final int _cursorIndexOfBackgroundBehavior = CursorUtil.getColumnIndexOrThrow(_cursor, "backgroundBehavior");
+          final int _cursorIndexOfStartupPage = CursorUtil.getColumnIndexOrThrow(_cursor, "startupPage");
+          final int _cursorIndexOfEnableQuickAdd = CursorUtil.getColumnIndexOrThrow(_cursor, "enableQuickAdd");
+          final int _cursorIndexOfEnableGoalReminder = CursorUtil.getColumnIndexOrThrow(_cursor, "enableGoalReminder");
+          final int _cursorIndexOfEnableStreakReminder = CursorUtil.getColumnIndexOrThrow(_cursor, "enableStreakReminder");
+          final int _cursorIndexOfEnableAutoBackup = CursorUtil.getColumnIndexOrThrow(_cursor, "enableAutoBackup");
+          final int _cursorIndexOfLastBackupTime = CursorUtil.getColumnIndexOrThrow(_cursor, "lastBackupTime");
+          final int _cursorIndexOfEnableCloudSync = CursorUtil.getColumnIndexOrThrow(_cursor, "enableCloudSync");
+          final UserSettings _result;
+          if (_cursor.moveToFirst()) {
+            final int _tmpId;
+            _tmpId = _cursor.getInt(_cursorIndexOfId);
+            final int _tmpDailyCalorieGoal;
+            _tmpDailyCalorieGoal = _cursor.getInt(_cursorIndexOfDailyCalorieGoal);
+            final String _tmpUserName;
+            if (_cursor.isNull(_cursorIndexOfUserName)) {
+              _tmpUserName = null;
+            } else {
+              _tmpUserName = _cursor.getString(_cursorIndexOfUserName);
+            }
+            final String _tmpUserGender;
+            if (_cursor.isNull(_cursorIndexOfUserGender)) {
+              _tmpUserGender = null;
+            } else {
+              _tmpUserGender = _cursor.getString(_cursorIndexOfUserGender);
+            }
+            final Integer _tmpUserAge;
+            if (_cursor.isNull(_cursorIndexOfUserAge)) {
+              _tmpUserAge = null;
+            } else {
+              _tmpUserAge = _cursor.getInt(_cursorIndexOfUserAge);
+            }
+            final Float _tmpUserHeight;
+            if (_cursor.isNull(_cursorIndexOfUserHeight)) {
+              _tmpUserHeight = null;
+            } else {
+              _tmpUserHeight = _cursor.getFloat(_cursorIndexOfUserHeight);
+            }
+            final Float _tmpUserWeight;
+            if (_cursor.isNull(_cursorIndexOfUserWeight)) {
+              _tmpUserWeight = null;
+            } else {
+              _tmpUserWeight = _cursor.getFloat(_cursorIndexOfUserWeight);
+            }
+            final String _tmpDietaryPreference;
+            if (_cursor.isNull(_cursorIndexOfDietaryPreference)) {
+              _tmpDietaryPreference = null;
+            } else {
+              _tmpDietaryPreference = _cursor.getString(_cursorIndexOfDietaryPreference);
+            }
+            final String _tmpBreakfastReminderTime;
+            _tmpBreakfastReminderTime = _cursor.getString(_cursorIndexOfBreakfastReminderTime);
+            final String _tmpLunchReminderTime;
+            _tmpLunchReminderTime = _cursor.getString(_cursorIndexOfLunchReminderTime);
+            final String _tmpDinnerReminderTime;
+            _tmpDinnerReminderTime = _cursor.getString(_cursorIndexOfDinnerReminderTime);
+            final boolean _tmpIsNotificationEnabled;
+            final int _tmp;
+            _tmp = _cursor.getInt(_cursorIndexOfIsNotificationEnabled);
+            _tmpIsNotificationEnabled = _tmp != 0;
+            final Boolean _tmpIsDarkMode;
+            final Integer _tmp_1;
+            if (_cursor.isNull(_cursorIndexOfIsDarkMode)) {
+              _tmp_1 = null;
+            } else {
+              _tmp_1 = _cursor.getInt(_cursorIndexOfIsDarkMode);
+            }
+            _tmpIsDarkMode = _tmp_1 == null ? null : _tmp_1 != 0;
+            final String _tmpSeedColor;
+            if (_cursor.isNull(_cursorIndexOfSeedColor)) {
+              _tmpSeedColor = null;
+            } else {
+              _tmpSeedColor = _cursor.getString(_cursorIndexOfSeedColor);
+            }
+            final String _tmpSelectedAIPresetId;
+            if (_cursor.isNull(_cursorIndexOfSelectedAIPresetId)) {
+              _tmpSelectedAIPresetId = null;
+            } else {
+              _tmpSelectedAIPresetId = _cursor.getString(_cursorIndexOfSelectedAIPresetId);
+            }
+            final String _tmpCustomAIEndpoint;
+            if (_cursor.isNull(_cursorIndexOfCustomAIEndpoint)) {
+              _tmpCustomAIEndpoint = null;
+            } else {
+              _tmpCustomAIEndpoint = _cursor.getString(_cursorIndexOfCustomAIEndpoint);
+            }
+            final String _tmpCustomAIModel;
+            if (_cursor.isNull(_cursorIndexOfCustomAIModel)) {
+              _tmpCustomAIModel = null;
+            } else {
+              _tmpCustomAIModel = _cursor.getString(_cursorIndexOfCustomAIModel);
+            }
+            final String _tmpThemeMode;
+            _tmpThemeMode = _cursor.getString(_cursorIndexOfThemeMode);
+            final boolean _tmpUseDeadlinerStyle;
+            final int _tmp_2;
+            _tmp_2 = _cursor.getInt(_cursorIndexOfUseDeadlinerStyle);
+            _tmpUseDeadlinerStyle = _tmp_2 != 0;
+            final boolean _tmpHideDividers;
+            final int _tmp_3;
+            _tmp_3 = _cursor.getInt(_cursorIndexOfHideDividers);
+            _tmpHideDividers = _tmp_3 != 0;
+            final String _tmpFontSize;
+            _tmpFontSize = _cursor.getString(_cursorIndexOfFontSize);
+            final boolean _tmpEnableAnimations;
+            final int _tmp_4;
+            _tmp_4 = _cursor.getInt(_cursorIndexOfEnableAnimations);
+            _tmpEnableAnimations = _tmp_4 != 0;
+            final String _tmpFeedbackType;
+            _tmpFeedbackType = _cursor.getString(_cursorIndexOfFeedbackType);
+            final boolean _tmpEnableVibration;
+            final int _tmp_5;
+            _tmp_5 = _cursor.getInt(_cursorIndexOfEnableVibration);
+            _tmpEnableVibration = _tmp_5 != 0;
+            final boolean _tmpEnableSound;
+            final int _tmp_6;
+            _tmp_6 = _cursor.getInt(_cursorIndexOfEnableSound);
+            _tmpEnableSound = _tmp_6 != 0;
+            final String _tmpBackgroundBehavior;
+            _tmpBackgroundBehavior = _cursor.getString(_cursorIndexOfBackgroundBehavior);
+            final String _tmpStartupPage;
+            _tmpStartupPage = _cursor.getString(_cursorIndexOfStartupPage);
+            final boolean _tmpEnableQuickAdd;
+            final int _tmp_7;
+            _tmp_7 = _cursor.getInt(_cursorIndexOfEnableQuickAdd);
+            _tmpEnableQuickAdd = _tmp_7 != 0;
+            final boolean _tmpEnableGoalReminder;
+            final int _tmp_8;
+            _tmp_8 = _cursor.getInt(_cursorIndexOfEnableGoalReminder);
+            _tmpEnableGoalReminder = _tmp_8 != 0;
+            final boolean _tmpEnableStreakReminder;
+            final int _tmp_9;
+            _tmp_9 = _cursor.getInt(_cursorIndexOfEnableStreakReminder);
+            _tmpEnableStreakReminder = _tmp_9 != 0;
+            final boolean _tmpEnableAutoBackup;
+            final int _tmp_10;
+            _tmp_10 = _cursor.getInt(_cursorIndexOfEnableAutoBackup);
+            _tmpEnableAutoBackup = _tmp_10 != 0;
+            final String _tmpLastBackupTime;
+            if (_cursor.isNull(_cursorIndexOfLastBackupTime)) {
+              _tmpLastBackupTime = null;
+            } else {
+              _tmpLastBackupTime = _cursor.getString(_cursorIndexOfLastBackupTime);
+            }
+            final boolean _tmpEnableCloudSync;
+            final int _tmp_11;
+            _tmp_11 = _cursor.getInt(_cursorIndexOfEnableCloudSync);
+            _tmpEnableCloudSync = _tmp_11 != 0;
+            _result = new UserSettings(_tmpId,_tmpDailyCalorieGoal,_tmpUserName,_tmpUserGender,_tmpUserAge,_tmpUserHeight,_tmpUserWeight,_tmpDietaryPreference,_tmpBreakfastReminderTime,_tmpLunchReminderTime,_tmpDinnerReminderTime,_tmpIsNotificationEnabled,_tmpIsDarkMode,_tmpSeedColor,_tmpSelectedAIPresetId,_tmpCustomAIEndpoint,_tmpCustomAIModel,_tmpThemeMode,_tmpUseDeadlinerStyle,_tmpHideDividers,_tmpFontSize,_tmpEnableAnimations,_tmpFeedbackType,_tmpEnableVibration,_tmpEnableSound,_tmpBackgroundBehavior,_tmpStartupPage,_tmpEnableQuickAdd,_tmpEnableGoalReminder,_tmpEnableStreakReminder,_tmpEnableAutoBackup,_tmpLastBackupTime,_tmpEnableCloudSync);
           } else {
             _result = null;
           }

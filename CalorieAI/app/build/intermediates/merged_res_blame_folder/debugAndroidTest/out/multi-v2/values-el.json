@@ -4,7 +4,7 @@
             "outputFile": "com.calorieai.app.test.app-mergeDebugAndroidTestResources-32:/values-el/values-el.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-3\\93a0fd1d519d00e9da6ed4cb0cb4a756\\transformed\\core-1.12.0\\res\\values-el\\values-el.xml",
+                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-4\\219ebf25f09919852cc9e84ba0e5f515\\transformed\\core-1.12.0\\res\\values-el\\values-el.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",
@@ -21,7 +21,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-3\\48d21db80fc0ddc1ec3742a40467c2eb\\transformed\\ui-release\\res\\values-el\\values-el.xml",
+                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-4\\4a200dab6a50e10d003bc76692f64b32\\transformed\\ui-release\\res\\values-el\\values-el.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",

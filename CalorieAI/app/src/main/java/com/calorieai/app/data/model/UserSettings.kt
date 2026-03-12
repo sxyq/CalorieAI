@@ -22,5 +22,25 @@ data class UserSettings(
     val seedColor: String? = null,
     val selectedAIPresetId: String? = null,
     val customAIEndpoint: String? = null,
-    val customAIModel: String? = null
+    val customAIModel: String? = null,
+    // 界面外观设置
+    val themeMode: String = "SYSTEM",  // LIGHT, DARK, SYSTEM
+    val useDeadlinerStyle: Boolean = true,
+    val hideDividers: Boolean = false,
+    val fontSize: String = "MEDIUM",  // SMALL, MEDIUM, LARGE
+    val enableAnimations: Boolean = true,
+    // 交互与行为设置
+    val feedbackType: String = "BOTH",  // NONE, VIBRATION, SOUND, BOTH
+    val enableVibration: Boolean = true,
+    val enableSound: Boolean = false,
+    val backgroundBehavior: String = "STANDARD",  // STANDARD, KEEP_ALIVE, BATTERY_SAVER
+    val startupPage: String = "HOME",  // HOME, STATS, ADD
+    val enableQuickAdd: Boolean = false,
+    // 通知设置
+    val enableGoalReminder: Boolean = true,
+    val enableStreakReminder: Boolean = false,
+    // 备份设置
+    val enableAutoBackup: Boolean = false,
+    val lastBackupTime: String? = null,
+    val enableCloudSync: Boolean = false
 )

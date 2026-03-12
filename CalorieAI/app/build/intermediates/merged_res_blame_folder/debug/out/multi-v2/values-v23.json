@@ -4,7 +4,36 @@
             "outputFile": "com.calorieai.app-mergeDebugResources-84:/values-v23/values-v23.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-3\\3097de27c8abd91865db802d9f0a0a4f\\transformed\\appcompat-1.6.1\\res\\values-v23\\values-v23.xml",
+                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-4\\16af5895447453bef2341c726d97e607\\transformed\\work-runtime-2.9.0\\res\\values-v23\\values-v23.xml",
+                    "from": {
+                        "startLines": "2,3",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,121",
+                        "endColumns": "65,62",
+                        "endOffsets": "116,179"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-4\\7f45304220aeea7cedfbc49ddecd0fc7\\transformed\\material-1.11.0\\res\\values-v23\\values-v23.xml",
+                    "from": {
+                        "startLines": "2,5,9,13,16,19,22,25,28,32",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,271,413,574,784,991,1198,1401,1603,1868",
+                        "endLines": "4,8,12,15,18,21,24,27,31,35",
+                        "endColumns": "10,10,10,10,10,10,10,10,10,10",
+                        "endOffsets": "266,408,569,779,986,1193,1396,1598,1863,2136"
+                    },
+                    "to": {
+                        "startLines": "55,58,62,66,69,72,75,78,81,85",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "3511,3727,3869,4030,4240,4447,4654,4857,5059,5324",
+                        "endLines": "57,61,65,68,71,74,77,80,84,88",
+                        "endColumns": "10,10,10,10,10,10,10,10,10,10",
+                        "endOffsets": "3722,3864,4025,4235,4442,4649,4852,5054,5319,5592"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-4\\22fcaa70593b070ea38c308142add73c\\transformed\\appcompat-1.6.1\\res\\values-v23\\values-v23.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,20,34,35,36,39,43,44,45,46",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -23,17 +52,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-3\\f3e4e9d5ce232d7d8c6de19e5544fa40\\transformed\\work-runtime-2.9.0\\res\\values-v23\\values-v23.xml",
-                    "from": {
-                        "startLines": "2,3",
-                        "startColumns": "4,4",
-                        "startOffsets": "55,121",
-                        "endColumns": "65,62",
-                        "endOffsets": "116,179"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-3\\2101d5e518fc5b42367eeefedc6597df\\transformed\\cardview-1.0.0\\res\\values-v23\\values-v23.xml",
+                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-4\\b9be673078a04734f0d906d38349cf72\\transformed\\cardview-1.0.0\\res\\values-v23\\values-v23.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
@@ -49,25 +68,6 @@
                         "endLines": "54",
                         "endColumns": "12",
                         "endOffsets": "3506"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-3\\b7755591c82a1b20e4cb856c0b554751\\transformed\\material-1.11.0\\res\\values-v23\\values-v23.xml",
-                    "from": {
-                        "startLines": "2,5,9,13,16,19,22,25,28,32",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "55,271,413,574,784,991,1198,1401,1603,1868",
-                        "endLines": "4,8,12,15,18,21,24,27,31,35",
-                        "endColumns": "10,10,10,10,10,10,10,10,10,10",
-                        "endOffsets": "266,408,569,779,986,1193,1396,1598,1863,2136"
-                    },
-                    "to": {
-                        "startLines": "55,58,62,66,69,72,75,78,81,85",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "3511,3727,3869,4030,4240,4447,4654,4857,5059,5324",
-                        "endLines": "57,61,65,68,71,74,77,80,84,88",
-                        "endColumns": "10,10,10,10,10,10,10,10,10,10",
-                        "endOffsets": "3722,3864,4025,4235,4442,4649,4852,5054,5319,5592"
                     }
                 }
             ]

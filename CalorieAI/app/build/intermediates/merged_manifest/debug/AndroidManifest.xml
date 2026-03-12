@@ -101,6 +101,14 @@
                 android:name="androidx.camera.core.impl.MetadataHolderService.DEFAULT_CONFIG_PROVIDER"
                 android:value="androidx.camera.camera2.Camera2Config$DefaultProvider" />
         </service>
+
+        <activity
+            android:name="androidx.compose.ui.tooling.PreviewActivity"
+            android:exported="true" />
+        <activity
+            android:name="androidx.activity.ComponentActivity"
+            android:exported="true" />
+
         <service
             android:name="com.google.mlkit.common.internal.MlKitComponentDiscoveryService"
             android:directBootAware="true"
@@ -126,11 +134,6 @@
             android:name="com.google.android.gms.common.api.GoogleApiActivity"
             android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
-
-        <service
-            android:name="androidx.room.MultiInstanceInvalidationService"
-            android:directBootAware="true"
-            android:exported="false" />
 
         <provider
             android:name="androidx.startup.InitializationProvider"
@@ -242,12 +245,10 @@
             </intent-filter>
         </receiver>
 
-        <activity
-            android:name="androidx.activity.ComponentActivity"
-            android:exported="true" />
-        <activity
-            android:name="androidx.compose.ui.tooling.PreviewActivity"
-            android:exported="true" />
+        <service
+            android:name="androidx.room.MultiInstanceInvalidationService"
+            android:directBootAware="true"
+            android:exported="false" />
 
         <meta-data
             android:name="com.google.android.gms.version"

@@ -1,6 +1,6 @@
 package com.calorieai.app.ui.screens.settings;
 
-import com.calorieai.app.service.backup.BackupManager;
+import com.calorieai.app.data.repository.UserSettingsRepository;
 import dagger.internal.DaggerGenerated;
 import dagger.internal.Factory;
 import dagger.internal.QualifierMetadata;
@@ -22,22 +22,24 @@ import javax.inject.Provider;
     "KotlinInternalInJava"
 })
 public final class SettingsViewModel_Factory implements Factory<SettingsViewModel> {
-  private final Provider<BackupManager> backupManagerProvider;
+  private final Provider<UserSettingsRepository> userSettingsRepositoryProvider;
 
-  public SettingsViewModel_Factory(Provider<BackupManager> backupManagerProvider) {
-    this.backupManagerProvider = backupManagerProvider;
+  public SettingsViewModel_Factory(
+      Provider<UserSettingsRepository> userSettingsRepositoryProvider) {
+    this.userSettingsRepositoryProvider = userSettingsRepositoryProvider;
   }
 
   @Override
   public SettingsViewModel get() {
-    return newInstance(backupManagerProvider.get());
+    return newInstance(userSettingsRepositoryProvider.get());
   }
 
-  public static SettingsViewModel_Factory create(Provider<BackupManager> backupManagerProvider) {
-    return new SettingsViewModel_Factory(backupManagerProvider);
+  public static SettingsViewModel_Factory create(
+      Provider<UserSettingsRepository> userSettingsRepositoryProvider) {
+    return new SettingsViewModel_Factory(userSettingsRepositoryProvider);
   }
 
-  public static SettingsViewModel newInstance(BackupManager backupManager) {
-    return new SettingsViewModel(backupManager);
+  public static SettingsViewModel newInstance(UserSettingsRepository userSettingsRepository) {
+    return new SettingsViewModel(userSettingsRepository);
   }
 }
