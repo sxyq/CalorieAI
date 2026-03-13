@@ -63,7 +63,8 @@ class HomeViewModel @Inject constructor(
                         dailyGoal = it.dailyCalorieGoal,
                         bmr = bmr,
                         tdee = tdee,
-                        currentWeight = currentWeight
+                        currentWeight = currentWeight,
+                        showAIWidget = it.showAIWidget
                     )
                 }
             }.collect()
@@ -219,5 +220,6 @@ data class HomeUiState(
     val tdee: Int = 0,
     val currentWeight: Float? = null,
     val calorieData: Map<LocalDate, Int> = emptyMap(),
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val showAIWidget: Boolean = true
 )

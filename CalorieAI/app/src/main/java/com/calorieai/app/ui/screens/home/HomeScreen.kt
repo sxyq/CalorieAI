@@ -84,10 +84,12 @@ fun HomeScreen(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // AI聊天小窗口按钮
-                AIChatWidget(
-                    onExpandToFullScreen = onNavigateToAIChat
-                )
+                // AI聊天小窗口按钮（根据设置显示/隐藏）
+                if (uiState.showAIWidget) {
+                    AIChatWidget(
+                        onExpandToFullScreen = onNavigateToAIChat
+                    )
+                }
 
                 // 添加按钮
                 FloatingActionButton(

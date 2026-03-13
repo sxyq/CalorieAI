@@ -50,7 +50,7 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "INSERT OR REPLACE INTO `user_settings` (`id`,`dailyCalorieGoal`,`userName`,`userId`,`userGender`,`userAge`,`userHeight`,`userWeight`,`activityLevel`,`dietaryPreference`,`breakfastReminderTime`,`lunchReminderTime`,`dinnerReminderTime`,`isNotificationEnabled`,`isDarkMode`,`seedColor`,`selectedAIPresetId`,`customAIEndpoint`,`customAIModel`,`themeMode`,`useDeadlinerStyle`,`hideDividers`,`fontSize`,`enableAnimations`,`feedbackType`,`enableVibration`,`enableSound`,`backgroundBehavior`,`startupPage`,`enableQuickAdd`,`enableGoalReminder`,`enableStreakReminder`,`enableAutoBackup`,`lastBackupTime`,`enableCloudSync`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        return "INSERT OR REPLACE INTO `user_settings` (`id`,`dailyCalorieGoal`,`userName`,`userId`,`userGender`,`userAge`,`userHeight`,`userWeight`,`activityLevel`,`dietaryPreference`,`breakfastReminderTime`,`lunchReminderTime`,`dinnerReminderTime`,`isNotificationEnabled`,`isDarkMode`,`seedColor`,`selectedAIPresetId`,`customAIEndpoint`,`customAIModel`,`themeMode`,`useDeadlinerStyle`,`hideDividers`,`fontSize`,`enableAnimations`,`feedbackType`,`enableVibration`,`enableSound`,`backgroundBehavior`,`startupPage`,`enableQuickAdd`,`enableGoalReminder`,`enableStreakReminder`,`enableAutoBackup`,`lastBackupTime`,`enableCloudSync`,`showAIWidget`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
       }
 
       @Override
@@ -155,13 +155,15 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
         }
         final int _tmp_11 = entity.getEnableCloudSync() ? 1 : 0;
         statement.bindLong(35, _tmp_11);
+        final int _tmp_12 = entity.getShowAIWidget() ? 1 : 0;
+        statement.bindLong(36, _tmp_12);
       }
     };
     this.__updateAdapterOfUserSettings = new EntityDeletionOrUpdateAdapter<UserSettings>(__db) {
       @Override
       @NonNull
       protected String createQuery() {
-        return "UPDATE OR ABORT `user_settings` SET `id` = ?,`dailyCalorieGoal` = ?,`userName` = ?,`userId` = ?,`userGender` = ?,`userAge` = ?,`userHeight` = ?,`userWeight` = ?,`activityLevel` = ?,`dietaryPreference` = ?,`breakfastReminderTime` = ?,`lunchReminderTime` = ?,`dinnerReminderTime` = ?,`isNotificationEnabled` = ?,`isDarkMode` = ?,`seedColor` = ?,`selectedAIPresetId` = ?,`customAIEndpoint` = ?,`customAIModel` = ?,`themeMode` = ?,`useDeadlinerStyle` = ?,`hideDividers` = ?,`fontSize` = ?,`enableAnimations` = ?,`feedbackType` = ?,`enableVibration` = ?,`enableSound` = ?,`backgroundBehavior` = ?,`startupPage` = ?,`enableQuickAdd` = ?,`enableGoalReminder` = ?,`enableStreakReminder` = ?,`enableAutoBackup` = ?,`lastBackupTime` = ?,`enableCloudSync` = ? WHERE `id` = ?";
+        return "UPDATE OR ABORT `user_settings` SET `id` = ?,`dailyCalorieGoal` = ?,`userName` = ?,`userId` = ?,`userGender` = ?,`userAge` = ?,`userHeight` = ?,`userWeight` = ?,`activityLevel` = ?,`dietaryPreference` = ?,`breakfastReminderTime` = ?,`lunchReminderTime` = ?,`dinnerReminderTime` = ?,`isNotificationEnabled` = ?,`isDarkMode` = ?,`seedColor` = ?,`selectedAIPresetId` = ?,`customAIEndpoint` = ?,`customAIModel` = ?,`themeMode` = ?,`useDeadlinerStyle` = ?,`hideDividers` = ?,`fontSize` = ?,`enableAnimations` = ?,`feedbackType` = ?,`enableVibration` = ?,`enableSound` = ?,`backgroundBehavior` = ?,`startupPage` = ?,`enableQuickAdd` = ?,`enableGoalReminder` = ?,`enableStreakReminder` = ?,`enableAutoBackup` = ?,`lastBackupTime` = ?,`enableCloudSync` = ?,`showAIWidget` = ? WHERE `id` = ?";
       }
 
       @Override
@@ -266,7 +268,9 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
         }
         final int _tmp_11 = entity.getEnableCloudSync() ? 1 : 0;
         statement.bindLong(35, _tmp_11);
-        statement.bindLong(36, entity.getId());
+        final int _tmp_12 = entity.getShowAIWidget() ? 1 : 0;
+        statement.bindLong(36, _tmp_12);
+        statement.bindLong(37, entity.getId());
       }
     };
     this.__preparedStmtOfUpdateDailyGoal = new SharedSQLiteStatement(__db) {
@@ -441,6 +445,7 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
           final int _cursorIndexOfEnableAutoBackup = CursorUtil.getColumnIndexOrThrow(_cursor, "enableAutoBackup");
           final int _cursorIndexOfLastBackupTime = CursorUtil.getColumnIndexOrThrow(_cursor, "lastBackupTime");
           final int _cursorIndexOfEnableCloudSync = CursorUtil.getColumnIndexOrThrow(_cursor, "enableCloudSync");
+          final int _cursorIndexOfShowAIWidget = CursorUtil.getColumnIndexOrThrow(_cursor, "showAIWidget");
           final UserSettings _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -589,7 +594,11 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
             final int _tmp_11;
             _tmp_11 = _cursor.getInt(_cursorIndexOfEnableCloudSync);
             _tmpEnableCloudSync = _tmp_11 != 0;
-            _result = new UserSettings(_tmpId,_tmpDailyCalorieGoal,_tmpUserName,_tmpUserId,_tmpUserGender,_tmpUserAge,_tmpUserHeight,_tmpUserWeight,_tmpActivityLevel,_tmpDietaryPreference,_tmpBreakfastReminderTime,_tmpLunchReminderTime,_tmpDinnerReminderTime,_tmpIsNotificationEnabled,_tmpIsDarkMode,_tmpSeedColor,_tmpSelectedAIPresetId,_tmpCustomAIEndpoint,_tmpCustomAIModel,_tmpThemeMode,_tmpUseDeadlinerStyle,_tmpHideDividers,_tmpFontSize,_tmpEnableAnimations,_tmpFeedbackType,_tmpEnableVibration,_tmpEnableSound,_tmpBackgroundBehavior,_tmpStartupPage,_tmpEnableQuickAdd,_tmpEnableGoalReminder,_tmpEnableStreakReminder,_tmpEnableAutoBackup,_tmpLastBackupTime,_tmpEnableCloudSync);
+            final boolean _tmpShowAIWidget;
+            final int _tmp_12;
+            _tmp_12 = _cursor.getInt(_cursorIndexOfShowAIWidget);
+            _tmpShowAIWidget = _tmp_12 != 0;
+            _result = new UserSettings(_tmpId,_tmpDailyCalorieGoal,_tmpUserName,_tmpUserId,_tmpUserGender,_tmpUserAge,_tmpUserHeight,_tmpUserWeight,_tmpActivityLevel,_tmpDietaryPreference,_tmpBreakfastReminderTime,_tmpLunchReminderTime,_tmpDinnerReminderTime,_tmpIsNotificationEnabled,_tmpIsDarkMode,_tmpSeedColor,_tmpSelectedAIPresetId,_tmpCustomAIEndpoint,_tmpCustomAIModel,_tmpThemeMode,_tmpUseDeadlinerStyle,_tmpHideDividers,_tmpFontSize,_tmpEnableAnimations,_tmpFeedbackType,_tmpEnableVibration,_tmpEnableSound,_tmpBackgroundBehavior,_tmpStartupPage,_tmpEnableQuickAdd,_tmpEnableGoalReminder,_tmpEnableStreakReminder,_tmpEnableAutoBackup,_tmpLastBackupTime,_tmpEnableCloudSync,_tmpShowAIWidget);
           } else {
             _result = null;
           }
@@ -652,6 +661,7 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
           final int _cursorIndexOfEnableAutoBackup = CursorUtil.getColumnIndexOrThrow(_cursor, "enableAutoBackup");
           final int _cursorIndexOfLastBackupTime = CursorUtil.getColumnIndexOrThrow(_cursor, "lastBackupTime");
           final int _cursorIndexOfEnableCloudSync = CursorUtil.getColumnIndexOrThrow(_cursor, "enableCloudSync");
+          final int _cursorIndexOfShowAIWidget = CursorUtil.getColumnIndexOrThrow(_cursor, "showAIWidget");
           final UserSettings _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -800,7 +810,11 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
             final int _tmp_11;
             _tmp_11 = _cursor.getInt(_cursorIndexOfEnableCloudSync);
             _tmpEnableCloudSync = _tmp_11 != 0;
-            _result = new UserSettings(_tmpId,_tmpDailyCalorieGoal,_tmpUserName,_tmpUserId,_tmpUserGender,_tmpUserAge,_tmpUserHeight,_tmpUserWeight,_tmpActivityLevel,_tmpDietaryPreference,_tmpBreakfastReminderTime,_tmpLunchReminderTime,_tmpDinnerReminderTime,_tmpIsNotificationEnabled,_tmpIsDarkMode,_tmpSeedColor,_tmpSelectedAIPresetId,_tmpCustomAIEndpoint,_tmpCustomAIModel,_tmpThemeMode,_tmpUseDeadlinerStyle,_tmpHideDividers,_tmpFontSize,_tmpEnableAnimations,_tmpFeedbackType,_tmpEnableVibration,_tmpEnableSound,_tmpBackgroundBehavior,_tmpStartupPage,_tmpEnableQuickAdd,_tmpEnableGoalReminder,_tmpEnableStreakReminder,_tmpEnableAutoBackup,_tmpLastBackupTime,_tmpEnableCloudSync);
+            final boolean _tmpShowAIWidget;
+            final int _tmp_12;
+            _tmp_12 = _cursor.getInt(_cursorIndexOfShowAIWidget);
+            _tmpShowAIWidget = _tmp_12 != 0;
+            _result = new UserSettings(_tmpId,_tmpDailyCalorieGoal,_tmpUserName,_tmpUserId,_tmpUserGender,_tmpUserAge,_tmpUserHeight,_tmpUserWeight,_tmpActivityLevel,_tmpDietaryPreference,_tmpBreakfastReminderTime,_tmpLunchReminderTime,_tmpDinnerReminderTime,_tmpIsNotificationEnabled,_tmpIsDarkMode,_tmpSeedColor,_tmpSelectedAIPresetId,_tmpCustomAIEndpoint,_tmpCustomAIModel,_tmpThemeMode,_tmpUseDeadlinerStyle,_tmpHideDividers,_tmpFontSize,_tmpEnableAnimations,_tmpFeedbackType,_tmpEnableVibration,_tmpEnableSound,_tmpBackgroundBehavior,_tmpStartupPage,_tmpEnableQuickAdd,_tmpEnableGoalReminder,_tmpEnableStreakReminder,_tmpEnableAutoBackup,_tmpLastBackupTime,_tmpEnableCloudSync,_tmpShowAIWidget);
           } else {
             _result = null;
           }
@@ -859,6 +873,7 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
           final int _cursorIndexOfEnableAutoBackup = CursorUtil.getColumnIndexOrThrow(_cursor, "enableAutoBackup");
           final int _cursorIndexOfLastBackupTime = CursorUtil.getColumnIndexOrThrow(_cursor, "lastBackupTime");
           final int _cursorIndexOfEnableCloudSync = CursorUtil.getColumnIndexOrThrow(_cursor, "enableCloudSync");
+          final int _cursorIndexOfShowAIWidget = CursorUtil.getColumnIndexOrThrow(_cursor, "showAIWidget");
           final UserSettings _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -1007,7 +1022,11 @@ public final class UserSettingsDao_Impl implements UserSettingsDao {
             final int _tmp_11;
             _tmp_11 = _cursor.getInt(_cursorIndexOfEnableCloudSync);
             _tmpEnableCloudSync = _tmp_11 != 0;
-            _result = new UserSettings(_tmpId,_tmpDailyCalorieGoal,_tmpUserName,_tmpUserId,_tmpUserGender,_tmpUserAge,_tmpUserHeight,_tmpUserWeight,_tmpActivityLevel,_tmpDietaryPreference,_tmpBreakfastReminderTime,_tmpLunchReminderTime,_tmpDinnerReminderTime,_tmpIsNotificationEnabled,_tmpIsDarkMode,_tmpSeedColor,_tmpSelectedAIPresetId,_tmpCustomAIEndpoint,_tmpCustomAIModel,_tmpThemeMode,_tmpUseDeadlinerStyle,_tmpHideDividers,_tmpFontSize,_tmpEnableAnimations,_tmpFeedbackType,_tmpEnableVibration,_tmpEnableSound,_tmpBackgroundBehavior,_tmpStartupPage,_tmpEnableQuickAdd,_tmpEnableGoalReminder,_tmpEnableStreakReminder,_tmpEnableAutoBackup,_tmpLastBackupTime,_tmpEnableCloudSync);
+            final boolean _tmpShowAIWidget;
+            final int _tmp_12;
+            _tmp_12 = _cursor.getInt(_cursorIndexOfShowAIWidget);
+            _tmpShowAIWidget = _tmp_12 != 0;
+            _result = new UserSettings(_tmpId,_tmpDailyCalorieGoal,_tmpUserName,_tmpUserId,_tmpUserGender,_tmpUserAge,_tmpUserHeight,_tmpUserWeight,_tmpActivityLevel,_tmpDietaryPreference,_tmpBreakfastReminderTime,_tmpLunchReminderTime,_tmpDinnerReminderTime,_tmpIsNotificationEnabled,_tmpIsDarkMode,_tmpSeedColor,_tmpSelectedAIPresetId,_tmpCustomAIEndpoint,_tmpCustomAIModel,_tmpThemeMode,_tmpUseDeadlinerStyle,_tmpHideDividers,_tmpFontSize,_tmpEnableAnimations,_tmpFeedbackType,_tmpEnableVibration,_tmpEnableSound,_tmpBackgroundBehavior,_tmpStartupPage,_tmpEnableQuickAdd,_tmpEnableGoalReminder,_tmpEnableStreakReminder,_tmpEnableAutoBackup,_tmpLastBackupTime,_tmpEnableCloudSync,_tmpShowAIWidget);
           } else {
             _result = null;
           }

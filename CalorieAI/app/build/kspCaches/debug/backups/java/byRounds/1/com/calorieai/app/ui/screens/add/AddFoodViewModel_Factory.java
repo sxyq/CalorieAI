@@ -1,6 +1,7 @@
 package com.calorieai.app.ui.screens.add;
 
 import com.calorieai.app.data.repository.FoodRecordRepository;
+import com.calorieai.app.service.ai.FoodTextAnalysisService;
 import dagger.internal.DaggerGenerated;
 import dagger.internal.Factory;
 import dagger.internal.QualifierMetadata;
@@ -24,21 +25,27 @@ import javax.inject.Provider;
 public final class AddFoodViewModel_Factory implements Factory<AddFoodViewModel> {
   private final Provider<FoodRecordRepository> foodRecordRepositoryProvider;
 
-  public AddFoodViewModel_Factory(Provider<FoodRecordRepository> foodRecordRepositoryProvider) {
+  private final Provider<FoodTextAnalysisService> foodTextAnalysisServiceProvider;
+
+  public AddFoodViewModel_Factory(Provider<FoodRecordRepository> foodRecordRepositoryProvider,
+      Provider<FoodTextAnalysisService> foodTextAnalysisServiceProvider) {
     this.foodRecordRepositoryProvider = foodRecordRepositoryProvider;
+    this.foodTextAnalysisServiceProvider = foodTextAnalysisServiceProvider;
   }
 
   @Override
   public AddFoodViewModel get() {
-    return newInstance(foodRecordRepositoryProvider.get());
+    return newInstance(foodRecordRepositoryProvider.get(), foodTextAnalysisServiceProvider.get());
   }
 
   public static AddFoodViewModel_Factory create(
-      Provider<FoodRecordRepository> foodRecordRepositoryProvider) {
-    return new AddFoodViewModel_Factory(foodRecordRepositoryProvider);
+      Provider<FoodRecordRepository> foodRecordRepositoryProvider,
+      Provider<FoodTextAnalysisService> foodTextAnalysisServiceProvider) {
+    return new AddFoodViewModel_Factory(foodRecordRepositoryProvider, foodTextAnalysisServiceProvider);
   }
 
-  public static AddFoodViewModel newInstance(FoodRecordRepository foodRecordRepository) {
-    return new AddFoodViewModel(foodRecordRepository);
+  public static AddFoodViewModel newInstance(FoodRecordRepository foodRecordRepository,
+      FoodTextAnalysisService foodTextAnalysisService) {
+    return new AddFoodViewModel(foodRecordRepository, foodTextAnalysisService);
   }
 }

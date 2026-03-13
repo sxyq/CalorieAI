@@ -27,7 +27,8 @@ class InteractionSettingsViewModel @Inject constructor(
                         enableSound = it.enableSound,
                         backgroundBehavior = BackgroundBehavior.valueOf(it.backgroundBehavior),
                         startupPage = StartupPage.valueOf(it.startupPage),
-                        enableQuickAdd = it.enableQuickAdd
+                        enableQuickAdd = it.enableQuickAdd,
+                        showAIWidget = it.showAIWidget
                     )
                 }
             }
@@ -64,6 +65,11 @@ class InteractionSettingsViewModel @Inject constructor(
         saveSettings()
     }
 
+    fun updateShowAIWidget(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(showAIWidget = enabled)
+        saveSettings()
+    }
+
     private fun saveSettings() {
         viewModelScope.launch {
             val currentState = _uiState.value
@@ -73,7 +79,8 @@ class InteractionSettingsViewModel @Inject constructor(
                 enableSound = currentState.enableSound,
                 backgroundBehavior = currentState.backgroundBehavior.name,
                 startupPage = currentState.startupPage.name,
-                enableQuickAdd = currentState.enableQuickAdd
+                enableQuickAdd = currentState.enableQuickAdd,
+                showAIWidget = currentState.showAIWidget
             )
             userSettingsRepository.saveSettings(settings)
         }
@@ -86,5 +93,6 @@ data class InteractionSettingsUiState(
     val enableSound: Boolean = false,
     val backgroundBehavior: BackgroundBehavior = BackgroundBehavior.STANDARD,
     val startupPage: StartupPage = StartupPage.HOME,
-    val enableQuickAdd: Boolean = false
+    val enableQuickAdd: Boolean = false,
+    val showAIWidget: Boolean = true
 )

@@ -44,5 +44,7 @@ data class UserSettings(
     // 备份设置
     val enableAutoBackup: Boolean = false,
     val lastBackupTime: String? = null,
-    val enableCloudSync: Boolean = false
+    val enableCloudSync: Boolean = false,
+    // AI助手设置
+    val showAIWidget: Boolean = true  // 是否显示AI助手悬浮按钮
 )
