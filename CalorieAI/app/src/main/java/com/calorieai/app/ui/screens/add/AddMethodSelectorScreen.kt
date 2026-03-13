@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,12 +30,15 @@ import androidx.compose.ui.unit.sp
 /**
  * 添加方式选择页面
  * 从加号按钮扩展至全屏的过渡动画
+ * 包含：AI识别、手动录入、体重记录、运动添加
  */
 @Composable
 fun AddMethodSelectorScreen(
     onNavigateBack: () -> Unit,
     onNavigateToManual: () -> Unit,
-    onNavigateToAI: () -> Unit
+    onNavigateToAI: () -> Unit,
+    onNavigateToWeight: () -> Unit = {},
+    onNavigateToExercise: () -> Unit = {}
 ) {
     var visible by remember { mutableStateOf(false) }
 
@@ -99,6 +104,50 @@ fun AddMethodSelectorScreen(
                     onClick = onNavigateToManual
                 )
 
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // 分隔线
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 32.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // 其他记录选项（小卡片）
+                Text(
+                    text = "其他记录",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                // 体重记录和运动添加（横向排列）
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // 体重记录
+                    SmallMethodCard(
+                        icon = Icons.Default.Scale,
+                        title = "记录体重",
+                        subtitle = "追踪体重变化",
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        onClick = onNavigateToWeight,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // 运动添加
+                    SmallMethodCard(
+                        icon = Icons.Default.FitnessCenter,
+                        title = "添加运动",
+                        subtitle = "记录运动消耗",
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        onClick = onNavigateToExercise,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(48.dp))
 
                 // 取消按钮
@@ -113,6 +162,58 @@ fun AddMethodSelectorScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * 小方式选择卡片（用于体重记录和运动添加）
+ */
+@Composable
+private fun SmallMethodCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    containerColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .height(100.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = containerColor
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

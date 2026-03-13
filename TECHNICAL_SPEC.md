@@ -175,11 +175,141 @@ data class FoodRecord(
 ### MealType（餐次类型）
 ```kotlin
 enum class MealType {
-    BREAKFAST,  // 早餐
-    LUNCH,      // 午餐
-    DINNER,     // 晚餐
-    SNACK       // 加餐
+    BREAKFAST,       // 早餐
+    BREAKFAST_SNACK, // 早加餐
+    LUNCH,           // 午餐
+    LUNCH_SNACK,     // 午加餐
+    DINNER,          // 晚餐
+    DINNER_SNACK,    // 晚加餐
+    SNACK            // 其他加餐
 }
+```
+
+### ExerciseRecord（运动记录）
+```kotlin
+@Entity(tableName = "exercise_records")
+data class ExerciseRecord(
+    @PrimaryKey
+    val id: String = UUID.randomUUID().toString(),
+    val exerciseType: ExerciseType,    // 运动类型
+    val durationMinutes: Int,          // 运动时长（分钟）
+    val caloriesBurned: Int,           // 消耗热量（千卡）
+    val notes: String? = null,         // 备注
+    val recordTime: Long = System.currentTimeMillis()
+)
+```
+
+### ExerciseType（运动类型）
+```kotlin
+enum class ExerciseType(
+    val displayName: String,
+    val emoji: String,
+    val caloriesPerMinute: Int
+) {
+    RUNNING("跑步", "🏃", 10),
+    WALKING("快走", "🚶", 4),
+    CYCLING("骑行", "🚴", 8),
+    SWIMMING("游泳", "🏊", 12),
+    YOGA("瑜伽", "🧘", 3),
+    WEIGHT_TRAINING("力量训练", "🏋️", 6),
+    HIIT("HIIT", "🔥", 15),
+    // ... 共27种运动类型
+    OTHER("其他运动", "🎯", 0)  // 自定义运动，热量由用户输入
+}
+```
+
+### CustomExerciseInfo（自定义运动信息）
+```kotlin
+/**
+ * 自定义运动信息存储在ExerciseRecord的notes字段中
+ * 格式: "CUSTOM:{name}:{caloriesPerMinute}"
+ * 例如: "CUSTOM:太极拳:5"
+ */
+data class CustomExerciseInfo(
+    val name: String,           // 自定义运动名称
+    val caloriesPerMinute: Int  // 每分钟消耗热量
+)
+```
+
+### BackupData（备份数据结构）
+```kotlin
+/**
+ * 备份数据主结构
+ */
+@Serializable
+data class BackupData(
+    val version: Int = 1,
+    val backupDate: String,              // ISO-8601格式日期时间
+    val foodRecords: List<FoodRecordBackup>,
+    val exerciseRecords: List<ExerciseRecordBackup>,
+    val userSettings: UserSettingsBackup?
+)
+
+/**
+ * 食物记录备份格式
+ */
+@Serializable
+data class FoodRecordBackup(
+    val id: String,
+    val foodName: String,
+    val userInput: String,
+    val totalCalories: Int,
+    val protein: Float,
+    val fat: Float,
+    val carbs: Float,
+    val ingredients: List<IngredientBackup>,
+    val mealType: String,
+    val recordTime: Long,
+    val iconUrl: String?,
+    val iconLocalPath: String?,
+    val isStarred: Boolean,
+    val confidence: String,
+    val notes: String?
+)
+
+/**
+ * 运动记录备份格式
+ */
+@Serializable
+data class ExerciseRecordBackup(
+    val id: String,
+    val exerciseType: String,
+    val durationMinutes: Int,
+    val caloriesBurned: Int,
+    val notes: String?,
+    val recordTime: Long
+)
+
+/**
+ * 用户设置备份格式
+ */
+@Serializable
+data class UserSettingsBackup(
+    val dailyCalorieGoal: Int,
+    val userName: String?,
+    val userGender: String?,
+    val userAge: Int?,
+    val userHeight: Float?,
+    val userWeight: Float?,
+    val activityLevel: String,
+    val dietaryPreference: String,
+    val isNotificationEnabled: Boolean,
+    val isDarkMode: Boolean,
+    val themeMode: String,
+    val useDeadlinerStyle: Boolean,
+    val hideDividers: Boolean,
+    val fontSize: String,
+    val enableAnimations: Boolean,
+    val feedbackType: String,
+    val enableVibration: Boolean,
+    val enableSound: Boolean,
+    val startupPage: String,
+    val enableQuickAdd: Boolean,
+    val enableGoalReminder: Boolean,
+    val enableStreakReminder: Boolean,
+    val enableAutoBackup: Boolean,
+    val enableCloudSync: Boolean
+)
 ```
 
 ### AIConfig（AI配置）
@@ -188,1392 +318,757 @@ enum class MealType {
 data class AIConfig(
     @PrimaryKey
     val id: String = UUID.randomUUID().toString(),
-    val name: String,               // 配置名称（自定义）
-    val icon: String,               // 图标（emoji或资源名）
-    val protocol: AIProtocol,       // 协议类型
-    val apiUrl: String,             // API地址
-    val apiKey: String,             // API密钥（加密存储）
-    val modelId: String,            // 模型ID
-    val isImageUnderstanding: Boolean, // 是否启用图像理解
-    val isDefault: Boolean = false  // 是否为默认配置
+    val name: String,                   // 配置名称（自定义）
+    val icon: String,                   // 图标（资源名或URL）
+    val iconType: IconType = IconType.RESOURCE,  // 图标类型
+    val protocol: AIProtocol,           // 协议类型
+    val apiUrl: String,                 // API地址
+    val apiKey: String,                 // API密钥（加密存储）
+    val modelId: String,                // 模型ID
+    val isImageUnderstanding: Boolean,  // 是否启用图像理解
+    val isDefault: Boolean = false      // 是否为默认配置
 )
 
 enum class AIProtocol {
     OPENAI,     // OpenAI协议
-    CLAUDE      // Claude协议
+    CLAUDE,     // Claude协议
+    KIMI,       // Moonshot Kimi
+    GLM,        // Zhipu GLM
+    QWEN,       // Alibaba Qwen
+    DEEPSEEK,   // DeepSeek
+    GEMINI      // Google Gemini
 }
+```
+
+### AITokenUsage（AI Token使用记录）
+```kotlin
+@Entity(tableName = "ai_token_usage")
+data class AITokenUsage(
+    @PrimaryKey
+    val id: String = UUID.randomUUID().toString(),
+    val timestamp: Long = System.currentTimeMillis(),
+    val configId: String,               // AI配置ID
+    val configName: String,             // AI配置名称
+    val promptTokens: Int,              // Prompt Token数
+    val completionTokens: Int,          // Completion Token数
+    val totalTokens: Int,               // 总Token数
+    val cost: Double                    // 估算成本（美元）
+)
+
+/**
+ * Token使用统计
+ */
+data class TokenUsageStats(
+    val totalTokens: Int,               // 总Token数
+    val promptTokens: Int,              // Prompt Token总数
+    val completionTokens: Int,          // Completion Token总数
+    val totalCost: Double,              // 总成本
+    val requestCount: Int,              // 请求次数
+    val todayTokens: Int,               // 今日Token数
+    val todayCost: Double,              // 今日成本
+    val monthTokens: Int,               // 本月Token数
+    val monthCost: Double               // 本月成本
+)
 ```
 
 ---
 
 ## UI组件
 
-### 1. DateSelector（日期选择器）
+### 1. 图表组件 (ui/components/charts/)
 
-**位置**: `ui/components/DateSelector.kt`
+#### LineChartView（折线图）
+```kotlin
+@Composable
+fun LineChartView(
+    data: List<Pair<String, Float>>,
+    modifier: Modifier = Modifier,
+    lineColor: Int = Color.parseColor("#2196F3"),
+    fillColor: Int = Color.parseColor("#332196F3"),
+    showLabels: Boolean = true
+)
+```
+**用途**: 展示摄入趋势（周趋势/月趋势）
+
+#### PieChartView（饼状图）
+```kotlin
+@Composable
+fun PieChartView(
+    data: List<Pair<String, Float>>,
+    colors: List<Int>,
+    modifier: Modifier = Modifier,
+    showPercentages: Boolean = true,
+    centerText: String? = null
+)
+```
+**用途**: 展示今日摄入状态（营养素分布）
+
+#### BarChartView（柱状图）
+```kotlin
+@Composable
+fun BarChartView(
+    data: List<Pair<String, Float>>,
+    colors: List<Int>,
+    modifier: Modifier = Modifier
+)
+```
+**用途**: 展示各餐次摄入对比
+
+#### RadarChartView（雷达图）
+```kotlin
+@Composable
+fun RadarChartView(
+    labels: List<String>,
+    data: List<Float>,
+    modifier: Modifier = Modifier,
+    fillColor: Int = Color.parseColor("#332196F3"),
+    strokeColor: Int = Color.parseColor("#2196F3")
+)
+```
+**用途**: 展示营养素均衡分析
+
+### 2. AIChatWidget（AI聊天小窗口）
+
+**位置**: `ui/components/AIChatWidget.kt`
 
 **功能描述**: 
-- 显示前天/昨天/今天/明天的日期切换栏
-- 支持左右滑动切换日期
-- 丝滑动画过渡效果
+- 悬浮按钮形式的AI助手入口
+- 点击展开迷你聊天窗口
+- 支持快捷功能：热量评估/菜谱规划/健康咨询
+- 可展开至全屏聊天页面
 
 **变量**:
 ```kotlin
 // 状态
-val selectedDate: StateFlow<LocalDate>    // 当前选中的日期
-val dates: List<DateItem>                 // 显示的日期列表（前天、昨天、今天、明天）
+val isExpanded: Boolean = false          // 是否展开
 
-// 动画
-val animatedOffset: Animatable<Float, AnimationVector1D>  // 滑动偏移量
-val animationSpec: TweenSpec<Float> = tween(300)          // 动画规格
+// 快捷功能
+val quickActions: List<QuickAction> = listOf(
+    QuickAction("热量评估", Icons.Default.Assessment, "分析今日热量消耗是否合理"),
+    QuickAction("菜谱规划", Icons.Default.RestaurantMenu, "根据目标定制健康食谱"),
+    QuickAction("健康咨询", Icons.Default.HealthAndSafety, "营养、运动相关问题解答")
+)
 ```
 
 **函数**:
 ```kotlin
-// 组件
+// 悬浮按钮组件
 @Composable
-fun DateSelector(
-    selectedDate: LocalDate,
-    onDateSelected: (LocalDate) -> Unit,
+fun AIChatWidget(
+    onExpandToFullScreen: () -> Unit,
     modifier: Modifier = Modifier
 )
 
-// 日期项数据类
-data class DateItem(
-    val date: LocalDate,
-    val label: String,      // "前天", "昨天", "今天", "明天"
-    val isSelected: Boolean
+// 迷你聊天窗口
+@Composable
+private fun AIChatMiniWindow(
+    onDismiss: () -> Unit,
+    onExpandToFullScreen: () -> Unit
 )
 
-// 处理滑动
-fun handleSwipe(direction: SwipeDirection)
-
-// 动画到指定日期
-suspend fun animateToDate(date: LocalDate)
+// 快捷功能按钮
+@Composable
+private fun QuickActionButton(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+)
 ```
 
-**实现描述**:
-- 使用 `LazyRow` 水平排列日期项
-- 使用 `Animatable` 实现滑动动画
-- 当前选中的日期高亮显示
-- 左右滑动时带动画效果
+### 3. AIChatScreen（AI聊天全屏页面）
 
----
-
-### 2. TopMenuPopup（顶部菜单弹窗）
-
-**位置**: `ui/components/TopMenuPopup.kt`
+**位置**: `ui/screens/ai/AIChatScreen.kt`
 
 **功能描述**:
-- 右上角三个点按钮触发的菜单
-- 包含：设置、概览、编辑资料
-- 从右上角展开动画
+- 全屏AI聊天界面
+- 支持热量评估、菜谱规划、健康咨询
+- 实时聊天对话
+- 打字指示器动画
 
 **变量**:
 ```kotlin
-// 状态
-val isVisible: Boolean = false          // 是否显示
-val expanded: MutableState<Boolean>     // 展开状态
+// ViewModel
+val viewModel: AIChatViewModel = hiltViewModel()
 
-// 菜单项
-val menuItems: List<MenuItem> = listOf(
-    MenuItem("设置", Icons.Default.Settings, Screen.Settings),
-    MenuItem("概览", Icons.Default.BarChart, Screen.Overview),
-    MenuItem("编辑资料", Icons.Default.Edit, Screen.EditProfile)
+// UI状态
+val uiState: StateFlow<AIChatUiState>
+
+// 消息数据类
+data class ChatMessage(
+    val id: String = UUID.randomUUID().toString(),
+    val content: String,
+    val isUser: Boolean,
+    val timestamp: Long = System.currentTimeMillis()
 )
 ```
 
 **函数**:
 ```kotlin
-// 组件
+// 主页面
 @Composable
-fun TopMenuButton(
-    onMenuItemClick: (Screen) -> Unit,
-    modifier: Modifier = Modifier
+fun AIChatScreen(
+    onNavigateBack: () -> Unit,
+    viewModel: AIChatViewModel = hiltViewModel()
 )
 
+// 快捷功能行
 @Composable
-fun TopMenuPopup(
+private fun QuickActionsRow(
+    onCalorieAssessment: () -> Unit,
+    onMealPlanning: () -> Unit,
+    onHealthConsult: () -> Unit
+)
+
+// 聊天消息项
+@Composable
+private fun ChatMessageItem(message: ChatMessage)
+
+// 正在输入指示器
+@Composable
+private fun TypingIndicator()
+
+// 聊天输入区域
+@Composable
+private fun ChatInputArea(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onSend: () -> Unit,
+    isLoading: Boolean
+)
+```
+
+### 4. ExerciseDialog（运动记录对话框）
+
+**位置**: `ui/components/ExerciseDialog.kt`
+
+**功能描述**:
+- 添加运动消耗记录
+- 选择运动类型（27种 + 自定义）
+- 输入运动时长
+- 自动计算消耗热量
+- 支持自定义运动（输入运动名称和消耗热量）
+
+**变量**:
+```kotlin
+// 运动类型列表
+val exerciseTypes: List<ExerciseType> = ExerciseType.entries
+
+// 状态
+var selectedExercise: ExerciseType? by remember { mutableStateOf(null) }
+var duration: String by remember { mutableStateOf("") }
+var customCalories: String by remember { mutableStateOf("") }
+var isCustomExercise: Boolean by remember { mutableStateOf(false) }
+var customExerciseName: String by remember { mutableStateOf("") }
+var showCustomInput: Boolean by remember { mutableStateOf(false) }
+```
+
+**函数**:
+```kotlin
+@Composable
+fun ExerciseDialog(
     isVisible: Boolean,
     onDismiss: () -> Unit,
-    onMenuItemClick: (MenuItem) -> Unit,
-    modifier: Modifier = Modifier
+    onConfirm: (ExerciseType, Int, Int?, String?) -> Unit  // 新增customName参数
 )
 
-// 菜单项数据类
-data class MenuItem(
-    val title: String,
-    val icon: ImageVector,
-    val destination: Screen
-)
-```
-
-**实现描述**:
-- 使用 `DropdownMenu` 实现弹窗
-- 添加进入/退出动画
-- 菜单项使用卡片式布局
-- 点击后导航到对应页面
-
----
-
-### 3. SettingsScreen（设置界面）
-
-**位置**: `ui/screens/settings/SettingsScreen.kt`
-
-**功能描述**:
-- 分组卡片式布局（参考Deadliner）
-- 包含：界面外观、交互与行为、通知、备份、AI配置、关于
-
-**变量**:
-```kotlin
-// ViewModel
-val viewModel: SettingsViewModel = hiltViewModel()
-
-// 设置分组
-val settingGroups: List<SettingGroup> = listOf(
-    SettingGroup("界面外观", Icons.Default.Palette, "主题、颜色、字体", Screen.Appearance),
-    SettingGroup("交互与行为", Icons.Default.TouchApp, "反馈、后台行为", Screen.Interaction),
-    SettingGroup("通知", Icons.Default.Notifications, "提醒时间配置", Screen.Notification),
-    SettingGroup("备份", Icons.Default.Backup, "导入导出数据", Screen.Backup),
-    SettingGroup("AI配置", Icons.Default.Psychology, "OpenAI/Claude设置", Screen.AISettings),
-    SettingGroup("关于", Icons.Default.Info, "版本、隐私政策", Screen.About)
-)
-```
-
-**函数**:
-```kotlin
-// 主界面
+// 自定义运动输入组件
 @Composable
-fun SettingsScreen(
-    onNavigate: (Screen) -> Unit,
-    onBack: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel()
-)
-
-// 设置分组项
-@Composable
-fun SettingGroupItem(
-    group: SettingGroup,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-)
-
-// 设置项数据类
-data class SettingGroup(
-    val title: String,
-    val icon: ImageVector,
-    val subtitle: String,
-    val destination: Screen
-)
-```
-
-**实现描述**:
-- 使用 `LazyColumn` 显示设置分组
-- 每个分组使用 `Card` 组件，圆角24dp
-- 左侧图标 + 标题 + 副标题 + 右侧箭头
-- 点击后导航到子页面
-
----
-
-### 4. AISettingsScreen（AI配置列表界面）
-
-**位置**: `ui/screens/settings/AISettingsScreen.kt`
-
-**功能描述**:
-- AI配置列表页面
-- 支持添加、编辑、删除多个AI配置
-- 每个配置可自定义名称和图标
-
-**变量**:
-```kotlin
-// ViewModel
-val viewModel: AISettingsViewModel = hiltViewModel()
-
-// 状态
-val uiState: StateFlow<AISettingsUiState>
-
-// UI状态数据类
-data class AISettingsUiState(
-    val configs: List<AIConfig> = emptyList(),      // AI配置列表
-    val defaultConfigId: String? = null,            // 默认配置ID
-    val isLoading: Boolean = true                   // 加载状态
-)
-```
-
-**函数**:
-```kotlin
-// 配置列表页面
-@Composable
-fun AISettingsScreen(
-    onNavigateBack: () -> Unit,
-    onNavigateToDetail: (String?) -> Unit,  // null表示添加新配置
-    viewModel: AISettingsViewModel = hiltViewModel()
-)
-
-// 添加新配置按钮
-@Composable
-fun AddConfigButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-)
-
-// AI配置项
-@Composable
-fun AIConfigItem(
-    config: AIConfig,
-    isDefault: Boolean,
-    onClick: () -> Unit,
-    onSetDefault: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier
-)
-
-// 空配置状态
-@Composable
-fun EmptyConfigState()
-```
-
-**实现描述**:
-- 列表页面显示所有配置，每个配置显示图标、名称、协议类型、模型ID
-- 可设置默认配置
-- 支持删除配置
-- 空状态显示提示信息
-
----
-
-### 5. AIConfigDetailScreen（AI配置详情界面）
-
-**位置**: `ui/screens/settings/AIConfigDetailScreen.kt`
-
-**功能描述**:
-- 添加/编辑AI配置详情页面
-- 支持自定义名称、图标、协议、API地址、密钥、模型ID
-- 测试连接功能
-- 图像理解开关
-- 预设配置快速选择
-
-**变量**:
-```kotlin
-// 本地状态
-var showIconSelector: Boolean = false       // 显示图标选择器
-var showPresetSelector: Boolean = false     // 显示预设选择器
-var apiKeyVisible: Boolean = false          // API密钥是否可见
-```
-
-**函数**:
-```kotlin
-// 配置详情页面
-@Composable
-fun AIConfigDetailScreen(
-    configId: String?,                      // null表示添加新配置
-    onNavigateBack: () -> Unit,
-    viewModel: AIConfigDetailViewModel = hiltViewModel()
-)
-
-// 图标选择区域
-@Composable
-fun IconSelectorSection(
-    selectedIcon: String,
-    onClick: () -> Unit
-)
-
-// 协议选择器
-@Composable
-fun ProtocolSelector(
-    selectedProtocol: AIProtocol,
-    onProtocolSelected: (AIProtocol) -> Unit
-)
-
-// 协议选项
-@Composable
-fun ProtocolOption(
-    protocol: AIProtocol,
-    title: String,
+private fun CustomExerciseItem(
     isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onClick: () -> Unit
 )
 
-// 测试连接按钮
+// 运动类型网格项
 @Composable
-fun TestConnectionButton(
-    isTesting: Boolean,
-    testResult: TestResult?,
-    onTest: () -> Unit,
-    onClearResult: () -> Unit
-)
-
-// 图像理解开关卡片
-@Composable
-fun ImageUnderstandingCard(
-    isEnabled: Boolean,
-    onToggle: (Boolean) -> Unit
-)
-
-// 图标选择器弹窗
-@Composable
-fun IconSelectorDialog(
-    selectedIcon: String,
-    onIconSelected: (String) -> Unit,
-    onDismiss: () -> Unit
-)
-
-// 预设选择器弹窗
-@Composable
-fun PresetSelectorDialog(
-    onPresetSelected: (AIConfig) -> Unit,
-    onDismiss: () -> Unit
-)
-
-// 预设项
-@Composable
-fun PresetItem(
-    icon: String,
-    name: String,
-    description: String,
+private fun ExerciseTypeItem(
+    exercise: ExerciseType,
+    isSelected: Boolean,
     onClick: () -> Unit
 )
 ```
 
-**实现描述**:
-- 图标选择区域：显示当前选中的emoji图标，点击弹出图标选择器
-- 协议选择器：OpenAI/Claude两个选项，卡片式单选
-- API密钥输入：支持显示/隐藏切换
-- 测试连接：模拟测试，检查必填字段
-- 图像理解开关：卡片式开关，带图标和描述
-- 预设选择器：提供OpenAI GPT-4o和Claude 3.5 Sonnet预设
-- 所有输入框初始留白，不预填任何内容
+### 5. UnifiedTrendChart（统一趋势图表）
 
----
-
-## Repository
-
-### UserSettingsRepository（用户设置仓库）
-
-**位置**: `data/repository/UserSettingsRepository.kt`
+**位置**: `ui/components/charts/UnifiedTrendChart.kt`
 
 **功能描述**:
-- 用户设置的增删改查操作
+- 单一图表组件支持多种时间维度
+- 支持按天/周/月切换
+- 日期范围选择器（从X日期到X日期）
+- 多数据系列：热量摄入、运动消耗、体重变化
+
+**变量**:
+```kotlin
+// 时间维度枚举
+enum class TimeDimension {
+    DAY, WEEK, MONTH
+}
+
+// 图表数据
+val chartData: TrendChartData
+
+// 时间范围
+val startDate: LocalDate
+val endDate: LocalDate
+```
 
 **函数**:
 ```kotlin
-// 获取设置流
-fun getSettings(): Flow<UserSettings?>
+@Composable
+fun UnifiedTrendChart(
+    data: TrendChartData,
+    timeDimension: TimeDimension,
+    startDate: LocalDate,
+    endDate: LocalDate,
+    onTimeDimensionChange: (TimeDimension) -> Unit,
+    onDateRangeChange: (LocalDate, LocalDate) -> Unit,
+    modifier: Modifier = Modifier
+)
 
-// 保存设置
-suspend fun saveSettings(settings: UserSettings)
+// 时间维度选择器
+@Composable
+private fun TimeDimensionSelector(
+    selected: TimeDimension,
+    onSelect: (TimeDimension) -> Unit
+)
 
-// 一次性获取设置
-suspend fun getSettingsOnce(): UserSettings?
+// 日期范围选择器
+@Composable
+private fun DateRangePicker(
+    startDate: LocalDate,
+    endDate: LocalDate,
+    onDateRangeChange: (LocalDate, LocalDate) -> Unit
+)
 ```
 
----
+### 6. DateRangePicker（日期范围选择器）
 
-### AIConfigRepository（AI配置仓库）
-
-**位置**: `data/repository/AIConfigRepository.kt`
+**位置**: `ui/components/DateRangePicker.kt`
 
 **功能描述**:
-- AI配置的增删改查操作
-- 支持多配置管理
+- 选择起始日期和结束日期
+- 支持快速选择（最近7天/30天/本月/上月）
+- 日期有效性验证
 
 **函数**:
 ```kotlin
-// 获取所有配置
-fun getAllConfigs(): Flow<List<AIConfig>>
+@Composable
+fun DateRangePicker(
+    startDate: LocalDate,
+    endDate: LocalDate,
+    onStartDateChange: (LocalDate) -> Unit,
+    onEndDateChange: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier
+)
 
-// 获取默认配置
-fun getDefaultConfig(): Flow<AIConfig?>
-
-// 根据ID获取配置
-suspend fun getConfigById(id: String): AIConfig?
-
-// 添加配置
-suspend fun addConfig(config: AIConfig)
-
-// 更新配置
-suspend fun updateConfig(config: AIConfig)
-
-// 删除配置
-suspend fun deleteConfig(config: AIConfig)
-
-// 根据ID删除配置
-suspend fun deleteConfigById(id: String)
-
-// 设置默认配置
-suspend fun setDefaultConfig(id: String)
-```
-
----
-
-## DAO
-
-### UserSettingsDao（用户设置DAO）
-
-**位置**: `data/local/UserSettingsDao.kt`
-
-**函数**:
-```kotlin
-@Query("SELECT * FROM user_settings WHERE id = 1")
-fun getSettings(): Flow<UserSettings?>
-
-@Query("SELECT * FROM user_settings WHERE id = 1")
-suspend fun getSettingsSync(): UserSettings?
-
-@Query("SELECT * FROM user_settings WHERE id = 1")
-suspend fun getSettingsOnce(): UserSettings?
-
-@Insert(onConflict = OnConflictStrategy.REPLACE)
-suspend fun insertSettings(settings: UserSettings)
-
-@Insert(onConflict = OnConflictStrategy.REPLACE)
-suspend fun insertOrUpdate(settings: UserSettings)
-
-@Update
-suspend fun updateSettings(settings: UserSettings)
-
-@Query("UPDATE user_settings SET dailyCalorieGoal = :goal WHERE id = 1")
-suspend fun updateDailyGoal(goal: Int)
-
-@Query("UPDATE user_settings SET isNotificationEnabled = :enabled WHERE id = 1")
-suspend fun updateNotificationEnabled(enabled: Boolean)
+// 快速选择按钮
+@Composable
+private fun QuickSelectButtons(
+    onSelect: (LocalDate, LocalDate) -> Unit
+)
 ```
 
 ---
 
 ## ViewModel
 
-### HomeViewModel（首页ViewModel）
+### AIChatViewModel（AI聊天ViewModel）
 
-**位置**: `ui/screens/home/HomeViewModel.kt`
+**位置**: `ui/screens/ai/AIChatViewModel.kt`
+
+**功能描述**:
+管理AI聊天界面的状态和交互逻辑。
 
 **变量**:
 ```kotlin
 // 状态
-private val _selectedDate = MutableStateFlow(LocalDate.now())
-val selectedDate: StateFlow<LocalDate> = _selectedDate.asStateFlow()
-
-private val _foodRecords = MutableStateFlow<List<FoodRecord>>(emptyList())
-val foodRecords: StateFlow<List<FoodRecord>> = _foodRecords.asStateFlow()
-
-private val _todayStats = MutableStateFlow<TodayStats>(TodayStats())
-val todayStats: StateFlow<TodayStats> = _todayStats.asStateFlow()
+private val _uiState = MutableStateFlow(AIChatUiState())
+val uiState: StateFlow<AIChatUiState> = _uiState.asStateFlow()
 
 // 依赖注入
-@Inject
-lateinit var foodRecordRepository: FoodRecordRepository
-
-@Inject
-lateinit var userSettingsRepository: UserSettingsRepository
+@Inject lateinit var foodRecordRepository: FoodRecordRepository
+@Inject lateinit var userSettingsRepository: UserSettingsRepository
+@Inject lateinit var aiChatService: AIChatService
 ```
 
 **函数**:
 ```kotlin
-// 选择日期
-fun selectDate(date: LocalDate)
+// 输入文本变化
+fun onInputChange(text: String)
 
-// 获取指定日期的记录
-fun getFoodRecordsByDate(date: LocalDate)
+// 发送消息
+fun sendMessage()
 
-// 计算今日统计
-fun calculateTodayStats()
+// 开始热量评估（自动获取今日数据并分析）
+fun startCalorieAssessment()
+
+// 开始菜谱规划
+fun startMealPlanning()
+
+// 开始健康咨询
+fun startHealthConsult()
+
+// 清空对话
+fun clearChat()
+```
+
+### ExerciseRecordRepository（运动记录仓库）
+
+**位置**: `data/repository/ExerciseRecordRepository.kt`
+
+**函数**:
+```kotlin
+// 获取所有记录
+fun getAllRecords(): Flow<List<ExerciseRecord>>
+
+// 获取所有记录（一次性）
+suspend fun getAllRecordsOnce(): List<ExerciseRecord>
+
+// 获取时间段内的记录
+fun getRecordsBetween(startTime: Long, endTime: Long): Flow<List<ExerciseRecord>>
+
+// 获取时间段内的记录（同步）
+suspend fun getRecordsBetweenSync(startTime: Long, endTime: Long): List<ExerciseRecord>
+
+// 获取总消耗热量
+suspend fun getTotalCaloriesBurnedBetween(startTime: Long, endTime: Long): Int
+
+// 获取总运动时长
+suspend fun getTotalDurationBetween(startTime: Long, endTime: Long): Int
+
+// 获取运动类型分布
+suspend fun getExerciseTypeDistribution(startTime: Long, endTime: Long): Map<ExerciseType, Int>
+
+// 获取最活跃的运动类型
+suspend fun getMostActiveExerciseType(startTime: Long, endTime: Long): Pair<ExerciseType, Int>?
+
+// 添加记录
+suspend fun addRecord(record: ExerciseRecord)
 
 // 删除记录
-fun deleteRecord(recordId: String)
+suspend fun deleteRecord(record: ExerciseRecord)
 
-// 切换收藏状态
-fun toggleStar(recordId: String)
+// 清空所有记录
+suspend fun clearAllRecords()
 ```
 
----
+### BackupService（备份服务）
 
-### AISettingsViewModel（AI设置ViewModel）
+**位置**: `service/backup/BackupService.kt`
 
-**位置**: `ui/screens/settings/AISettingsViewModel.kt`
+**功能描述**:
+- 创建JSON格式备份文件
+- 从备份文件恢复数据
+- 备份数据验证
+- 支持饮食记录、运动记录、用户设置
 
-**变量**:
+**函数**:
 ```kotlin
-// 状态
-private val _aiConfigs = MutableStateFlow<List<AIConfig>>(emptyList())
-val aiConfigs: StateFlow<List<AIConfig>> = _aiConfigs.asStateFlow()
+/**
+ * 创建备份
+ * @param uri 备份文件保存URI
+ * @return Result<String> 成功返回备份信息，失败返回错误
+ */
+suspend fun createBackup(uri: Uri): Result<String>
 
-private val _defaultConfig = MutableStateFlow<AIConfig?>(null)
-val defaultConfig: StateFlow<AIConfig?> = _defaultConfig.asStateFlow()
+/**
+ * 恢复备份
+ * @param uri 备份文件URI
+ * @return Result<String> 成功返回恢复信息，失败返回错误
+ */
+suspend fun restoreBackup(uri: Uri): Result<String>
 
-// 依赖注入
-@Inject
-lateinit var aiConfigRepository: AIConfigRepository
+/**
+ * 获取备份信息（不恢复）
+ * @param uri 备份文件URI
+ * @return Result<BackupData> 备份数据信息
+ */
+suspend fun getBackupInfo(uri: Uri): Result<BackupData>
+
+/**
+ * 验证备份文件
+ * @param uri 备份文件URI
+ * @return Boolean 是否有效
+ */
+suspend fun validateBackup(uri: Uri): Boolean
+```
+
+### BackupSettingsViewModel（备份设置ViewModel）
+
+**位置**: `ui/screens/settings/BackupSettingsViewModel.kt`
+
+**功能描述**:
+- 管理备份/恢复UI状态
+- 处理备份文件选择
+- 显示备份信息预览
+- 恢复确认对话框
+
+**状态**:
+```kotlin
+data class BackupSettingsUiState(
+    val isLoading: Boolean = false,
+    val resultMessage: String? = null,
+    val isSuccess: Boolean = false,
+    val showRestoreDialog: Boolean = false,
+    val backupInfo: BackupData? = null,
+    val pendingRestoreUri: Uri? = null
+)
 ```
 
 **函数**:
 ```kotlin
-// 加载所有配置
-fun loadAIConfigs()
+// 创建备份
+fun createBackup(uri: Uri)
 
-// 设置默认配置
-fun setDefaultConfig(configId: String)
+// 加载备份信息
+fun loadBackupInfo(uri: Uri)
 
-// 删除配置
-fun deleteConfig(configId: String)
+// 确认恢复
+fun confirmRestore()
+
+// 关闭恢复对话框
+fun dismissRestoreDialog()
 ```
 
----
+### AITokenUsageRepository（Token使用统计仓库）
 
-### AIConfigDetailViewModel（AI配置详情ViewModel）
+**位置**: `data/repository/AITokenUsageRepository.kt`
 
-**位置**: `ui/screens/settings/AIConfigDetailViewModel.kt`
+**功能描述**:
+管理AI Token使用记录的存储和统计查询。
 
-**变量**:
+**函数**:
 ```kotlin
-// 状态
-private val _uiState = MutableStateFlow(AIConfigDetailUiState())
-val uiState: StateFlow<AIConfigDetailUiState> = _uiState.asStateFlow()
-
-private var configId: String? = null  // 当前编辑的配置ID（null表示新增）
-
-// UI状态数据类
-data class AIConfigDetailUiState(
-    val name: String = "",                          // 配置名称
-    val selectedIcon: String = "🤖",                // 选中的图标
-    val protocol: AIProtocol = AIProtocol.OPENAI,   // 协议类型
-    val apiUrl: String = "",                        // API地址
-    val apiKey: String = "",                        // API密钥
-    val modelId: String = "",                       // 模型ID
-    val isImageUnderstanding: Boolean = false,      // 是否启用图像理解
-    val isEditing: Boolean = false,                 // 是否为编辑模式
-    val isTesting: Boolean = false,                 // 是否正在测试连接
-    val testResult: TestResult? = null,             // 测试结果
-    val errorMessage: String? = null                // 错误信息
+// 记录Token使用情况
+suspend fun recordTokenUsage(
+    configId: String,
+    configName: String,
+    promptTokens: Int,
+    completionTokens: Int,
+    cost: Double
 )
 
-// 测试结果密封类
-sealed class TestResult {
-    data class Success(val message: String) : TestResult()
-    data class Error(val message: String) : TestResult()
-}
-```
+// 获取Token使用统计（今日/本月/总计）
+fun getTokenUsageStats(): Flow<TokenUsageStats?>
 
-**函数**:
-```kotlin
-// 加载配置（编辑模式）
-fun loadConfig(id: String?)
+// 获取指定时间段的Token使用记录
+fun getTokenUsageBetween(startTime: Long, endTime: Long): Flow<List<AITokenUsage>>
 
-// 更新名称
-fun updateName(name: String)
-
-// 更新图标
-fun updateIcon(icon: String)
-
-// 更新协议
-fun updateProtocol(protocol: AIProtocol)
-
-// 更新API地址
-fun updateApiUrl(url: String)
-
-// 更新API密钥
-fun updateApiKey(key: String)
-
-// 更新模型ID
-fun updateModelId(modelId: String)
-
-// 更新图像理解开关
-fun updateImageUnderstanding(enabled: Boolean)
-
-// 测试连接
-fun testConnection()
-
-// 清除测试结果
-fun clearTestResult()
-
-// 保存配置
-fun saveConfig(): Boolean
-
-// 清除错误信息
-fun clearError()
-
-// 应用预设配置
-fun applyPreset(preset: AIConfig)
+// 清理旧数据（保留最近3个月）
+suspend fun cleanupOldData()
 ```
 
 ---
 
 ## 工具类
 
-### Animations（动画组件库）
+### FoodImageAnalysisService（食物图片分析服务）
 
-**位置**: `ui/components/Animations.kt`
-
-**功能描述**:
-参考Deadliner风格实现的动画组件库，提供统一的动画效果和交互反馈。
-
-**组件列表**:
-
-#### 1. AnimatedListItem（列表项入场动画）
-```kotlin
-@Composable
-fun AnimatedListItem(
-    index: Int,                    // 列表项索引，用于计算延迟
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-)
-```
-**动画效果**: 从下方滑入 + 淡入效果
-**动画规格**:
-- delay = index * 50ms (阶梯式延迟)
-- offsetY: 50f -> 0f, duration = 400ms, easing = EaseOutCubic
-- alpha: 0f -> 1f, duration = 300ms, easing = LinearEasing
-
-#### 2. AnimatedContentSwitch（页面内容切换动画）
-```kotlin
-@Composable
-fun <T> AnimatedContentSwitch(
-    targetState: T,
-    modifier: Modifier = Modifier,
-    content: @Composable (T) -> Unit
-)
-```
-**动画效果**: 淡入 + 垂直滑动切换
-**动画规格**:
-- fadeIn: 300ms
-- slideInVertically: 400ms, easing = EaseOutCubic, initialOffsetY = height / 10
-- fadeOut: 200ms
-- slideOutVertically: 300ms, easing = EaseInCubic, targetOffsetY = -height / 10
-
-#### 3. AnimatedCard（卡片点击缩放动画）
-```kotlin
-@Composable
-fun AnimatedCard(
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-    content: @Composable () -> Unit
-)
-```
-**动画效果**: 点击时缩小再恢复，带弹簧效果
-**动画规格**:
-- scale: 1f -> 0.95f (100ms) -> 1f (spring)
-- spring: dampingRatio = MediumBouncy, stiffness = Low
-
-#### 4. AnimatedNumber（数字变化动画）
-```kotlin
-@Composable
-fun AnimatedNumber(
-    targetNumber: Int,
-    modifier: Modifier = Modifier,
-    content: @Composable (Int) -> Unit
-)
-```
-**动画效果**: 数字从0递增到目标值
-**动画规格**:
-- duration = 800ms
-- easing = EaseOutCubic
-
-#### 5. AnimatedProgressBar（进度条动画）
-```kotlin
-@Composable
-fun AnimatedProgressBar(
-    progress: Float,
-    modifier: Modifier = Modifier
-)
-```
-**动画效果**: 进度条平滑过渡
-**动画规格**:
-- duration = 1000ms
-- easing = EaseOutCubic
-
-#### 6. fadingTopEdge（顶部渐隐效果）
-```kotlin
-fun Modifier.fadingTopEdge(height: Dp = 32.dp): Modifier
-```
-**动画效果**: 列表顶部渐隐遮罩
-**用途**: 用于LazyColumn，使顶部内容有渐隐效果
-
----
-
-### StatsUtils（统计工具类）
-
-**位置**: `utils/StatsUtils.kt`
+**位置**: `service/ai/FoodImageAnalysisService.kt`
 
 **功能描述**:
-参考Deadliner的OverviewUtils实现，提供各种数据统计计算功能。
-
-**函数列表**:
-
-#### 1. computeTodayStats（计算今日统计数据）
-```kotlin
-fun computeTodayStats(
-    records: List<FoodRecord>,
-    targetCalories: Int
-): TodayStats
-```
-**返回数据**:
-- date: LocalDate - 日期
-- totalCalories: Int - 今日总摄入
-- targetCalories: Int - 目标热量
-- remainingCalories: Int - 剩余可摄入
-- isTargetMet: Boolean - 是否达标
-- recordCount: Int - 记录数量
-
-#### 2. computeMealTypeStats（计算各餐次摄入统计）
-```kotlin
-fun computeMealTypeStats(records: List<FoodRecord>): Map<MealType, Int>
-```
-**返回数据**: 各餐次（早餐/午餐/晚餐/加餐）的热量统计
-
-#### 3. computeHistoryStats（计算历史摄入统计）
-```kotlin
-fun computeHistoryStats(records: List<FoodRecord>): HistoryStats
-```
-**返回数据**:
-- totalDays: Int - 总记录天数
-- targetMetDays: Int - 达标天数
-- overTargetDays: Int - 超标天数
-
-#### 4. computeWeeklyTrend（计算周趋势数据）
-```kotlin
-fun computeWeeklyTrend(
-    records: List<FoodRecord>,
-    weeks: Int = 4
-): List<WeeklyStat>
-```
-**返回数据**:
-- weekStart: LocalDate - 周开始日期
-- weekEnd: LocalDate - 周结束日期
-- avgCalories: Int - 平均每日摄入
-- totalCalories: Int - 周总摄入
-- daysRecorded: Int - 记录天数
-
-#### 5. computeMonthlyTrend（计算月度趋势数据）
-```kotlin
-fun computeMonthlyTrend(
-    records: List<FoodRecord>,
-    months: Int = 6
-): List<MonthlyStat>
-```
-**返回数据**:
-- month: String - 月份（yyyy-MM格式）
-- totalCalories: Int - 月总摄入
-- avgDailyCalories: Int - 平均每日摄入
-- daysRecorded: Int - 记录天数
-
-#### 6. computeLastMonthSummary（计算上月总结）
-```kotlin
-fun computeLastMonthSummary(records: List<FoodRecord>): MonthSummary
-```
-**返回数据**:
-- year/month: Int - 年月
-- totalCalories: Int - 总摄入
-- avgDailyCalories: Int - 平均每日摄入
-- maxDailyCalories: Int - 最高单日摄入
-- targetMetDays: Int - 达标天数
-- overTargetDays: Int - 超标天数
-- breakfastTotal/lunchTotal/dinnerTotal/snackTotal: Int - 各餐次总计
-- totalRecords: Int - 记录总数
-
-#### 7. computeStreakDays（计算连续记录天数）
-```kotlin
-fun computeStreakDays(records: List<FoodRecord>): Int
-```
-**返回数据**: 连续记录天数（从今天往前数）
-
----
-
-### DateUtils（日期工具）
-
-**位置**: `utils/DateUtils.kt`
+使用多模态AI分析食物图片，识别食物并估算营养成分。
 
 **函数**:
 ```kotlin
-// 获取相对日期标签
-fun getRelativeDateLabel(date: LocalDate): String
-// 返回：前天、昨天、今天、明天、后天等
+// 分析食物图片
+suspend fun analyzeFoodImage(
+    imageUri: Uri,
+    context: Context,
+    userHint: String = ""
+): Result<FoodAnalysisResult>
 
-// 获取日期范围fun getDateRange(start: LocalDate, end: LocalDate): List<LocalDate>
+// 将图片转换为base64
+private fun uriToBase64(uri: Uri, context: Context): String?
 
-// 格式化日期
-fun formatDate(date: LocalDate, pattern: String = "yyyy-MM-dd"): String
+// 压缩图片
+private fun compressBitmap(bitmap: Bitmap, maxSizeKB: Int): Bitmap
+
+// 调用AI API
+private suspend fun callVisionAPI(
+    config: AIConfig,
+    base64Image: String,
+    userHint: String
+): FoodAnalysisResult
 ```
+
+**返回数据类**:
+```kotlin
+data class FoodAnalysisResult(
+    val foodName: String = "",
+    val estimatedWeight: Int = 0,
+    val calories: Int = 0,
+    val protein: Float = 0f,
+    val carbs: Float = 0f,
+    val fat: Float = 0f,
+    val description: String = ""
+)
+```
+
+### AIChatService（AI聊天服务）
+
+**位置**: `service/ai/AIChatService.kt`
+
+**功能描述**:
+处理AI聊天消息的发送和接收，自动记录Token使用情况。
+
+**函数**:
+```kotlin
+// 发送消息并获取回复
+suspend fun sendMessage(message: String): String
+
+// 调用AI API
+private suspend fun callAIAPI(config: AIConfig, message: String): String
+
+// 记录Token使用情况
+private suspend fun recordTokenUsage(
+    config: AIConfig, 
+    responseBody: String, 
+    userMessage: String, 
+    systemPrompt: String
+)
+
+// 提取Token使用量
+private fun extractTokenUsage(responseBody: String, protocol: String): TokenUsage?
+
+// 计算成本（美元）
+private fun calculateCost(
+    promptTokens: Int, 
+    completionTokens: Int, 
+    protocol: String, 
+    modelId: String
+): Double
+
+// 构建请求体
+private fun buildRequestBody(
+    config: AIConfig,
+    systemPrompt: String,
+    message: String
+): String
+
+// 解析响应
+private fun parseResponse(responseBody: String, protocol: String): String
+```
+
+**支持的成本计算模型**:
+- OpenAI: GPT-4o, GPT-4, GPT-3.5
+- Claude: Claude-3-Opus, Claude-3-Sonnet, Claude-3-Haiku
+- Kimi: 统一价格
+- GLM: 统一价格
+- Qwen: 统一价格
+- DeepSeek: 统一价格
 
 ---
 
 ## 开发日志
 
-### 2026-03-12 - 阶段三开发开始
+### 2026-03-13 - v3.1 运动与统计增强
 
 #### 已完成功能
-- [x] Git初始提交
-- [x] 技术文档创建
-- [x] 日期工具类 (DateUtils.kt)
-  - `getRelativeDateLabel()` - 获取相对日期标签（前天/昨天/今天/明天）
-  - `getWeekDayLabel()` - 获取星期标签
-  - `getDateRange()` - 获取日期范围
-  - `formatDate()` - 格式化日期
-- [x] 日期选择器组件 (DateSelector.kt)
-  - 支持前天/昨天/今天/明天切换
-  - 左右滑动切换日期
-  - 丝滑动画效果
-  - 选中状态高亮显示
-  - **修复**: 添加 `@OptIn(ExperimentalAnimationApi::class)` 注解
-- [x] 顶部菜单按钮 (TopMenuButton.kt)
-  - 三个点按钮触发
-  - 弹出菜单（设置、概览、编辑资料）
-  - 卡片式布局，圆角24dp
-  - 欢迎语 + 关闭按钮
-- [x] 修复编译错误
-  - DateSelector: 添加实验性动画API注解
-  - HomeScreen: 修复 MenuScreen 和 Screen 枚举类型不匹配
-- [x] 设置界面重构 (SettingsScreen.kt)
-  - 参考Deadliner风格：卡片式布局，圆角24dp
-  - 图标+标题+副标题+箭头
-  - 分组：界面外观、交互与行为、通知、备份、AI配置、关于
-  - SettingGroupItem组件复用
-- [x] SettingsViewModel更新
-  - 添加MealReminderType枚举
-  - 更新每日热量目标
-  - 更新通知开关
-  - 更新提醒时间
-- [x] AI配置界面 - 列表页 (AISettingsScreen.kt)
-  - AIConfig数据模型（支持多配置）
-  - AIConfigDao数据库访问
-  - AIConfigRepository仓库层
-  - AISettingsViewModel（加载配置列表、设置默认、删除）
-  - AISettingsScreen界面（列表展示）
-  - AddConfigButton组件
-  - AIConfigItem组件（显示图标、名称、协议、模型ID）
-  - EmptyConfigState空状态
-  - 支持设为默认、删除操作
+- [x] 运动类型自定义功能
+  - ExerciseDialog.kt: 添加自定义运动选项
+  - 支持输入运动名称和消耗热量
+  - 自定义运动信息存储在notes字段
+- [x] 备份与恢复功能
+  - BackupService.kt: 核心备份服务
+  - BackupSettingsScreen.kt: 备份设置界面
+  - BackupSettingsViewModel.kt: 状态管理
+  - JSON格式备份（饮食记录、运动记录、用户设置）
+  - 备份信息预览和恢复确认
+- [x] 统一趋势图表
+  - UnifiedTrendChart.kt: 单一图表支持多种时间维度
+  - 按天/周/月切换
+  - 日期范围选择器（从X到X）
+  - 多数据系列：热量摄入、运动消耗、体重变化
+- [x] 运动统计增强
+  - 概览统计添加运动相关数据
+  - 上月总结添加体重变化、运动量数据
+  - 运动类型分布饼图
+  - 最活跃运动类型统计
+- [x] 鼓励标语功能
+  - 25条随机鼓励标语
+  - 根据用户目标达成情况显示
 
-#### 已完成功能（续）
-- [x] AI配置详情页（添加/编辑）
-  - AIConfigDetailViewModel（加载配置、更新字段、测试连接、保存配置）
-  - AIConfigDetailScreen（表单界面）
-  - IconSelectorSection（图标选择区域）
-  - ProtocolSelector（协议选择器）
-  - TestConnectionButton（测试连接按钮）
-  - ImageUnderstandingCard（图像理解开关卡片）
-  - IconSelectorDialog（图标选择弹窗）
-  - PresetSelectorDialog（预设选择弹窗）
-  - 支持OpenAI/Claude两种协议格式
-  - 预设配置：OpenAI GPT-4o、Claude 3.5 Sonnet
-- [x] 导航图更新
-  - 添加AISettings路由
-  - 添加AIConfigDetail路由（支持可选configId参数）
-  - SettingsScreen添加onNavigateToAISettings回调
-- [x] Bug修复
-  - 创建UserSettingsRepository（之前缺失导致KSP错误）
-  - 更新UserSettingsDao（添加insertOrUpdate和getSettingsOnce方法）
-  - 修复AIConfigDetailViewModel方法调用错误（insertConfig -> addConfig）
-  - 添加getMealTypeName函数到FoodRecord.kt，修复AddFoodScreen编译错误
-  - 修复MealTypeSelector函数名冲突（重命名为ManualMealTypeSelector）
-  - 修复ManualAddViewModel方法调用错误（insertRecord -> addRecord）
-  - 修复AISettingsScreen when表达式缺少分支（添加KIMI/GLM/QWEN/DEEPSEEK/GEMINI）
-  - 修复DateSelector警告（移除未使用变量，更新动画API）
-  - 修复ManualAddScreen警告（移除未使用变量）
-  - 修复HomeScreen生命周期观察者内存泄漏（使用DisposableEffect）
+#### 技术要点
+1. **自定义运动存储格式**: `CUSTOM:{name}:{caloriesPerMinute}` 存储在notes字段
+2. **备份数据格式**: JSON序列化，版本控制，支持增量恢复
+3. **统一趋势图表**: 使用单一MPAndroidChart实例，动态切换数据集
+4. **日期范围选择**: 支持快速选择（最近7天/30天/本月/上月）
 
-#### 设置界面详情页开发
-- [x] 界面外观设置页面（AppearanceSettingsScreen）
-  - 主题选择（浅色/深色/跟随系统）
-  - 主界面风格开关
-  - 分割线留白设计开关
-  - 字体大小选择（小/中/大）
-  - 界面动画开关
-  - AppearanceSettingsViewModel
-  - UserSettings数据模型更新（添加themeMode等字段）
-  - 导航路由添加
-- [x] 交互与行为设置页面（InteractionSettingsScreen）
-  - 操作反馈类型选择（无/仅振动/仅声音/振动和声音）
-  - 振动反馈开关
-  - 声音反馈开关
-  - 后台行为选择（标准/保持运行/省电模式）
-  - 启动页面选择（首页/统计/添加）
-  - 快速添加开关
-  - InteractionSettingsViewModel
-  - UserSettings数据模型更新（添加feedbackType等字段）
-  - 导航路由添加
-- [x] 通知设置页面（NotificationSettingsScreen）
-  - 总开关（启用通知）- 主卡片样式
-  - 提醒时间设置（早餐/午餐/晚餐）- 时间选择器
-  - 摄入目标提醒开关
-  - 连续记录提醒开关
-  - NotificationSettingsViewModel
-  - UserSettings数据模型更新（添加enableGoalReminder等字段）
-  - 导航路由添加
-- [x] 共享设置组件（SettingsComponents.kt）
-  - SettingsSection（分组卡片，支持蓝色标题）
-  - SettingsSwitchItem（开关项，支持主开关样式）
-  - SettingsSectionDivider（分割线）
-- [x] 备份设置页面（BackupSettingsScreen）
-  - 数据备份说明卡片
-  - 导出数据按钮
-  - 导入数据按钮
-  - 自动备份开关（带上次备份时间显示）
-  - 云同步开关（带立即同步/从云端恢复按钮）
-  - BackupSettingsViewModel
-  - UserSettings数据模型更新（添加enableAutoBackup等字段）
-  - 导航路由添加
-- [x] 关于页面（AboutScreen）
-  - 顶部应用信息卡片（图标+名称+标语）
-  - 版本信息（版本号、构建时间）
-  - 法律信息（开源许可证、隐私政策）
-  - 更多链接（项目主页、反馈问题）
-  - 底部版权信息
-  - 导航路由添加
+#### 界面结构调整记录 (2026-03-13)
+1. **AddMethodSelectorScreen.kt**: 
+   - 添加 `onNavigateToWeight` 和 `onNavigateToExercise` 参数
+   - 新增 `SmallMethodCard` 组件用于体重记录和运动添加
+   - 在底部添加"其他记录"区域，包含体重记录和运动添加两个小卡片
+2. **ProfileScreen.kt**: 
+   - `BodyDataSection` 添加 `showWeight` 参数（默认 true）
+   - 个人信息页面设置 `showWeight = false` 隐藏体重输入
+3. **StatsScreen.kt**: 
+   - 删除 `WeeklyTrendCard` 和 `MonthlyTrendCard` 调用
+   - 新增 `TrendAnalysisHeader` 组件（标题栏+日期选择+时间维度）
+   - 新增三个独立图表组件：`CalorieTrendChart`、`ExerciseTrendChart`、`WeightTrendChart`
 
-#### 已完成
-- [x] 界面外观设置页面
-- [x] 交互与行为设置页面
-- [x] 通知设置页面
-- [x] 备份设置页面
-- [x] 关于页面
-- [x] AI配置管理
-- [x] 动画与交互优化（Animations.kt）
-  - AnimatedListItem（列表项入场动画）
-  - AnimatedContentSwitch（页面内容切换动画）
-  - AnimatedCard（卡片点击缩放动画）
-  - AnimatedNumber（数字变化动画）
-  - AnimatedProgressBar（进度条动画）
-  - fadingTopEdge（顶部渐隐效果）
-- [x] 数据统计页面重构（StatsScreen.kt）
-  - 三标签设计（概览统计/趋势分析/上月总结）
-  - 今日摄入状态统计卡片
-  - 各餐次摄入统计卡片（条形图）
-  - 历史摄入统计卡片
-  - 连续记录天数卡片
-  - 周趋势卡片
-  - 月度趋势卡片
-  - 上月总结头部卡片
-  - 统计指标网格（双列布局）
-  - StatsUtils（数据统计工具类）
-  - StatsViewModel
-
-#### 已完成（2026-03-12更新）
-- [x] 主题颜色适配（蓝色主色调）
-  - Color.kt: 完整的Material3蓝色系配色方案
-  - Theme.kt: 浅色/深色主题配色方案
-  - 状态栏适配（跟随主题白色/黑色）
-  - 表面容器色（surfaceContainer系列）
-- [x] 语音输入功能优化
-  - VoiceInputDialog: 带录音动画的对话框
-  - VoiceRecordingAnimation: 脉冲波纹+波形动画
-  - VoiceWaveform: 语音波形动画
-  - VoiceInputButton: 语音输入按钮组件
-  - AddFoodScreen集成语音输入对话框
-
-#### 待开发
-- [ ] 拍照识别优化（多模态大模型）
-- [ ] 滑动手势与动画（Konfetti彩带）
+#### 编译修复记录 (2026-03-13)
+1. **UnifiedTrendChart.kt**: 添加 `androidx.compose.foundation.clickable` 导入
+2. **StatsScreen.kt**: 使用 `exerciseType.emoji` 和 `exerciseType.displayName` 替代硬编码的 when 表达式
+3. **ExerciseRecordDao.kt**: 添加 `getAllRecordsOnce(): List<ExerciseRecord>` 方法
+4. **ExerciseRecordRepository.kt**: 添加 `getAllRecordsOnce()` 方法委托给 DAO
+5. **StatsUtils.kt**: 更新 `computeLastMonthSummary` 函数签名，添加 exerciseRecords 和 currentWeight 参数
 
 ---
 
-### StatsViewModel（统计页面ViewModel）
-
-**位置**: `ui/screens/stats/StatsViewModel.kt`
-
-**功能描述**:
-统计页面的ViewModel，管理统计数据的状态和计算。
-
-**变量**:
-```kotlin
-// 状态
-private val _uiState = MutableStateFlow(StatsUiState())
-val uiState: StateFlow<StatsUiState> = _uiState.asStateFlow()
-
-// UI状态数据类
-data class StatsUiState(
-    val todayStats: TodayStats? = null,
-    val mealTypeStats: Map<MealType, Int> = emptyMap(),
-    val historyStats: HistoryStats? = null,
-    val weeklyStats: List<WeeklyStat> = emptyList(),
-    val monthlyStats: List<MonthlyStat> = emptyList(),
-    val lastMonthSummary: MonthSummary? = null,
-    val streakDays: Int = 0,
-    val isLoading: Boolean = true
-)
-
-// 依赖注入
-@Inject
-lateinit var foodRecordRepository: FoodRecordRepository
-
-@Inject
-lateinit var userSettingsRepository: UserSettingsRepository
-```
-
-**函数**:
-```kotlin
-// 加载统计数据
-private fun loadStats()
-
-// 重新加载（供外部调用刷新）
-fun refreshStats()
-```
-
----
-
-### StatsScreen（统计页面）
-
-**位置**: `ui/screens/stats/StatsScreen.kt`
-
-**功能描述**:
-参考Deadliner风格的三标签统计页面，包含概览统计、趋势分析、上月总结三个标签页。
-
-**页面结构**:
-```
-StatsScreen (Scaffold)
-├── CenterAlignedTopAppBar (顶部标题栏)
-│   ├── 返回按钮
-│   ├── 标题 "概览"
-│   └── 设置按钮 (右侧)
-├── PrimaryTabRow (标签导航栏)
-│   ├── Tab 0: 概览统计 (ic_analytics)
-│   ├── Tab 1: 趋势分析 (ic_monitor)
-│   └── Tab 2: 上月总结 (ic_dashboard)
-└── AnimatedContent (内容区域)
-    ├── 0 -> OverviewStatsContent (概览统计)
-    ├── 1 -> TrendAnalysisContent (趋势分析)
-    └── 2 -> MonthlySummaryContent (上月总结)
-```
-
-**组件列表**:
-
-#### OverviewStatsContent（概览统计内容）
-使用LazyColumn展示4个统计卡片：
-- TodayStatsCard: 今日摄入状态统计（三列布局：已摄入/剩余/目标）
-- MealTypeStatsCard: 各餐次摄入统计（条形图）
-- HistoryStatsCard: 历史摄入统计（三列布局：达标/超标/记录天数）
-- StreakCard: 连续记录天数（主色调背景卡片）
-
-#### TrendAnalysisContent（趋势分析内容）
-使用Column+verticalScroll展示2个趋势卡片：
-- WeeklyTrendCard: 周摄入趋势（列表展示最近4周数据）
-- MonthlyTrendCard: 月度趋势（列表展示最近6个月数据）
-
-#### MonthlySummaryContent（上月总结内容）
-使用Column+verticalScroll展示：
-- SummaryHeaderCard: 顶部大图卡片（显示年月+"上月总结"）
-- SummaryMetricsGrid: 统计指标网格（双列布局，10个指标）
-
-**样式规范**:
-- 卡片圆角: 24.dp
-- 卡片内边距: 20.dp
-- 卡片间距: 8.dp
-- 统计项颜色: 达标-绿色(#FF82ABA3), 超标-红色(#FFF77E66)
-- 使用AnimatedListItem实现入场动画
-
----
-
-### VoiceInputDialog（语音输入对话框）
-
-**位置**: `ui/components/VoiceInputDialog.kt`
-
-**功能描述**:
-语音输入对话框组件，包含录音动画、波形效果和实时状态显示。
-
-**组件**:
-
-#### 1. VoiceInputDialog（主对话框）
-```kotlin
-@Composable
-fun VoiceInputDialog(
-    isVisible: Boolean,
-    voiceState: VoiceState,
-    onDismiss: () -> Unit,
-    onStopRecording: () -> Unit
-)
-```
-**功能**:
-- 显示录音状态对话框
-- 根据VoiceState显示不同状态（准备/聆听/处理/成功/错误）
-- 停止录音按钮
-- 权限错误提示
-
-#### 2. VoiceRecordingAnimation（录音动画）
-```kotlin
-@Composable
-private fun VoiceRecordingAnimation(voiceState: VoiceState)
-```
-**动画效果**:
-- 外圈脉冲波纹（录音时）
-- 中间圈颜色变化（根据状态）
-- 内圈图标（麦克风/进度指示器）
-- 底部波形动画（录音时）
-
-**状态颜色**:
-- 聆听中: primary颜色
-- 处理中: secondary颜色
-- 错误: error颜色
-
-#### 3. VoiceWaveform（语音波形）
-```kotlin
-@Composable
-private fun VoiceWaveform(modifier: Modifier = Modifier)
-```
-**动画效果**:
-- 5个条形波浪动画
-- 不同延迟创建波浪效果
-- duration: 400-800ms
-- easing: EaseInOutCubic
-
-#### 4. VoiceInputButton（语音输入按钮）
-```kotlin
-@Composable
-fun VoiceInputButton(
-    isListening: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-)
-```
-**功能**:
-- 48dp圆形按钮
-- 录音状态颜色变化
-- 图标切换（麦克风/停止）
-
----
-
-### VoiceInputHelper（语音输入帮助类）
-
-**位置**: `service/voice/VoiceInputHelper.kt`
-
-**功能描述**:
-封装Android SpeechRecognizer，提供语音转文字功能。
-
-**变量**:
-```kotlin
-private val _voiceState = MutableStateFlow<VoiceState>(VoiceState.Idle)
-val voiceState: StateFlow<VoiceState> = _voiceState.asStateFlow()
-```
-
-**函数**:
-```kotlin
-// 开始录音
-fun startListening(
-    context: Context,
-    onResult: (String) -> Unit,
-    onError: (String) -> Unit
-)
-
-// 停止录音
-fun stopListening()
-
-// 释放资源
-fun destroy()
-```
-
-**VoiceState状态**:
-```kotlin
-sealed class VoiceState {
-    object Idle : VoiceState()                    // 空闲
-    object Listening : VoiceState()               // 聆听中
-    object Processing : VoiceState()              // 处理中
-    data class Partial(val text: String) : VoiceState()  // 部分结果
-    data class Success(val text: String) : VoiceState()  // 识别成功
-    data class Error(val message: String) : VoiceState() // 错误
-}
-```
-
-**错误类型**:
-- ERROR_AUDIO: 音频错误
-- ERROR_CLIENT: 客户端错误
-- ERROR_INSUFFICIENT_PERMISSIONS: 权限不足
-- ERROR_NETWORK: 网络错误
-- ERROR_NO_MATCH: 未能识别
-- ERROR_RECOGNIZER_BUSY: 识别器繁忙
-- ERROR_SERVER: 服务器错误
-- ERROR_SPEECH_TIMEOUT: 说话超时
-
----
-
-### ProfileScreen（个人信息页面）
-
-**位置**: `ui/screens/settings/ProfileScreen.kt`
-
-**功能描述**:
-参考Deadliner风格，支持编辑头像、ID、身体数据，计算基础代谢率(BMR)和每日总消耗(TDEE)。
-
-**组件**:
-
-#### 1. ProfileScreen（主页面）
-```kotlin
-@Composable
-fun ProfileScreen(
-    onNavigateBack: () -> Unit,
-    viewModel: ProfileViewModel = hiltViewModel()
-)
-```
-**功能**:
-- 头像编辑（点击弹出选择器）
-- 昵称和ID输入
-- 身体数据录入
-- BMR/TDEE计算展示
-- 每日热量目标设置
-
-#### 2. ProfileAvatarSection（头像区域）
-```kotlin
-@Composable
-private fun ProfileAvatarSection(
-    avatarUrl: String?,
-    userName: String,
-    userId: String,
-    onAvatarClick: () -> Unit,
-    onUserNameChange: (String) -> Unit,
-    onUserIdChange: (String) -> Unit
-)
-```
-
-#### 3. BodyDataSection（身体数据）
-```kotlin
-@Composable
-private fun BodyDataSection(
-    gender: String,
-    age: Int?,
-    height: Float?,
-    weight: Float?,
-    onGenderChange: (String) -> Unit,
-    onAgeChange: (Int?) -> Unit,
-    onHeightChange: (Float?) -> Unit,
-    onWeightChange: (Float?) -> Unit
-)
-```
-
-#### 4. MetabolismSection（代谢计算）
-```kotlin
-@Composable
-private fun MetabolismSection(
-    bmr: Int,
-    tdee: Int,
-    activityLevel: String,
-    onActivityLevelChange: (String) -> Unit
-)
-```
-**活动水平选项**:
-- SEDENTARY: 久坐不动 (×1.2)
-- LIGHT: 轻度活动 (×1.375)
-- MODERATE: 中度活动 (×1.55)
-- ACTIVE: 高度活动 (×1.725)
-- VERY_ACTIVE: 极度活动 (×1.9)
-
-#### 5. CalorieGoalSection（每日目标）
-```kotlin
-@Composable
-private fun CalorieGoalSection(
-    calorieGoal: Int,
-    tdee: Int,
-    onCalorieGoalChange: (Int) -> Unit
-)
-```
-**快捷设置按钮**:
-- BMR: 基础代谢率
-- TDEE: 每日总消耗
-- 减脂: TDEE × 0.8
-- 增肌: TDEE × 1.1
-
-**计算公式**:
-```kotlin
-// BMR计算（Mifflin-St Jeor公式）
-fun calculateBMR(gender: String, weight: Float?, height: Float?, age: Int?): Int
-// 男性: (10 × 体重) + (6.25 × 身高) - (5 × 年龄) + 5
-// 女性: (10 × 体重) + (6.25 × 身高) - (5 × 年龄) - 161
-
-// TDEE计算
-fun calculateTDEE(bmr: Int, activityLevel: String): Int
-// TDEE = BMR × 活动系数
-```
-
----
-
-### ProfileViewModel（个人信息ViewModel）
-
-**位置**: `ui/screens/settings/ProfileViewModel.kt`
-
-**变量**:
-```kotlin
-private val _uiState = MutableStateFlow(ProfileUiState())
-val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
-```
-
-**ProfileUiState**:
-```kotlin
-data class ProfileUiState(
-    val avatarUrl: String? = null,
-    val userName: String = "",
-    val userId: String = "",
-    val gender: String = "MALE",
-    val age: Int? = null,
-    val height: Float? = null,
-    val weight: Float? = null,
-    val activityLevel: String = "SEDENTARY",
-    val calorieGoal: Int = 2000
-)
-```
-
-**函数**:
-```kotlin
-fun updateUserName(name: String)
-fun updateUserId(id: String)
-fun updateGender(gender: String)
-fun updateAge(age: Int?)
-fun updateHeight(height: Float?)
-fun updateWeight(weight: Float?)
-fun updateActivityLevel(level: String)
-fun updateCalorieGoal(goal: Int)
-fun saveProfile() // 保存到UserSettingsRepository
-```
-
----
-
-### ExpandableCalendarView（可展开日历组件）
-
-**位置**: `ui/components/CalendarView.kt`
-
-**功能描述**:
-点击日期选择器可以展开/收起日历视图，查看近期摄入记录。
-
-**组件**:
-
-#### 1. ExpandableCalendarView（主组件）
-```kotlin
-@Composable
-fun ExpandableCalendarView(
-    selectedDate: LocalDate,
-    onDateSelected: (LocalDate) -> Unit,
-    modifier: Modifier = Modifier,
-    calorieData: Map<LocalDate, Int> = emptyMap(),
-    targetCalories: Int = 2000
-)
-```
-
-#### 2. CalendarHeader（日历头部）
-- 显示当前选中日期
-- 展开/收起图标
-- 点击可切换展开状态
-
-#### 3. CalendarContent（日历内容）
-- 月份导航（< 2024年03月 >）
-- 星期标题（日一二三四五六）
-- 日期网格
-
-#### 4. DayCell（日期单元格）
-- 显示日期数字
-- 选中状态高亮
-- 今天特殊标记
-- 热量记录指示点（达标绿色/超标红色）
-
----
-
-## 导航结构
-
-```kotlin
-sealed class Screen(val route: String) {
-    object Home : Screen("home")
-    object AddFood : Screen("add_food")
-    object Camera : Screen("camera")
-    object Result : Screen("result/{recordId}")
-    object Stats : Screen("stats")
-    object Settings : Screen("settings")
-    object AISettings : Screen("ai_settings")
-    object AIConfigDetail : Screen("ai_config_detail?configId={configId}")
-    object Profile : Screen("profile")  // 新增：个人信息页面
-}
-```
+### 2026-03-13 - 阶段五高级功能完成
+
+#### 已完成功能
+- [x] AI聊天小窗口（悬浮按钮 + 迷你窗口 + 全屏页面）
+  - AIChatWidget.kt: 悬浮按钮组件
+  - AIChatMiniWindow: 迷你聊天窗口
+  - AIChatScreen.kt: 全屏聊天页面
+  - AIChatViewModel.kt: 状态管理
+  - AIChatService.kt: AI服务
+- [x] 运动消耗记录功能
+  - ExerciseRecord.kt: 运动记录数据模型
+  - ExerciseType.kt: 27种运动类型枚举
+  - ExerciseRecordDao.kt: 数据库访问
+  - ExerciseRecordRepository.kt: 仓库层
+  - ExerciseDialog.kt: 运动记录对话框
+- [x] 图表组件库
+  - LineChartView.kt: 折线图（趋势分析）
+  - PieChartView.kt: 饼状图（营养素分布）
+  - BarChartView.kt: 柱状图（餐次对比）
+  - RadarChartView.kt: 雷达图（营养均衡）
+  - ChartColors.kt: 预定义图表颜色
+- [x] 拍照识别功能（多模态AI）
+  - FoodImageAnalysisService.kt: 图片分析服务
+  - PhotoAnalysisScreen.kt: 拍照分析页面
+  - PhotoAnalysisViewModel.kt: 状态管理
+  - 支持OpenAI/Claude/Kimi/GLM/Qwen/Gemini多协议
+- [x] 扩展用餐类型
+  - BREAKFAST_SNACK: 早加餐
+  - LUNCH_SNACK: 午加餐
+  - DINNER_SNACK: 晚加餐
+- [x] 桌面小组件（多种尺寸）
+  - CalorieWidget.kt: 小组件实现
+  - CalorieWidgetReceiver.kt: 广播接收器
+  - 支持小(2x1)/中(3x2)/大(4x3)三种尺寸
+- [x] 引导教程系统
+  - TutorialStep.kt: 教程步骤数据模型
+  - TutorialOverlay.kt: 教程覆盖层UI
+  - TutorialManager.kt: 教程管理服务
+  - 9步新手引导流程
+- [x] AI提供商图标
+  - 从Deadliner项目复制图标资源
+  - ic_openai.xml, ic_claude.xml, ic_glm.xml等
+- [x] 年份更新为2026
+  - AboutScreen.kt
+  - StatsScreen.kt
+
+#### 技术要点
+1. **多模态API图片传输**: 使用base64编码，格式为 `data:image/jpeg;base64,{data}`
+2. **AI聊天架构**: 悬浮窗 -> 迷你窗口 -> 全屏页面，支持过渡动画
+3. **图表库**: 使用MPAndroidChart，支持折线图/饼状图/柱状图/雷达图
+4. **运动消耗**: 27种运动类型，每种有对应的热量消耗系数（千卡/分钟）
 
 ---
 
@@ -1581,19 +1076,20 @@ sealed class Screen(val route: String) {
 
 | 日期 | 版本 | 更新内容 | 更新人 |
 |------|------|----------|--------|
+| 2026-03-13 | v3.1.2 | 界面结构调整：添加方式选择页面重构、个人信息页面调整、趋势分析优化 | AI Assistant |
+| 2026-03-13 | v3.1.1 | 编译修复与优化：修复clickable导入、ExerciseType枚举、添加getAllRecordsOnce方法 | AI Assistant |
+| 2026-03-13 | v3.1 | 运动与统计增强：统一趋势图表、运动数据统计、体重变化估算 | AI Assistant |
+| 2026-03-13 | v3.0 | AI营养助手、运动消耗记录、桌面小组件、引导教程 | AI Assistant |
+| 2026-03-12 | v2.0 | UI重构与Deadliner风格适配、数据统计页面重构 | AI Assistant |
 | 2026-03-12 | v1.0 | 初始文档创建 | AI Assistant |
-| 2026-03-12 | v1.1 | 完成日期选择器和顶部菜单 | AI Assistant |
-| 2026-03-12 | v1.2 | 修复编译错误 | AI Assistant |
-| 2026-03-12 | v1.3 | 完成AI配置详情页 | AI Assistant |
-| 2026-03-12 | v1.4 | 完成动画与交互优化 | AI Assistant |
-| 2026-03-12 | v1.5 | 完成数据统计页面重构 | AI Assistant |
-| 2026-03-12 | v1.6 | 完成主题颜色适配和语音输入优化 | AI Assistant |
-| 2026-03-12 | v1.7 | 完成个人信息页面、主题切换、日历组件 | AI Assistant |
+| 2026-03-12 | v1.1-v1.7 | 阶段三开发完成 | AI Assistant |
+| 2026-03-13 | v2.0 | 阶段五高级功能完成 | AI Assistant |
+| 2026-03-13 | v3.1 | 运动与统计增强 | AI Assistant |
 
 ---
 
 **文档维护**: 每开发一个功能后必须更新本文档
-**最后更新**: 2026-03-12
+**最后更新**: 2026-03-13
 
 ---
 
@@ -1606,79 +1102,41 @@ sealed class Screen(val route: String) {
 - Gradle依赖配置
 - MVVM架构搭建
 - Material3主题配置
-- Room数据库实现
-- Hilt依赖注入
 
 #### 阶段二：核心功能 ✅
 - 数据库设计与实现
 - 食物录入页面（文本/语音/拍照）
 - 首页与记录列表
-- 热量记录详情展示
 - 基础导航架构
-- 手动输入热量数据
-- ML Kit文字识别
 
-#### 阶段三：UI重构与Deadliner风格适配 (100%) ✅
-- 首页日期切换组件（前天/昨天/今天/明天）
-- 顶部菜单弹窗（设置/概览/编辑资料）
-- 设置界面重构（参考Deadliner卡片式布局）
-  - 界面外观设置
-  - 交互与行为设置
-  - 通知设置
-  - 备份设置
-  - 关于页面
-- AI配置界面（支持OpenAI/Claude多配置）
-- **主题颜色适配** ✅
-  - 蓝色主色调（Material Blue 500）
-  - 完整的浅色/深色主题配色方案
-  - 状态栏跟随主题（白色/黑色）
-  - 表面容器色（surfaceContainer系列）
-- **动画与交互优化** ✅
-  - Animations.kt（6个动画组件）
-  - 列表项入场动画
-  - 页面内容切换动画
-  - 卡片点击缩放动画
-  - 数字变化动画
-  - 进度条动画
-  - 顶部渐隐效果
+#### 阶段三：UI重构与Deadliner风格适配 ✅
+- 首页日期切换组件
+- 顶部菜单弹窗
+- 设置界面重构
+- AI配置界面
+- 主题颜色适配
+- 动画与交互优化
 
 #### 阶段四：数据统计页面重构 ✅
-- **StatsScreen.kt** - 三标签统计页面
-- **StatsViewModel.kt** - 统计数据管理
-- **StatsUtils.kt** - 统计计算工具类
-- 概览统计（今日/历史/连续记录）
-- 趋势分析（周趋势/月度趋势）
-- 上月总结（瀑布流卡片布局）
+- 统计页面架构设计
+- 概览统计页面
+- 趋势分析页面
+- 上月总结页面
 
-#### 阶段五：高级功能（进行中）
-- **语音输入优化** ✅
-  - VoiceInputDialog: 带录音动画的对话框
-  - VoiceRecordingAnimation: 脉冲波纹+波形动画
-  - VoiceWaveform: 语音波形动画效果
-  - 实时状态显示（聆听中/处理中/成功/错误）
-  - 权限处理流程
-- **主题切换功能** ✅
-  - MainActivity集成主题状态监听
-  - 支持浅色/深色/跟随系统三种模式
-  - 实时主题切换
-- **可展开日历组件** ✅
-  - ExpandableCalendarView: 点击展开/收起日历
-  - 月份导航（上一月/下一月）
-  - 日期选择功能
-  - 热量记录指示点（达标/超标）
-- **个人信息页面** ✅
-  - ProfileScreen: 编辑头像、昵称、ID
-  - 身体数据录入（性别、年龄、身高、体重）
-  - 基础代谢率(BMR)计算（Mifflin-St Jeor公式）
-  - 每日总消耗(TDEE)计算
-  - 活动水平选择
-  - 每日热量目标设置（支持快捷设置：BMR/TDEE/减脂/增肌）
+#### 阶段五：高级功能 ✅
+- AI聊天小窗口
+- 运动消耗记录
+- 图表组件库
+- 拍照识别（多模态AI）
+- 扩展用餐类型
+- 桌面小组件
+- 引导教程系统
+- AI提供商图标
 
 ### 待开发功能
+- OPPO流体云通知（需要开发者账号）
+- AI图标生成（成本考虑）
 
-#### 高级功能（阶段五剩余）
-- 拍照识别优化（多模态大模型）
-- 滑动手势与动画（Konfetti彩带）
-- OPPO流体云通知
-- 桌面小组件
-- 数据备份与恢复
+---
+
+**当前状态**: 核心功能全部完成，应用可正常使用

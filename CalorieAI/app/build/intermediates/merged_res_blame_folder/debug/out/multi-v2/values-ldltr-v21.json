@@ -4,7 +4,7 @@
             "outputFile": "com.calorieai.app-mergeDebugResources-84:/values-ldltr-v21/values-ldltr-v21.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-4\\22fcaa70593b070ea38c308142add73c\\transformed\\appcompat-1.6.1\\res\\values-ldltr-v21\\values-ldltr-v21.xml",
+                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-4\\b6f9e0c6bdabcefdfeb660aed35abe6a\\transformed\\appcompat-1.6.1\\res\\values-ldltr-v21\\values-ldltr-v21.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",

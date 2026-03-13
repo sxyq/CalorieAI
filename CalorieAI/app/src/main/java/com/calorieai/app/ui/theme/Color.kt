@@ -131,3 +131,11 @@ val InfoBlue = Color(0xFF2196F3)
 // ============================================
 
 val StarYellow = Color(0xFFFFE819)    // 收藏星星
+
+// ============================================
+// Deadliner 风格颜色对象（兼容旧代码）
+// ============================================
+
+object DeadlinerColors {
+    val accentBlue = Color(0xFF2196F3)  // 强调蓝色
+}

@@ -4,6 +4,10 @@
         "source": "com.calorieai.app-main-88:/mipmap-mdpi/ic_launcher.png"
     },
     {
+        "merged": "com.calorieai.app-merged_res-86:/drawable_ic_openai.xml.flat",
+        "source": "com.calorieai.app-main-88:/drawable/ic_openai.xml"
+    },
+    {
         "merged": "com.calorieai.app-merged_res-86:/xml_file_paths.xml.flat",
         "source": "com.calorieai.app-main-88:/xml/file_paths.xml"
     },

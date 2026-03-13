@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -27,8 +29,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.ui.components.AnimatedListItem
+import com.calorieai.app.ui.components.charts.*
 import com.calorieai.app.ui.components.fadingTopEdge
 import com.calorieai.app.utils.*
+import com.calorieai.app.data.model.ExerciseType
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -44,7 +48,6 @@ fun StatsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
-    var showDateRangePicker by remember { mutableStateOf(false) }
 
     val tabs = listOf("概览统计", "趋势分析", "上月总结")
     val tabIcons = listOf(Icons.Default.Analytics, Icons.Default.Monitor, Icons.Default.Dashboard)
@@ -59,12 +62,7 @@ fun StatsScreen(
                     }
                 },
                 actions = {
-                    // 趋势分析页面显示日期筛选按钮
-                    if (selectedTab == 1) {
-                        IconButton(onClick = { showDateRangePicker = true }) {
-                            Icon(Icons.Default.DateRange, contentDescription = "日期筛选")
-                        }
-                    }
+                    // 日期筛选按钮已移至趋势分析页面内部
                 }
             )
         }
@@ -104,6 +102,9 @@ fun StatsScreen(
                         uiState = uiState,
                         onDateRangeSelected = { start, end ->
                             viewModel.setTrendDateRange(start, end)
+                        },
+                        onTimeDimensionChange = { dimension ->
+                            viewModel.setTrendTimeDimension(dimension)
                         }
                     )
                     2 -> MonthlySummaryContent(
@@ -115,21 +116,6 @@ fun StatsScreen(
                 }
             }
         }
-    }
-
-    // 日期范围选择器
-    if (showDateRangePicker) {
-        DateRangePickerDialog(
-            onDismiss = { showDateRangePicker = false },
-            onConfirm = { start, end ->
-                viewModel.setTrendDateRange(start, end)
-                showDateRangePicker = false
-            },
-            onReset = {
-                viewModel.resetTrendDateRange()
-                showDateRangePicker = false
-            }
-        )
     }
 }
 
@@ -152,9 +138,20 @@ private fun OverviewStatsContent(uiState: StatsUiState) {
             }
         }
 
+        // 今日运动统计卡片
+        item {
+            uiState.todayStats?.let { stats ->
+                if (stats.exerciseCount > 0) {
+                    AnimatedListItem(index = 1) {
+                        ExerciseStatsCard(stats = stats)
+                    }
+                }
+            }
+        }
+
         // 餐次统计
         item {
-            AnimatedListItem(index = 1) {
+            AnimatedListItem(index = 2) {
                 MealTypeStatsCard(stats = uiState.mealTypeStats)
             }
         }
@@ -162,7 +159,7 @@ private fun OverviewStatsContent(uiState: StatsUiState) {
         // 历史统计
         item {
             uiState.historyStats?.let { stats ->
-                AnimatedListItem(index = 2) {
+                AnimatedListItem(index = 3) {
                     HistoryStatsCard(stats = stats)
                 }
             }
@@ -170,7 +167,7 @@ private fun OverviewStatsContent(uiState: StatsUiState) {
 
         // 连续记录
         item {
-            AnimatedListItem(index = 3) {
+            AnimatedListItem(index = 4) {
                 StreakCard(streakDays = uiState.streakDays)
             }
         }
@@ -178,7 +175,7 @@ private fun OverviewStatsContent(uiState: StatsUiState) {
 }
 
 /**
- * 今日统计卡片（优化布局）
+ * 今日统计卡片（带饼状图）
  */
 @Composable
 private fun TodayStatsCard(stats: TodayStats) {
@@ -206,7 +203,43 @@ private fun TodayStatsCard(stats: TodayStats) {
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 饼状图展示营养素分布
+            if (stats.totalCalories > 0) {
+                val nutritionData = listOf(
+                    "蛋白质" to stats.proteinGrams * 4f,
+                    "碳水" to stats.carbsGrams * 4f,
+                    "脂肪" to stats.fatGrams * 9f
+                ).filter { it.second > 0 }
+
+                if (nutritionData.isNotEmpty()) {
+                    PieChartView(
+                        data = nutritionData,
+                        colors = ChartColors.NUTRITION,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp),
+                        centerText = "${stats.totalCalories}\n千卡"
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 营养素详情
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    NutritionItem("蛋白质", stats.proteinGrams, "g", ChartColors.NUTRITION[0])
+                    NutritionItem("碳水", stats.carbsGrams, "g", ChartColors.NUTRITION[1])
+                    NutritionItem("脂肪", stats.fatGrams, "g", ChartColors.NUTRITION[2])
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             // 三列布局：已摄入 | 目标 | 剩余
             Row(
@@ -234,7 +267,44 @@ private fun TodayStatsCard(stats: TodayStats) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // 基础代谢数据（如果有）
+            if (stats.bmr > 0) {
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    StatItem(
+                        label = "基础代谢",
+                        value = stats.bmr.toString(),
+                        unit = "千卡",
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    StatItem(
+                        label = "总消耗",
+                        value = stats.tdee.toString(),
+                        unit = "千卡",
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                    val netCalories = stats.totalCalories - stats.exerciseCalories - stats.bmr
+                    StatItem(
+                        label = "热量差",
+                        value = netCalories.toString(),
+                        unit = "千卡",
+                        color = when {
+                            netCalories > 500 -> MaterialTheme.colorScheme.error
+                            netCalories < -500 -> MaterialTheme.colorScheme.primary
+                            else -> MaterialTheme.colorScheme.tertiary
+                        }
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             // 进度条
             LinearProgressIndicator(
@@ -262,6 +332,118 @@ private fun TodayStatsCard(stats: TodayStats) {
                 )
             }
         }
+    }
+}
+
+/**
+ * 今日运动统计卡片
+ */
+@Composable
+private fun ExerciseStatsCard(stats: TodayStats) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            // 标题
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "💪",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "今日运动",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Text(
+                    text = "${stats.exerciseCount} 次",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 运动数据
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                StatItem(
+                    label = "消耗热量",
+                    value = stats.exerciseCalories.toString(),
+                    unit = "千卡",
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+                StatItem(
+                    label = "运动时长",
+                    value = stats.exerciseMinutes.toString(),
+                    unit = "分钟",
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+                StatItem(
+                    label = "净摄入",
+                    value = (stats.totalCalories - stats.exerciseCalories).toString(),
+                    unit = "千卡",
+                    color = if (stats.totalCalories - stats.exerciseCalories <= stats.targetCalories) 
+                        MaterialTheme.colorScheme.primary 
+                    else 
+                        MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 营养素项
+ */
+@Composable
+private fun NutritionItem(
+    label: String,
+    value: Float,
+    unit: String,
+    color: Int
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .background(
+                    color = androidx.compose.ui.graphics.Color(color),
+                    shape = RoundedCornerShape(2.dp)
+                )
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = "${value.toInt()}$unit",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 
@@ -299,47 +481,218 @@ private fun StatItem(
 }
 
 /**
- * 餐次统计卡片
+ * 餐次统计卡片 - 只显示有数据的餐次，使用现代网格布局
  */
 @Composable
 private fun MealTypeStatsCard(stats: Map<com.calorieai.app.data.model.MealType, Int>) {
+    // 合并加餐数据，只保留有数据的餐次
+    val activeStats = remember(stats) {
+        val merged = mutableMapOf<com.calorieai.app.data.model.MealType, Int>()
+        
+        stats.forEach { (mealType, calories) ->
+            if (calories > 0) { // 只处理有数据的餐次
+                val simplifiedType = when (mealType) {
+                    com.calorieai.app.data.model.MealType.BREAKFAST_SNACK,
+                    com.calorieai.app.data.model.MealType.LUNCH_SNACK,
+                    com.calorieai.app.data.model.MealType.DINNER_SNACK,
+                    com.calorieai.app.data.model.MealType.SNACK -> 
+                        com.calorieai.app.data.model.MealType.SNACK
+                    else -> mealType
+                }
+                merged[simplifiedType] = (merged[simplifiedType] ?: 0) + calories
+            }
+        }
+        
+        // 按顺序排序
+        merged.toList().sortedBy { 
+            com.calorieai.app.data.model.getSimplifiedMealTypeOrder(it.first) 
+        }
+    }
+    
+    val totalCalories = activeStats.sumOf { it.second }
+    val maxCalories = activeStats.maxOfOrNull { it.second }?.coerceAtLeast(1) ?: 1
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(20.dp)
         ) {
-            Text(
-                text = "各餐次摄入统计",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
+            // 标题行
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "今日摄入分布",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${totalCalories} 千卡",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 简化的条形图展示
-            stats.forEach { (mealType, calories) ->
-                MealBar(
-                    label = when (mealType) {
-                        com.calorieai.app.data.model.MealType.BREAKFAST -> "早餐"
-                        com.calorieai.app.data.model.MealType.LUNCH -> "午餐"
-                        com.calorieai.app.data.model.MealType.DINNER -> "晚餐"
-                        com.calorieai.app.data.model.MealType.SNACK -> "加餐"
-                    },
-                    calories = calories,
-                    maxCalories = stats.values.maxOrNull()?.coerceAtLeast(1) ?: 1
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+            if (activeStats.isEmpty()) {
+                // 没有数据时显示提示
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(80.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "暂无餐次记录",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                // 动态网格布局 - 根据数量决定每行显示几个
+                val rows = when (activeStats.size) {
+                    1 -> listOf(activeStats.take(1))
+                    2 -> listOf(activeStats.take(2))
+                    3 -> listOf(activeStats.take(2), activeStats.drop(2).take(1))
+                    else -> listOf(activeStats.take(2), activeStats.drop(2).take(2))
+                }
+                
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    rows.forEach { rowStats ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            rowStats.forEach { (mealType, calories) ->
+                                MealTypeGridItem(
+                                    mealType = mealType,
+                                    calories = calories,
+                                    maxCalories = maxCalories,
+                                    totalCalories = totalCalories,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            // 补齐空位保持对齐
+                            if (rowStats.size < 2 && activeStats.size > 1) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
             }
+        }
+    }
+}
+
+/**
+ * 餐次网格项 - 现代化卡片设计
+ */
+@Composable
+private fun MealTypeGridItem(
+    mealType: com.calorieai.app.data.model.MealType,
+    calories: Int,
+    maxCalories: Int,
+    totalCalories: Int,
+    modifier: Modifier = Modifier
+) {
+    val mealName = com.calorieai.app.data.model.getSimplifiedMealTypeName(mealType)
+    val progress = if (maxCalories > 0) calories.toFloat() / maxCalories else 0f
+    val percentage = if (totalCalories > 0) (calories * 100 / totalCalories) else 0
+    
+    // 餐次对应的颜色
+    val mealColor = when (mealType) {
+        com.calorieai.app.data.model.MealType.BREAKFAST -> Color(0xFFFF9F43)
+        com.calorieai.app.data.model.MealType.LUNCH -> Color(0xFFFF6B6B)
+        com.calorieai.app.data.model.MealType.DINNER -> Color(0xFF48DBFB)
+        else -> Color(0xFF1DD1A1)
+    }
+    
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // 餐次名称和占比
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // 颜色指示点
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(mealColor)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = mealName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                if (calories > 0) {
+                    Text(
+                        text = "${percentage}%",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // 热量数值
+            Text(
+                text = "${calories}",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = if (calories > 0) MaterialTheme.colorScheme.onSurface 
+                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+            Text(
+                text = "千卡",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // 进度条
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp)),
+                color = mealColor,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
         }
     }
 }
@@ -493,7 +846,8 @@ private fun StreakCard(streakDays: Int) {
 @Composable
 private fun TrendAnalysisContent(
     uiState: StatsUiState,
-    onDateRangeSelected: (LocalDate, LocalDate) -> Unit
+    onDateRangeSelected: (LocalDate, LocalDate) -> Unit,
+    onTimeDimensionChange: (TimeDimension) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -501,48 +855,38 @@ private fun TrendAnalysisContent(
             .verticalScroll(rememberScrollState())
             .padding(vertical = 8.dp)
     ) {
-        // 日期范围显示
-        if (uiState.trendStartDate != null && uiState.trendEndDate != null) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.DateRange,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "${uiState.trendStartDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))} 至 ${uiState.trendEndDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
-        }
+        // 标题栏：包含时间维度选择和日期范围选择
+        TrendAnalysisHeader(
+            uiState = uiState,
+            onTimeDimensionChange = onTimeDimensionChange,
+            onDateRangeSelected = onDateRangeSelected
+        )
 
-        // 周趋势卡片
-        WeeklyTrendCard(uiState.weeklyStats)
+        // 热量摄入趋势图表
+        CalorieTrendChart(
+            data = uiState.trendChartData,
+            timeDimension = uiState.trendTimeDimension,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
 
-        // 月度趋势卡片
-        MonthlyTrendCard(uiState.monthlyStats)
+        // 运动消耗趋势图表
+        ExerciseTrendChart(
+            data = uiState.trendChartData,
+            timeDimension = uiState.trendTimeDimension,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+
+        // 体重变化趋势图表
+        WeightTrendChart(
+            data = uiState.trendChartData,
+            timeDimension = uiState.trendTimeDimension,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
     }
 }
 
 /**
- * 周趋势卡片
+ * 周趋势卡片 - 使用折线图
  */
 @Composable
 private fun WeeklyTrendCard(stats: List<WeeklyStat>) {
@@ -569,7 +913,24 @@ private fun WeeklyTrendCard(stats: List<WeeklyStat>) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 简化的折线展示
+            // 折线图展示
+            if (stats.isNotEmpty()) {
+                val chartData = stats.map { stat ->
+                    "${stat.weekStart.format(DateTimeFormatter.ofPattern("MM/dd"))}" to 
+                        stat.avgCalories.toFloat()
+                }
+
+                LineChartView(
+                    data = chartData,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // 详细数据
             stats.forEach { stat ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -587,14 +948,14 @@ private fun WeeklyTrendCard(stats: List<WeeklyStat>) {
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
             }
         }
     }
 }
 
 /**
- * 月度趋势卡片
+ * 月度趋势卡片 - 使用折线图
  */
 @Composable
 private fun MonthlyTrendCard(stats: List<MonthlyStat>) {
@@ -621,6 +982,24 @@ private fun MonthlyTrendCard(stats: List<MonthlyStat>) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // 折线图展示
+            if (stats.isNotEmpty()) {
+                val chartData = stats.map { stat ->
+                    stat.month to stat.avgDailyCalories.toFloat()
+                }
+
+                LineChartView(
+                    data = chartData,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    lineColor = android.graphics.Color.parseColor("#4CAF50")
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // 详细数据
             stats.forEach { stat ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -638,7 +1017,395 @@ private fun MonthlyTrendCard(stats: List<MonthlyStat>) {
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+        }
+    }
+}
+
+/**
+ * 趋势分析标题栏（包含时间维度选择和日期范围选择）
+ */
+@Composable
+private fun TrendAnalysisHeader(
+    uiState: StatsUiState,
+    onTimeDimensionChange: (TimeDimension) -> Unit,
+    onDateRangeSelected: (LocalDate, LocalDate) -> Unit
+) {
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // 第一行：标题和日期选择按钮
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "趋势分析",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                // 日期范围选择按钮
+                IconButton(
+                    onClick = { showDatePicker = true }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = "选择日期范围",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // 显示当前日期范围
+            if (uiState.trendStartDate != null && uiState.trendEndDate != null) {
+                Text(
+                    text = "${uiState.trendStartDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))} 至 ${uiState.trendEndDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 时间维度选择器
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TimeDimension.values().forEach { dimension ->
+                    val label = when (dimension) {
+                        TimeDimension.DAY -> "按天"
+                        TimeDimension.WEEK -> "按周"
+                        TimeDimension.MONTH -> "按月"
+                    }
+                    FilterChip(
+                        selected = uiState.trendTimeDimension == dimension,
+                        onClick = { onTimeDimensionChange(dimension) },
+                        label = { Text(label) }
+                    )
+                }
+            }
+        }
+    }
+
+    // 日期选择对话框
+    if (showDatePicker) {
+        DateRangePickerDialog(
+            onDismiss = { showDatePicker = false },
+            onConfirm = { start, end ->
+                onDateRangeSelected(start, end)
+                showDatePicker = false
+            },
+            onReset = {
+                onDateRangeSelected(LocalDate.now().minusMonths(1), LocalDate.now())
+                showDatePicker = false
+            }
+        )
+    }
+}
+
+/**
+ * 热量摄入趋势图表
+ */
+@Composable
+private fun CalorieTrendChart(
+    data: com.calorieai.app.ui.components.charts.TrendChartData,
+    timeDimension: TimeDimension,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // 标题
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(2.dp)
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "热量摄入趋势",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // 统计值
+                val totalCalories = data.calorieIntake.sum().toInt()
+                Text(
+                    text = "总计: ${totalCalories}千卡",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 折线图
+            if (data.dates.isNotEmpty() && data.calorieIntake.isNotEmpty()) {
+                val chartData = data.dates.zip(data.calorieIntake).map { (date, value) ->
+                    val label = when (timeDimension) {
+                        TimeDimension.DAY -> date.format(DateTimeFormatter.ofPattern("MM/dd"))
+                        TimeDimension.WEEK -> "${date.monthValue}/${date.dayOfMonth}"
+                        TimeDimension.MONTH -> date.format(DateTimeFormatter.ofPattern("yyyy/MM"))
+                    }
+                    label to value
+                }
+
+                LineChartView(
+                    data = chartData,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    lineColor = android.graphics.Color.parseColor("#2196F3")
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "暂无数据",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 运动消耗趋势图表
+ */
+@Composable
+private fun ExerciseTrendChart(
+    data: com.calorieai.app.ui.components.charts.TrendChartData,
+    timeDimension: TimeDimension,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // 标题
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.tertiary,
+                                shape = RoundedCornerShape(2.dp)
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "运动消耗趋势",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // 统计值
+                val totalExercise = data.exerciseCalories.sum().toInt()
+                Text(
+                    text = "总计: ${totalExercise}千卡",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 折线图
+            if (data.dates.isNotEmpty() && data.exerciseCalories.isNotEmpty()) {
+                val chartData = data.dates.zip(data.exerciseCalories).map { (date, value) ->
+                    val label = when (timeDimension) {
+                        TimeDimension.DAY -> date.format(DateTimeFormatter.ofPattern("MM/dd"))
+                        TimeDimension.WEEK -> "${date.monthValue}/${date.dayOfMonth}"
+                        TimeDimension.MONTH -> date.format(DateTimeFormatter.ofPattern("yyyy/MM"))
+                    }
+                    label to value
+                }
+
+                LineChartView(
+                    data = chartData,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    lineColor = android.graphics.Color.parseColor("#4CAF50")
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "暂无数据",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 体重变化趋势图表
+ */
+@Composable
+private fun WeightTrendChart(
+    data: com.calorieai.app.ui.components.charts.TrendChartData,
+    timeDimension: TimeDimension,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // 标题
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.secondary,
+                                shape = RoundedCornerShape(2.dp)
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "体重变化趋势",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // 提示
+                Text(
+                    text = "功能开发中",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 折线图（体重数据暂为空）
+            val hasWeightData = data.weightData.any { it != null }
+
+            if (hasWeightData) {
+                val chartData = data.dates.zip(data.weightData).mapNotNull { (date, value) ->
+                    value?.let {
+                        val label = when (timeDimension) {
+                            TimeDimension.DAY -> date.format(DateTimeFormatter.ofPattern("MM/dd"))
+                            TimeDimension.WEEK -> "${date.monthValue}/${date.dayOfMonth}"
+                            TimeDimension.MONTH -> date.format(DateTimeFormatter.ofPattern("yyyy/MM"))
+                        }
+                        label to it
+                    }
+                }
+
+                LineChartView(
+                    data = chartData,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    lineColor = android.graphics.Color.parseColor("#FF9800")
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.Scale,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "暂无体重数据",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "体重记录功能即将上线",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                }
             }
         }
     }
@@ -814,7 +1581,7 @@ private fun SummaryHeaderCard(summary: MonthSummary?) {
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "${summary?.year ?: "2024"}年",
+                    text = "${summary?.year ?: "2026"}年",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                 )
@@ -930,6 +1697,103 @@ private fun SummaryMetricsGrid(summary: MonthSummary?) {
                     label = "加餐",
                     value = "${summary?.snackTotal ?: 0}",
                     unit = "千卡"
+                )
+            }
+
+            // 运动数据（如果有）
+            if ((summary?.totalExerciseCalories ?: 0) > 0) {
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "💪 运动统计",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    SummaryMetricItem(
+                        label = "运动消耗",
+                        value = "${summary?.totalExerciseCalories ?: 0}",
+                        unit = "千卡",
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                    SummaryMetricItem(
+                        label = "运动时长",
+                        value = "${summary?.totalExerciseMinutes ?: 0}",
+                        unit = "分钟",
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                    SummaryMetricItem(
+                        label = "运动天数",
+                        value = "${summary?.exerciseDays ?: 0}",
+                        unit = "天",
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                }
+
+                // 最活跃运动类型
+                summary?.mostActiveExerciseType?.let { exerciseType ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val exerciseName = "${exerciseType.emoji} ${exerciseType.displayName}"
+                    Text(
+                        text = "最活跃：$exerciseName (${summary.mostActiveExerciseCalories}千卡)",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+                }
+            }
+
+            // 体重变化（如果有运动数据）
+            if ((summary?.weightChange ?: 0f) != 0f) {
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "⚖️ 体重变化",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                val weightChange = summary?.weightChange ?: 0f
+                val changeText = if (weightChange < 0) {
+                    "减重 ${String.format("%.1f", -weightChange)} kg"
+                } else {
+                    "增重 ${String.format("%.1f", weightChange)} kg"
+                }
+                val changeColor = if (weightChange < 0) {
+                    MaterialTheme.colorScheme.tertiary
+                } else {
+                    MaterialTheme.colorScheme.error
+                }
+
+                Text(
+                    text = changeText,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = changeColor,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "基于运动消耗估算",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
             }
         }

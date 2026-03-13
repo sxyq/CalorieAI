@@ -1,17 +1,14 @@
 package com.calorieai.app.ui.screens.settings
 
-import android.widget.Toast
-import androidx.compose.foundation.clickable
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,11 +17,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import java.time.format.DateTimeFormatter
 
-/**
- * 备份设置页面
- * 参考Deadliner的备份设置风格
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BackupSettingsScreen(
@@ -34,25 +28,24 @@ fun BackupSettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    // 监听导出导入结果
-    LaunchedEffect(uiState.exportResult) {
-        uiState.exportResult?.let { result ->
-            when (result) {
-                is BackupResult.Success -> {
-                    Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
-                }
-                is BackupResult.Error -> {
-                    Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
-                }
-            }
-            viewModel.clearExportResult()
-        }
+    // 创建备份文件选择器
+    val createBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri?.let { viewModel.createBackup(it) }
+    }
+
+    // 选择备份文件
+    val openBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { viewModel.loadBackupInfo(it) }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("备份") },
+                title = { Text("备份与恢复") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
@@ -66,161 +59,237 @@ fun BackupSettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 说明卡片
-            InfoCard(
-                title = "数据备份",
-                description = "导出您的所有记录数据到本地文件，或从备份文件恢复数据"
+            // AI配置备份选项
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "包含AI配置",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "备份时包含AI模型配置信息",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = uiState.includeAIConfigs,
+                        onCheckedChange = { viewModel.setIncludeAIConfigs(it) }
+                    )
+                }
+            }
+
+            // 创建备份卡片
+            BackupActionCard(
+                title = "创建备份",
+                description = "将所有数据导出为JSON文件，包括饮食记录、运动记录和设置" +
+                    if (uiState.includeAIConfigs) "（包含AI配置）" else "（不包含AI配置）",
+                icon = Icons.Default.Backup,
+                onClick = {
+                    val timestamp = java.time.LocalDateTime.now()
+                        .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+                    createBackupLauncher.launch("calorieai_backup_$timestamp.json")
+                }
             )
 
-            // 导入/导出按钮区域
-            SettingsSection {
-                // 导出数据
-                SettingsButtonItem(
-                    title = "导出数据",
-                    subtitle = "将所有记录导出为文件",
-                    icon = Icons.Default.Save,
-                    onClick = { viewModel.exportData(context) }
-                )
-                SettingsSectionDivider()
-                // 导入数据
-                SettingsButtonItem(
-                    title = "导入数据",
-                    subtitle = "从备份文件恢复数据",
-                    icon = Icons.Default.UploadFile,
-                    onClick = { viewModel.importData(context) }
+            // 恢复备份卡片
+            BackupActionCard(
+                title = "恢复备份",
+                description = "从备份文件恢复数据",
+                icon = Icons.Default.Restore,
+                onClick = {
+                    openBackupLauncher.launch(arrayOf("application/json"))
+                }
+            )
+
+            // 备份信息对话框
+            if (uiState.showRestoreDialog && uiState.backupInfo != null) {
+                RestoreConfirmDialog(
+                    backupInfo = uiState.backupInfo!!,
+                    onConfirm = { viewModel.confirmRestore() },
+                    onDismiss = { viewModel.dismissRestoreDialog() }
                 )
             }
 
-            // 自动备份设置
-            SettingsSection(title = "自动备份") {
-                SettingsSwitchItem(
-                    title = "启用自动备份",
-                    subtitle = "每周自动备份数据到本地",
-                    checked = uiState.enableAutoBackup,
-                    onCheckedChange = viewModel::updateAutoBackup
+            // 结果显示
+            when {
+                uiState.isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+                uiState.resultMessage != null -> {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (uiState.isSuccess) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.errorContainer
+                            }
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (uiState.isSuccess) Icons.Default.CheckCircle else Icons.Default.Error,
+                                contentDescription = null,
+                                tint = if (uiState.isSuccess) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.error
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = uiState.resultMessage!!,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 说明文字
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
-                if (uiState.enableAutoBackup) {
-                    SettingsSectionDivider()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
                     Text(
-                        text = "上次备份: ${uiState.lastBackupTime ?: "从未备份"}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                        text = "备份说明",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "• 备份文件包含您的所有饮食记录、运动记录和个人设置",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        text = "• 建议定期备份，以防数据丢失",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        text = "• 恢复备份会覆盖当前所有数据，请谨慎操作",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        text = "• 备份文件可以跨设备使用",
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
             }
-
-            // 云同步设置
-            SettingsSection(title = "云同步") {
-                SettingsSwitchItem(
-                    title = "启用云同步",
-                    subtitle = "自动同步数据到云端",
-                    checked = uiState.enableCloudSync,
-                    onCheckedChange = viewModel::updateCloudSync
-                )
-                if (uiState.enableCloudSync) {
-                    SettingsSectionDivider()
-                    SettingsButtonItem(
-                        title = "立即同步",
-                        subtitle = "手动触发一次云同步",
-                        icon = Icons.Default.CloudUpload,
-                        onClick = { viewModel.syncToCloud() }
-                    )
-                    SettingsSectionDivider()
-                    SettingsButtonItem(
-                        title = "从云端恢复",
-                        subtitle = "从云端下载最新数据",
-                        icon = Icons.Default.CloudDownload,
-                        onClick = { viewModel.restoreFromCloud() }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
 
-/**
- * 信息卡片
- */
 @Composable
-private fun InfoCard(
+private fun BackupActionCard(
     title: String,
-    description: String
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-            )
-        }
-    }
-}
-
-/**
- * 设置按钮项
- */
-@Composable
-private fun SettingsButtonItem(
-    title: String,
-    subtitle: String,
+    description: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(
-            modifier = Modifier.weight(1f)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.primary
             )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
 }
 
-// 备份结果密封类
-sealed class BackupResult {
-    data class Success(val message: String) : BackupResult()
-    data class Error(val message: String) : BackupResult()
+@Composable
+private fun RestoreConfirmDialog(
+    backupInfo: com.calorieai.app.service.backup.BackupData,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("确认恢复备份") },
+        text = {
+            Column {
+                Text("备份日期: ${backupInfo.backupDate}")
+                Text("饮食记录: ${backupInfo.foodRecords.size} 条")
+                Text("运动记录: ${backupInfo.exerciseRecords.size} 条")
+                if (backupInfo.includeAIConfigs && backupInfo.aiConfigs.isNotEmpty()) {
+                    Text("AI配置: ${backupInfo.aiConfigs.size} 个")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "警告：恢复备份将覆盖当前所有数据，是否继续？",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("恢复")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
 }

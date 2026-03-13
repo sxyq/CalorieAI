@@ -4,17 +4,7 @@
             "outputFile": "com.calorieai.app-mergeDebugResources-84:/values-v16/values-v16.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-4\\219ebf25f09919852cc9e84ba0e5f515\\transformed\\core-1.12.0\\res\\values-v16\\values-v16.xml",
-                    "from": {
-                        "startLines": "2",
-                        "startColumns": "4",
-                        "startOffsets": "55",
-                        "endColumns": "65",
-                        "endOffsets": "116"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-4\\22fcaa70593b070ea38c308142add73c\\transformed\\appcompat-1.6.1\\res\\values-v16\\values-v16.xml",
+                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-4\\b6f9e0c6bdabcefdfeb660aed35abe6a\\transformed\\appcompat-1.6.1\\res\\values-v16\\values-v16.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
@@ -30,6 +20,16 @@
                         "endLines": "6",
                         "endColumns": "12",
                         "endOffsets": "289"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\syy\\.gradle\\caches\\transforms-4\\7f195b0530cf37f1d6aa7c07e3de2f86\\transformed\\core-1.12.0\\res\\values-v16\\values-v16.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "65",
+                        "endOffsets": "116"
                     }
                 }
             ]

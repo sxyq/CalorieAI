@@ -2,10 +2,14 @@ package com.calorieai.app.ui.screens.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calorieai.app.data.model.ExerciseRecord
+import com.calorieai.app.data.model.ExerciseType
 import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
+import com.calorieai.app.data.repository.ExerciseRecordRepository
 import com.calorieai.app.data.repository.FoodRecordRepository
 import com.calorieai.app.data.repository.UserSettingsRepository
+import com.calorieai.app.data.repository.WeightRecordRepository
 import com.calorieai.app.ui.screens.settings.calculateBMR
 import com.calorieai.app.ui.screens.settings.calculateTDEE
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,7 +22,9 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val foodRecordRepository: FoodRecordRepository,
-    private val userSettingsRepository: UserSettingsRepository
+    private val userSettingsRepository: UserSettingsRepository,
+    private val exerciseRecordRepository: ExerciseRecordRepository,
+    private val weightRecordRepository: WeightRecordRepository
 ) : ViewModel() {
 
     // 当前选中的日期
@@ -37,13 +43,18 @@ class HomeViewModel @Inject constructor(
             }
         }
         
-        // 加载用户设置（BMR等）
+        // 加载用户设置和最新体重（BMR等）
         viewModelScope.launch {
-            userSettingsRepository.getSettings().collect { settings ->
+            combine(
+                userSettingsRepository.getSettings(),
+                weightRecordRepository.getLatestRecord()
+            ) { settings, latestWeightRecord ->
                 settings?.let {
+                    // 优先使用最新体重记录，如果没有则使用用户设置中的体重
+                    val currentWeight = latestWeightRecord?.weight ?: it.userWeight
                     val bmr = calculateBMR(
                         gender = it.userGender ?: "MALE",
-                        weight = it.userWeight,
+                        weight = currentWeight,
                         height = it.userHeight,
                         age = it.userAge
                     )
@@ -51,10 +62,11 @@ class HomeViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         dailyGoal = it.dailyCalorieGoal,
                         bmr = bmr,
-                        tdee = tdee
+                        tdee = tdee,
+                        currentWeight = currentWeight
                     )
                 }
-            }
+            }.collect()
         }
     }
 
@@ -79,18 +91,25 @@ class HomeViewModel @Inject constructor(
             // 加载当前日期数据
             combine(
                 foodRecordRepository.getRecordsByDateRange(startOfDay, endOfDay),
-                foodRecordRepository.getTotalCaloriesByDateRange(startOfDay, endOfDay)
-            ) { records, totalCalories ->
+                foodRecordRepository.getTotalCaloriesByDateRange(startOfDay, endOfDay),
+                exerciseRecordRepository.getRecordsBetween(startOfDay, endOfDay)
+            ) { records, totalCalories, exerciseRecords ->
                 // 加载最近30天的热量数据用于日历显示
                 val calendarData = loadCalendarData()
                 
+                // 计算运动消耗和时长
+                val totalExerciseCalories = exerciseRecords.sumOf { it.caloriesBurned }
+                val totalExerciseMinutes = exerciseRecords.sumOf { it.durationMinutes }
+                
                 HomeUiState(
                     records = records,
+                    exerciseRecords = exerciseRecords,
                     totalCalories = totalCalories ?: 0,
                     calorieData = calendarData,
                     dailyGoal = _uiState.value.dailyGoal,
                     bmr = _uiState.value.bmr,
-                    exerciseCalories = _uiState.value.exerciseCalories,
+                    exerciseCalories = totalExerciseCalories,
+                    totalExerciseMinutes = totalExerciseMinutes,
                     tdee = _uiState.value.tdee,
                     isLoading = false
                 )
@@ -149,22 +168,56 @@ class HomeViewModel @Inject constructor(
     
     /**
      * 添加运动消耗
+     * @param exerciseType 运动类型
+     * @param calories 消耗热量
+     * @param notes 备注（自定义运动时格式为 "CUSTOM:{name}:{caloriesPerMinute}"）
+     * @param durationMinutes 运动时长（分钟）
      */
-    fun addExerciseCalories(calories: Int) {
-        _uiState.value = _uiState.value.copy(
-            exerciseCalories = _uiState.value.exerciseCalories + calories
-        )
-        // TODO: 保存到数据库
+    fun addExercise(
+        exerciseType: ExerciseType,
+        calories: Int,
+        notes: String? = null,
+        durationMinutes: Int = 30
+    ) {
+        viewModelScope.launch {
+            // 创建运动记录
+            val record = ExerciseRecord(
+                exerciseType = exerciseType,
+                durationMinutes = durationMinutes,
+                caloriesBurned = calories,
+                notes = notes,
+                recordTime = System.currentTimeMillis()
+            )
+
+            // 保存到数据库
+            exerciseRecordRepository.addRecord(record)
+
+            // 刷新数据以更新运动记录列表
+            refreshData()
+        }
+    }
+    
+    /**
+     * 删除运动记录
+     */
+    fun deleteExerciseRecord(record: ExerciseRecord) {
+        viewModelScope.launch {
+            exerciseRecordRepository.deleteRecord(record)
+            refreshData()
+        }
     }
 }
 
 data class HomeUiState(
     val records: List<FoodRecord> = emptyList(),
+    val exerciseRecords: List<ExerciseRecord> = emptyList(),
     val totalCalories: Int = 0,
     val dailyGoal: Int = 2000,
     val bmr: Int = 0,
     val exerciseCalories: Int = 0,
+    val totalExerciseMinutes: Int = 0,
     val tdee: Int = 0,
+    val currentWeight: Float? = null,
     val calorieData: Map<LocalDate, Int> = emptyMap(),
     val isLoading: Boolean = true
 )

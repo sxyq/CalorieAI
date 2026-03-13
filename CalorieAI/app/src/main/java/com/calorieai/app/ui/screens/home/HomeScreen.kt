@@ -13,8 +13,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.calorieai.app.data.model.ExerciseRecord
 import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
+import com.calorieai.app.data.model.ExerciseType
+import com.calorieai.app.ui.components.AIChatWidget
+import com.calorieai.app.ui.components.ExerciseDialog
 import com.calorieai.app.ui.components.ExpandableCalendarView
 import com.calorieai.app.ui.components.MenuScreen
 import com.calorieai.app.ui.components.TopMenuButton
@@ -30,10 +34,14 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToResult: (String) -> Unit,
+    onNavigateToAIChat: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
+    
+    // 运动对话框显示状态
+    var showExerciseDialog by remember { mutableStateOf(false) }
     
     // 页面获得焦点时刷新数据（从其他页面返回时）
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
@@ -72,11 +80,22 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onNavigateToAdd,
-                containerColor = MaterialTheme.colorScheme.primaryContainer
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "添加")
+                // AI聊天小窗口按钮
+                AIChatWidget(
+                    onExpandToFullScreen = onNavigateToAIChat
+                )
+
+                // 添加按钮
+                FloatingActionButton(
+                    onClick = onNavigateToAdd,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "添加")
+                }
             }
         }
     ) { paddingValues ->
@@ -113,7 +132,7 @@ fun HomeScreen(
                 ) {
                     CircularProgressIndicator()
                 }
-            } else if (uiState.records.isEmpty()) {
+            } else if (uiState.records.isEmpty() && uiState.exerciseRecords.isEmpty()) {
                 EmptyState()
             } else {
                 LazyColumn(
@@ -121,21 +140,64 @@ fun HomeScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(
-                        items = uiState.records,
-                        key = { it.id } // 使用key优化列表性能
-                    ) { record ->
-                        FoodRecordItem(
-                            record = record,
-                            onClick = { onNavigateToResult(record.id) },
-                            onStarClick = { viewModel.toggleStarred(record) },
-                            onDeleteClick = { viewModel.deleteRecord(record) }
-                        )
+                    // 饮食记录
+                    if (uiState.records.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "饮食记录",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
+                        items(
+                            items = uiState.records,
+                            key = { "food_" + it.id } // 使用key优化列表性能
+                        ) { record ->
+                            FoodRecordItem(
+                                record = record,
+                                onClick = { onNavigateToResult(record.id) },
+                                onStarClick = { viewModel.toggleStarred(record) },
+                                onDeleteClick = { viewModel.deleteRecord(record) }
+                            )
+                        }
+                    }
+                    
+                    // 运动记录
+                    if (uiState.exerciseRecords.isNotEmpty()) {
+                        item {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "运动记录",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
+                        items(
+                            items = uiState.exerciseRecords,
+                            key = { "exercise_" + it.id }
+                        ) { record ->
+                            ExerciseRecordItem(
+                                record = record,
+                                onDeleteClick = { viewModel.deleteExerciseRecord(record) }
+                            )
+                        }
                     }
                 }
             }
         }
     }
+    
+    // 运动消耗对话框
+    ExerciseDialog(
+        isVisible = showExerciseDialog,
+        onDismiss = { showExerciseDialog = false },
+        onAddExercise = { exerciseType, calories, notes, durationMinutes ->
+            viewModel.addExercise(exerciseType, calories, notes, durationMinutes)
+            showExerciseDialog = false
+        }
+    )
 }
 
 @Composable
@@ -168,33 +230,12 @@ fun TodayOverviewCard(
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
-            // 标题和添加运动按钮
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                // 只有今天才显示添加运动按钮
-                if (selectedDate == today) {
-                    TextButton(
-                        onClick = { /* TODO: 打开运动消耗添加对话框 */ }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DirectionsRun,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("添加运动")
-                    }
-                }
-            }
+            // 标题
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             
             Spacer(modifier = Modifier.height(16.dp))
             
@@ -237,6 +278,27 @@ fun TodayOverviewCard(
             )
             
             Spacer(modifier = Modifier.height(16.dp))
+            
+            // 鼓励标语
+            val encouragement = remember { com.calorieai.app.utils.getRandomEncouragement() }
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = encouragement.emoji,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = encouragement.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Medium
+                )
+            }
             
             // 代谢和运动数据（仅今天显示）
             if (selectedDate == today && bmr > 0) {
@@ -438,9 +500,104 @@ fun EmptyState() {
 private fun getMealTypeText(mealType: MealType): String {
     return when (mealType) {
         MealType.BREAKFAST -> "早餐"
+        MealType.BREAKFAST_SNACK -> "早加餐"
         MealType.LUNCH -> "午餐"
+        MealType.LUNCH_SNACK -> "午加餐"
         MealType.DINNER -> "晚餐"
+        MealType.DINNER_SNACK -> "晚加餐"
         MealType.SNACK -> "加餐"
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun ExerciseRecordItem(
+    record: ExerciseRecord,
+    onDeleteClick: () -> Unit
+) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    
+    // 解析自定义运动名称
+    val displayName = if (record.notes?.startsWith("CUSTOM:") == true) {
+        record.notes.substringAfter("CUSTOM:").substringBeforeLast(":")
+    } else {
+        record.exerciseType.displayName
+    }
+    
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp)
+            .combinedClickable(
+                onClick = { },
+                onLongClick = { showDeleteDialog = true }
+            ),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 运动图标
+            Text(
+                text = record.exerciseType.emoji,
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.padding(end = 12.dp)
+            )
+            
+            // 运动信息
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${record.durationMinutes}分钟 · ${record.caloriesBurned}千卡",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            // 消耗热量
+            Text(
+                text = "-${record.caloriesBurned}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.tertiary
+            )
+        }
+    }
+    
+    // 删除确认对话框
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("删除运动记录") },
+            text = { Text("确定要删除这条运动记录吗？") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteClick()
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("删除", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
     }
 }
 

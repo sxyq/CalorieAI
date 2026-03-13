@@ -50,6 +50,15 @@ class FoodRecordRepository @Inject constructor(
      */
     suspend fun getAllRecordsOnce(): List<FoodRecord> = foodRecordDao.getAllRecordsOnce()
     
+    /**
+     * 获取指定日期范围的记录（同步）
+     */
+    suspend fun getRecordsBetweenSync(startTime: Long, endTime: Long): List<FoodRecord> {
+        return foodRecordDao.getAllRecordsOnce().filter { record ->
+            record.recordTime in startTime..endTime
+        }
+    }
+    
     suspend fun addRecord(record: FoodRecord) = foodRecordDao.insertRecord(record)
     
     suspend fun updateRecord(record: FoodRecord) = foodRecordDao.updateRecord(record)

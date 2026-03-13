@@ -7,7 +7,9 @@ import androidx.navigation.compose.composable
 import com.calorieai.app.ui.screens.add.AddFoodScreen
 import com.calorieai.app.ui.screens.add.AddMethodSelectorScreen
 import com.calorieai.app.ui.screens.add.ManualAddScreen
+import com.calorieai.app.ui.screens.ai.AIChatScreen
 import com.calorieai.app.ui.screens.camera.CameraScreen
+import com.calorieai.app.ui.screens.camera.PhotoAnalysisScreen
 import com.calorieai.app.ui.screens.home.HomeScreen
 import com.calorieai.app.ui.screens.result.ResultScreen
 import com.calorieai.app.ui.screens.settings.AboutScreen
@@ -20,6 +22,8 @@ import com.calorieai.app.ui.screens.settings.NotificationSettingsScreen
 import com.calorieai.app.ui.screens.settings.ProfileScreen
 import com.calorieai.app.ui.screens.settings.SettingsScreen
 import com.calorieai.app.ui.screens.stats.StatsScreen
+import com.calorieai.app.ui.screens.weight.WeightRecordScreen
+import com.calorieai.app.ui.screens.exercise.ExerciseRecordScreen
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -27,6 +31,9 @@ sealed class Screen(val route: String) {
     object ManualAdd : Screen("manual_add")
     object AddFood : Screen("add_food")
     object Camera : Screen("camera")
+    object PhotoAnalysis : Screen("photo_analysis/{photoUri}") {
+        fun createRoute(photoUri: String) = "photo_analysis/$photoUri"
+    }
     object Result : Screen("result/{recordId}") {
         fun createRoute(recordId: String) = "result/$recordId"
     }
@@ -48,6 +55,9 @@ sealed class Screen(val route: String) {
     }
     object About : Screen("about")
     object Profile : Screen("profile")
+    object AIChat : Screen("ai_chat")
+    object WeightRecord : Screen("weight_record")
+    object ExerciseRecord : Screen("exercise_record")
 }
 
 @Composable
@@ -72,6 +82,9 @@ fun NavGraph(navController: NavHostController) {
                 },
                 onNavigateToResult = { recordId ->
                     navController.navigate(Screen.Result.createRoute(recordId))
+                },
+                onNavigateToAIChat = {
+                    navController.navigate(Screen.AIChat.route)
                 }
             )
         }
@@ -86,6 +99,12 @@ fun NavGraph(navController: NavHostController) {
                 },
                 onNavigateToAI = {
                     navController.navigate(Screen.AddFood.route)
+                },
+                onNavigateToWeight = {
+                    navController.navigate(Screen.WeightRecord.route)
+                },
+                onNavigateToExercise = {
+                    navController.navigate(Screen.ExerciseRecord.route)
                 }
             )
         }
@@ -123,8 +142,22 @@ fun NavGraph(navController: NavHostController) {
                     navController.popBackStack()
                 },
                 onPhotoTaken = { uri ->
-                    // 拍照后返回添加页面，可以传递识别结果
+                    // 拍照后跳转到分析页面
+                    navController.navigate(Screen.PhotoAnalysis.createRoute(uri.toString()))
+                }
+            )
+        }
+
+        composable(Screen.PhotoAnalysis.route) { backStackEntry ->
+            val photoUriString = backStackEntry.arguments?.getString("photoUri") ?: ""
+            val photoUri = android.net.Uri.parse(photoUriString)
+            PhotoAnalysisScreen(
+                photoUri = photoUri,
+                onNavigateBack = {
                     navController.popBackStack()
+                },
+                onSaveComplete = {
+                    navController.popBackStack(Screen.Home.route, false)
                 }
             )
         }
@@ -237,8 +270,32 @@ fun NavGraph(navController: NavHostController) {
             )
         }
 
+        composable(Screen.AIChat.route) {
+            AIChatScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
         composable(Screen.Profile.route) {
             ProfileScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Screen.WeightRecord.route) {
+            WeightRecordScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Screen.ExerciseRecord.route) {
+            ExerciseRecordScreen(
                 onNavigateBack = {
                     navController.popBackStack()
                 }

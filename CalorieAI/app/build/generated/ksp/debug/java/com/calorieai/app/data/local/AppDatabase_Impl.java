@@ -11,6 +11,8 @@ import androidx.room.util.DBUtil;
 import androidx.room.util.TableInfo;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 import androidx.sqlite.db.SupportSQLiteOpenHelper;
+import com.calorieai.app.data.repository.WeightRecordDao;
+import com.calorieai.app.data.repository.WeightRecordDao_Impl;
 import java.lang.Class;
 import java.lang.Override;
 import java.lang.String;
@@ -32,17 +34,29 @@ public final class AppDatabase_Impl extends AppDatabase {
 
   private volatile AIConfigDao _aIConfigDao;
 
+  private volatile ExerciseRecordDao _exerciseRecordDao;
+
+  private volatile AITokenUsageDao _aITokenUsageDao;
+
+  private volatile WeightRecordDao _weightRecordDao;
+
+  private volatile AIChatHistoryDao _aIChatHistoryDao;
+
   @Override
   @NonNull
   protected SupportSQLiteOpenHelper createOpenHelper(@NonNull final DatabaseConfiguration config) {
-    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(5) {
+    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(9) {
       @Override
       public void createAllTables(@NonNull final SupportSQLiteDatabase db) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `food_records` (`id` TEXT NOT NULL, `foodName` TEXT NOT NULL, `userInput` TEXT NOT NULL, `totalCalories` INTEGER NOT NULL, `protein` REAL NOT NULL, `carbs` REAL NOT NULL, `fat` REAL NOT NULL, `ingredients` TEXT NOT NULL, `mealType` TEXT NOT NULL, `recordTime` INTEGER NOT NULL, `iconUrl` TEXT, `iconLocalPath` TEXT, `isStarred` INTEGER NOT NULL, `confidence` TEXT NOT NULL, `notes` TEXT, PRIMARY KEY(`id`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS `user_settings` (`id` INTEGER NOT NULL, `dailyCalorieGoal` INTEGER NOT NULL, `userName` TEXT, `userId` TEXT, `userGender` TEXT, `userAge` INTEGER, `userHeight` REAL, `userWeight` REAL, `activityLevel` TEXT NOT NULL, `dietaryPreference` TEXT, `breakfastReminderTime` TEXT NOT NULL, `lunchReminderTime` TEXT NOT NULL, `dinnerReminderTime` TEXT NOT NULL, `isNotificationEnabled` INTEGER NOT NULL, `isDarkMode` INTEGER, `seedColor` TEXT, `selectedAIPresetId` TEXT, `customAIEndpoint` TEXT, `customAIModel` TEXT, `themeMode` TEXT NOT NULL, `useDeadlinerStyle` INTEGER NOT NULL, `hideDividers` INTEGER NOT NULL, `fontSize` TEXT NOT NULL, `enableAnimations` INTEGER NOT NULL, `feedbackType` TEXT NOT NULL, `enableVibration` INTEGER NOT NULL, `enableSound` INTEGER NOT NULL, `backgroundBehavior` TEXT NOT NULL, `startupPage` TEXT NOT NULL, `enableQuickAdd` INTEGER NOT NULL, `enableGoalReminder` INTEGER NOT NULL, `enableStreakReminder` INTEGER NOT NULL, `enableAutoBackup` INTEGER NOT NULL, `lastBackupTime` TEXT, `enableCloudSync` INTEGER NOT NULL, PRIMARY KEY(`id`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS `ai_configs` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `icon` TEXT NOT NULL, `iconType` TEXT NOT NULL, `protocol` TEXT NOT NULL, `apiUrl` TEXT NOT NULL, `apiKey` TEXT NOT NULL, `modelId` TEXT NOT NULL, `isImageUnderstanding` INTEGER NOT NULL, `isDefault` INTEGER NOT NULL, PRIMARY KEY(`id`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `exercise_records` (`id` TEXT NOT NULL, `exerciseType` TEXT NOT NULL, `durationMinutes` INTEGER NOT NULL, `caloriesBurned` INTEGER NOT NULL, `notes` TEXT, `recordTime` INTEGER NOT NULL, PRIMARY KEY(`id`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `ai_token_usage` (`id` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `configId` TEXT NOT NULL, `configName` TEXT NOT NULL, `promptTokens` INTEGER NOT NULL, `completionTokens` INTEGER NOT NULL, `totalTokens` INTEGER NOT NULL, `cost` REAL NOT NULL, PRIMARY KEY(`id`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `weight_records` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `weight` REAL NOT NULL, `recordDate` INTEGER NOT NULL, `note` TEXT)");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `ai_chat_history` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionId` TEXT NOT NULL, `title` TEXT NOT NULL, `messages` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `messageCount` INTEGER NOT NULL, `isPinned` INTEGER NOT NULL)");
         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)");
-        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '44d2c2f270e1249da129b68288e70f1f')");
+        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3b8292c61c9b6c912e6438feb6eb019e')");
       }
 
       @Override
@@ -50,6 +64,10 @@ public final class AppDatabase_Impl extends AppDatabase {
         db.execSQL("DROP TABLE IF EXISTS `food_records`");
         db.execSQL("DROP TABLE IF EXISTS `user_settings`");
         db.execSQL("DROP TABLE IF EXISTS `ai_configs`");
+        db.execSQL("DROP TABLE IF EXISTS `exercise_records`");
+        db.execSQL("DROP TABLE IF EXISTS `ai_token_usage`");
+        db.execSQL("DROP TABLE IF EXISTS `weight_records`");
+        db.execSQL("DROP TABLE IF EXISTS `ai_chat_history`");
         final List<? extends RoomDatabase.Callback> _callbacks = mCallbacks;
         if (_callbacks != null) {
           for (RoomDatabase.Callback _callback : _callbacks) {
@@ -183,9 +201,75 @@ public final class AppDatabase_Impl extends AppDatabase {
                   + " Expected:\n" + _infoAiConfigs + "\n"
                   + " Found:\n" + _existingAiConfigs);
         }
+        final HashMap<String, TableInfo.Column> _columnsExerciseRecords = new HashMap<String, TableInfo.Column>(6);
+        _columnsExerciseRecords.put("id", new TableInfo.Column("id", "TEXT", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsExerciseRecords.put("exerciseType", new TableInfo.Column("exerciseType", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsExerciseRecords.put("durationMinutes", new TableInfo.Column("durationMinutes", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsExerciseRecords.put("caloriesBurned", new TableInfo.Column("caloriesBurned", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsExerciseRecords.put("notes", new TableInfo.Column("notes", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsExerciseRecords.put("recordTime", new TableInfo.Column("recordTime", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysExerciseRecords = new HashSet<TableInfo.ForeignKey>(0);
+        final HashSet<TableInfo.Index> _indicesExerciseRecords = new HashSet<TableInfo.Index>(0);
+        final TableInfo _infoExerciseRecords = new TableInfo("exercise_records", _columnsExerciseRecords, _foreignKeysExerciseRecords, _indicesExerciseRecords);
+        final TableInfo _existingExerciseRecords = TableInfo.read(db, "exercise_records");
+        if (!_infoExerciseRecords.equals(_existingExerciseRecords)) {
+          return new RoomOpenHelper.ValidationResult(false, "exercise_records(com.calorieai.app.data.model.ExerciseRecord).\n"
+                  + " Expected:\n" + _infoExerciseRecords + "\n"
+                  + " Found:\n" + _existingExerciseRecords);
+        }
+        final HashMap<String, TableInfo.Column> _columnsAiTokenUsage = new HashMap<String, TableInfo.Column>(8);
+        _columnsAiTokenUsage.put("id", new TableInfo.Column("id", "TEXT", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAiTokenUsage.put("timestamp", new TableInfo.Column("timestamp", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAiTokenUsage.put("configId", new TableInfo.Column("configId", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAiTokenUsage.put("configName", new TableInfo.Column("configName", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAiTokenUsage.put("promptTokens", new TableInfo.Column("promptTokens", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAiTokenUsage.put("completionTokens", new TableInfo.Column("completionTokens", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAiTokenUsage.put("totalTokens", new TableInfo.Column("totalTokens", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAiTokenUsage.put("cost", new TableInfo.Column("cost", "REAL", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysAiTokenUsage = new HashSet<TableInfo.ForeignKey>(0);
+        final HashSet<TableInfo.Index> _indicesAiTokenUsage = new HashSet<TableInfo.Index>(0);
+        final TableInfo _infoAiTokenUsage = new TableInfo("ai_token_usage", _columnsAiTokenUsage, _foreignKeysAiTokenUsage, _indicesAiTokenUsage);
+        final TableInfo _existingAiTokenUsage = TableInfo.read(db, "ai_token_usage");
+        if (!_infoAiTokenUsage.equals(_existingAiTokenUsage)) {
+          return new RoomOpenHelper.ValidationResult(false, "ai_token_usage(com.calorieai.app.data.model.AITokenUsage).\n"
+                  + " Expected:\n" + _infoAiTokenUsage + "\n"
+                  + " Found:\n" + _existingAiTokenUsage);
+        }
+        final HashMap<String, TableInfo.Column> _columnsWeightRecords = new HashMap<String, TableInfo.Column>(4);
+        _columnsWeightRecords.put("id", new TableInfo.Column("id", "INTEGER", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWeightRecords.put("weight", new TableInfo.Column("weight", "REAL", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWeightRecords.put("recordDate", new TableInfo.Column("recordDate", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWeightRecords.put("note", new TableInfo.Column("note", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysWeightRecords = new HashSet<TableInfo.ForeignKey>(0);
+        final HashSet<TableInfo.Index> _indicesWeightRecords = new HashSet<TableInfo.Index>(0);
+        final TableInfo _infoWeightRecords = new TableInfo("weight_records", _columnsWeightRecords, _foreignKeysWeightRecords, _indicesWeightRecords);
+        final TableInfo _existingWeightRecords = TableInfo.read(db, "weight_records");
+        if (!_infoWeightRecords.equals(_existingWeightRecords)) {
+          return new RoomOpenHelper.ValidationResult(false, "weight_records(com.calorieai.app.data.model.WeightRecord).\n"
+                  + " Expected:\n" + _infoWeightRecords + "\n"
+                  + " Found:\n" + _existingWeightRecords);
+        }
+        final HashMap<String, TableInfo.Column> _columnsAiChatHistory = new HashMap<String, TableInfo.Column>(8);
+        _columnsAiChatHistory.put("id", new TableInfo.Column("id", "INTEGER", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAiChatHistory.put("sessionId", new TableInfo.Column("sessionId", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAiChatHistory.put("title", new TableInfo.Column("title", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAiChatHistory.put("messages", new TableInfo.Column("messages", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAiChatHistory.put("createdAt", new TableInfo.Column("createdAt", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAiChatHistory.put("updatedAt", new TableInfo.Column("updatedAt", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAiChatHistory.put("messageCount", new TableInfo.Column("messageCount", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAiChatHistory.put("isPinned", new TableInfo.Column("isPinned", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysAiChatHistory = new HashSet<TableInfo.ForeignKey>(0);
+        final HashSet<TableInfo.Index> _indicesAiChatHistory = new HashSet<TableInfo.Index>(0);
+        final TableInfo _infoAiChatHistory = new TableInfo("ai_chat_history", _columnsAiChatHistory, _foreignKeysAiChatHistory, _indicesAiChatHistory);
+        final TableInfo _existingAiChatHistory = TableInfo.read(db, "ai_chat_history");
+        if (!_infoAiChatHistory.equals(_existingAiChatHistory)) {
+          return new RoomOpenHelper.ValidationResult(false, "ai_chat_history(com.calorieai.app.data.model.AIChatHistory).\n"
+                  + " Expected:\n" + _infoAiChatHistory + "\n"
+                  + " Found:\n" + _existingAiChatHistory);
+        }
         return new RoomOpenHelper.ValidationResult(true, null);
       }
-    }, "44d2c2f270e1249da129b68288e70f1f", "cbc3b71b9b86f2d0c1e689f67ffdba13");
+    }, "3b8292c61c9b6c912e6438feb6eb019e", "203b4e0ab161a93080d1745b879430bb");
     final SupportSQLiteOpenHelper.Configuration _sqliteConfig = SupportSQLiteOpenHelper.Configuration.builder(config.context).name(config.name).callback(_openCallback).build();
     final SupportSQLiteOpenHelper _helper = config.sqliteOpenHelperFactory.create(_sqliteConfig);
     return _helper;
@@ -196,7 +280,7 @@ public final class AppDatabase_Impl extends AppDatabase {
   protected InvalidationTracker createInvalidationTracker() {
     final HashMap<String, String> _shadowTablesMap = new HashMap<String, String>(0);
     final HashMap<String, Set<String>> _viewTables = new HashMap<String, Set<String>>(0);
-    return new InvalidationTracker(this, _shadowTablesMap, _viewTables, "food_records","user_settings","ai_configs");
+    return new InvalidationTracker(this, _shadowTablesMap, _viewTables, "food_records","user_settings","ai_configs","exercise_records","ai_token_usage","weight_records","ai_chat_history");
   }
 
   @Override
@@ -208,6 +292,10 @@ public final class AppDatabase_Impl extends AppDatabase {
       _db.execSQL("DELETE FROM `food_records`");
       _db.execSQL("DELETE FROM `user_settings`");
       _db.execSQL("DELETE FROM `ai_configs`");
+      _db.execSQL("DELETE FROM `exercise_records`");
+      _db.execSQL("DELETE FROM `ai_token_usage`");
+      _db.execSQL("DELETE FROM `weight_records`");
+      _db.execSQL("DELETE FROM `ai_chat_history`");
       super.setTransactionSuccessful();
     } finally {
       super.endTransaction();
@@ -225,6 +313,10 @@ public final class AppDatabase_Impl extends AppDatabase {
     _typeConvertersMap.put(FoodRecordDao.class, FoodRecordDao_Impl.getRequiredConverters());
     _typeConvertersMap.put(UserSettingsDao.class, UserSettingsDao_Impl.getRequiredConverters());
     _typeConvertersMap.put(AIConfigDao.class, AIConfigDao_Impl.getRequiredConverters());
+    _typeConvertersMap.put(ExerciseRecordDao.class, ExerciseRecordDao_Impl.getRequiredConverters());
+    _typeConvertersMap.put(AITokenUsageDao.class, AITokenUsageDao_Impl.getRequiredConverters());
+    _typeConvertersMap.put(WeightRecordDao.class, WeightRecordDao_Impl.getRequiredConverters());
+    _typeConvertersMap.put(AIChatHistoryDao.class, AIChatHistoryDao_Impl.getRequiredConverters());
     return _typeConvertersMap;
   }
 
@@ -281,6 +373,62 @@ public final class AppDatabase_Impl extends AppDatabase {
           _aIConfigDao = new AIConfigDao_Impl(this);
         }
         return _aIConfigDao;
+      }
+    }
+  }
+
+  @Override
+  public ExerciseRecordDao exerciseRecordDao() {
+    if (_exerciseRecordDao != null) {
+      return _exerciseRecordDao;
+    } else {
+      synchronized(this) {
+        if(_exerciseRecordDao == null) {
+          _exerciseRecordDao = new ExerciseRecordDao_Impl(this);
+        }
+        return _exerciseRecordDao;
+      }
+    }
+  }
+
+  @Override
+  public AITokenUsageDao aiTokenUsageDao() {
+    if (_aITokenUsageDao != null) {
+      return _aITokenUsageDao;
+    } else {
+      synchronized(this) {
+        if(_aITokenUsageDao == null) {
+          _aITokenUsageDao = new AITokenUsageDao_Impl(this);
+        }
+        return _aITokenUsageDao;
+      }
+    }
+  }
+
+  @Override
+  public WeightRecordDao weightRecordDao() {
+    if (_weightRecordDao != null) {
+      return _weightRecordDao;
+    } else {
+      synchronized(this) {
+        if(_weightRecordDao == null) {
+          _weightRecordDao = new WeightRecordDao_Impl(this);
+        }
+        return _weightRecordDao;
+      }
+    }
+  }
+
+  @Override
+  public AIChatHistoryDao aiChatHistoryDao() {
+    if (_aIChatHistoryDao != null) {
+      return _aIChatHistoryDao;
+    } else {
+      synchronized(this) {
+        if(_aIChatHistoryDao == null) {
+          _aIChatHistoryDao = new AIChatHistoryDao_Impl(this);
+        }
+        return _aIChatHistoryDao;
       }
     }
   }

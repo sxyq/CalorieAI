@@ -5,15 +5,16 @@ import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.AIConfig
 import com.calorieai.app.data.model.TokenUsageStats
 import com.calorieai.app.data.repository.AIConfigRepository
+import com.calorieai.app.data.repository.AITokenUsageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 import javax.inject.Inject
 
 @HiltViewModel
 class AISettingsViewModel @Inject constructor(
-    private val aiConfigRepository: AIConfigRepository
+    private val aiConfigRepository: AIConfigRepository,
+    private val aiTokenUsageRepository: AITokenUsageRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AISettingsUiState())
@@ -45,20 +46,9 @@ class AISettingsViewModel @Inject constructor(
 
     private fun loadTokenUsageStats() {
         viewModelScope.launch {
-            // TODO: 从数据库加载真实的Token使用记录
-            // 这里使用模拟数据演示
-            val mockStats = TokenUsageStats(
-                totalTokens = 15000,
-                promptTokens = 10000,
-                completionTokens = 5000,
-                totalCost = 0.045,
-                requestCount = 25,
-                todayTokens = 1200,
-                todayCost = 0.0036,
-                monthTokens = 8000,
-                monthCost = 0.024
-            )
-            _uiState.value = _uiState.value.copy(tokenUsageStats = mockStats)
+            aiTokenUsageRepository.getTokenUsageStats().collect { stats ->
+                _uiState.value = _uiState.value.copy(tokenUsageStats = stats)
+            }
         }
     }
 

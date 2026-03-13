@@ -1,95 +1,135 @@
 package com.calorieai.app.ui.screens.settings
 
-import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calorieai.app.data.model.UserSettings
-import com.calorieai.app.data.repository.UserSettingsRepository
+import com.calorieai.app.service.backup.BackupData
+import com.calorieai.app.service.backup.BackupService
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class BackupSettingsUiState(
+    val isLoading: Boolean = false,
+    val resultMessage: String? = null,
+    val isSuccess: Boolean = false,
+    val showRestoreDialog: Boolean = false,
+    val backupInfo: BackupData? = null,
+    val pendingRestoreUri: Uri? = null,
+    val includeAIConfigs: Boolean = true  // 是否包含AI配置
+)
+
 @HiltViewModel
 class BackupSettingsViewModel @Inject constructor(
-    private val userSettingsRepository: UserSettingsRepository
+    private val backupService: BackupService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BackupSettingsUiState())
     val uiState: StateFlow<BackupSettingsUiState> = _uiState.asStateFlow()
 
-    init {
+    /**
+     * 创建备份
+     */
+    fun createBackup(uri: Uri) {
         viewModelScope.launch {
-            userSettingsRepository.getSettings().collect { settings ->
-                settings?.let {
-                    _uiState.value = BackupSettingsUiState(
-                        enableAutoBackup = it.enableAutoBackup,
-                        lastBackupTime = it.lastBackupTime,
-                        enableCloudSync = it.enableCloudSync
+            _uiState.value = _uiState.value.copy(isLoading = true, resultMessage = null)
+            
+            backupService.createBackup(uri, _uiState.value.includeAIConfigs)
+                .onSuccess { message ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        resultMessage = message,
+                        isSuccess = true
                     )
                 }
-            }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        resultMessage = "备份失败: ${error.message}",
+                        isSuccess = false
+                    )
+                }
         }
     }
-
-    fun updateAutoBackup(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(enableAutoBackup = enabled)
-        saveSettings()
+    
+    /**
+     * 设置是否包含AI配置
+     */
+    fun setIncludeAIConfigs(include: Boolean) {
+        _uiState.value = _uiState.value.copy(includeAIConfigs = include)
     }
 
-    fun updateCloudSync(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(enableCloudSync = enabled)
-        saveSettings()
-    }
-
-    fun exportData(context: Context) {
-        // TODO: 实现数据导出逻辑
-        _uiState.value = _uiState.value.copy(
-            exportResult = BackupResult.Success("导出功能开发中")
-        )
-    }
-
-    fun importData(context: Context) {
-        // TODO: 实现数据导入逻辑
-        _uiState.value = _uiState.value.copy(
-            exportResult = BackupResult.Success("导入功能开发中")
-        )
-    }
-
-    fun syncToCloud() {
-        // TODO: 实现云同步逻辑
-        _uiState.value = _uiState.value.copy(
-            exportResult = BackupResult.Success("云同步功能开发中")
-        )
-    }
-
-    fun restoreFromCloud() {
-        // TODO: 实现从云端恢复逻辑
-        _uiState.value = _uiState.value.copy(
-            exportResult = BackupResult.Success("云端恢复功能开发中")
-        )
-    }
-
-    fun clearExportResult() {
-        _uiState.value = _uiState.value.copy(exportResult = null)
-    }
-
-    private fun saveSettings() {
+    /**
+     * 加载备份信息
+     */
+    fun loadBackupInfo(uri: Uri) {
         viewModelScope.launch {
-            val currentState = _uiState.value
-            val settings = UserSettings(
-                enableAutoBackup = currentState.enableAutoBackup,
-                lastBackupTime = currentState.lastBackupTime,
-                enableCloudSync = currentState.enableCloudSync
-            )
-            userSettingsRepository.saveSettings(settings)
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            
+            backupService.getBackupInfo(uri)
+                .onSuccess { backupData ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        showRestoreDialog = true,
+                        backupInfo = backupData,
+                        pendingRestoreUri = uri
+                    )
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        resultMessage = "读取备份失败: ${error.message}",
+                        isSuccess = false
+                    )
+                }
         }
+    }
+
+    /**
+     * 确认恢复
+     */
+    fun confirmRestore() {
+        val uri = _uiState.value.pendingRestoreUri ?: return
+        
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isLoading = true,
+                showRestoreDialog = false
+            )
+            
+            backupService.restoreBackup(uri)
+                .onSuccess { message ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        resultMessage = message,
+                        isSuccess = true,
+                        backupInfo = null,
+                        pendingRestoreUri = null
+                    )
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        resultMessage = "恢复失败: ${error.message}",
+                        isSuccess = false,
+                        backupInfo = null,
+                        pendingRestoreUri = null
+                    )
+                }
+        }
+    }
+
+    /**
+     * 关闭恢复对话框
+     */
+    fun dismissRestoreDialog() {
+        _uiState.value = _uiState.value.copy(
+            showRestoreDialog = false,
+            backupInfo = null,
+            pendingRestoreUri = null
+        )
     }
 }
-
-data class BackupSettingsUiState(
-    val enableAutoBackup: Boolean = false,
-    val lastBackupTime: String? = null,
-    val enableCloudSync: Boolean = false,
-    val exportResult: BackupResult? = null
-)

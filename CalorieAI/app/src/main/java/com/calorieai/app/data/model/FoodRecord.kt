@@ -4,6 +4,9 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
 
+// 导入 ExerciseType 用于 Converters 类
+import com.calorieai.app.data.model.ExerciseType
+
 @Entity(tableName = "food_records")
 @TypeConverters(Converters::class)
 data class FoodRecord(
@@ -35,15 +38,66 @@ data class Ingredient(
 )
 
 enum class MealType {
-    BREAKFAST, LUNCH, DINNER, SNACK
+    BREAKFAST,      // 早餐
+    BREAKFAST_SNACK, // 早加餐
+    LUNCH,          // 午餐
+    LUNCH_SNACK,    // 午加餐
+    DINNER,         // 晚餐
+    DINNER_SNACK,   // 晚加餐
+    SNACK           // 其他加餐
 }
 
 fun getMealTypeName(mealType: MealType): String {
     return when (mealType) {
         MealType.BREAKFAST -> "早餐"
+        MealType.BREAKFAST_SNACK -> "早加餐"
+        MealType.LUNCH -> "午餐"
+        MealType.LUNCH_SNACK -> "午加餐"
+        MealType.DINNER -> "晚餐"
+        MealType.DINNER_SNACK -> "晚加餐"
+        MealType.SNACK -> "加餐"
+    }
+}
+
+/**
+ * 将加餐类型合并为统一的"加餐"显示
+ */
+fun getSimplifiedMealTypeName(mealType: MealType): String {
+    return when (mealType) {
+        MealType.BREAKFAST -> "早餐"
+        MealType.BREAKFAST_SNACK,
+        MealType.LUNCH_SNACK,
+        MealType.DINNER_SNACK,
+        MealType.SNACK -> "加餐"
         MealType.LUNCH -> "午餐"
         MealType.DINNER -> "晚餐"
-        MealType.SNACK -> "加餐"
+    }
+}
+
+/**
+ * 获取简化后的餐次顺序（用于排序）
+ */
+fun getSimplifiedMealTypeOrder(mealType: MealType): Int {
+    return when (mealType) {
+        MealType.BREAKFAST -> 1
+        MealType.LUNCH -> 2
+        MealType.DINNER -> 3
+        MealType.BREAKFAST_SNACK,
+        MealType.LUNCH_SNACK,
+        MealType.DINNER_SNACK,
+        MealType.SNACK -> 4
+    }
+}
+
+fun getMealTypeOrder(mealType: MealType): Int {
+    return when (mealType) {
+        MealType.BREAKFAST -> 1
+        MealType.BREAKFAST_SNACK -> 2
+        MealType.LUNCH -> 3
+        MealType.LUNCH_SNACK -> 4
+        MealType.DINNER -> 5
+        MealType.DINNER_SNACK -> 6
+        MealType.SNACK -> 7
     }
 }
 
@@ -81,5 +135,15 @@ class Converters {
     @androidx.room.TypeConverter
     fun toConfidenceLevel(value: String): ConfidenceLevel {
         return ConfidenceLevel.valueOf(value)
+    }
+
+    @androidx.room.TypeConverter
+    fun fromExerciseType(value: ExerciseType): String {
+        return value.name
+    }
+
+    @androidx.room.TypeConverter
+    fun toExerciseType(value: String): ExerciseType {
+        return ExerciseType.valueOf(value)
     }
 }

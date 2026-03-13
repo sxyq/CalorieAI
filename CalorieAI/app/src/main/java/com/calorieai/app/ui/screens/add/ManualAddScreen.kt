@@ -196,25 +196,28 @@ private fun NutritionInput(
 }
 
 /**
- * 餐次选择器（手动录入页面用）
+ * 餐次选择器（与AI录入保持一致）
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ManualMealTypeSelector(
     selectedMealType: MealType,
     onMealTypeSelected: (MealType) -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        MealType.values().forEach { mealType ->
-            val isSelected = mealType == selectedMealType
-            FilterChip(
-                selected = isSelected,
+    val mealTypes = listOf(MealType.BREAKFAST, MealType.LUNCH, MealType.DINNER, MealType.SNACK)
+    
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        mealTypes.forEachIndexed { index, mealType ->
+            SegmentedButton(
+                selected = selectedMealType == mealType,
                 onClick = { onMealTypeSelected(mealType) },
-                label = { Text(getMealTypeName(mealType)) },
-                modifier = Modifier.weight(1f)
-            )
+                shape = SegmentedButtonDefaults.itemShape(
+                    index = index,
+                    count = mealTypes.size
+                )
+            ) {
+                Text(getMealTypeName(mealType))
+            }
         }
     }
 }

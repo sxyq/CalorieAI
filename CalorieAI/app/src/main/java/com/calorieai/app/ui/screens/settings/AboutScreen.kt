@@ -108,7 +108,7 @@ fun AboutScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "© 2024 CalorieAI\nAll rights reserved",
+                    text = "© 2026 CalorieAI\nAll rights reserved",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center

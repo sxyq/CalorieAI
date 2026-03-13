@@ -2,8 +2,11 @@ package com.calorieai.app.di
 
 import android.content.Context
 import androidx.room.Room
+import com.calorieai.app.data.local.AIChatHistoryDao
 import com.calorieai.app.data.local.AIConfigDao
+import com.calorieai.app.data.local.AITokenUsageDao
 import com.calorieai.app.data.local.AppDatabase
+import com.calorieai.app.data.local.ExerciseRecordDao
 import com.calorieai.app.data.local.FoodRecordDao
 import com.calorieai.app.data.local.UserSettingsDao
 import dagger.Module
@@ -42,5 +45,25 @@ object DatabaseModule {
     @Provides
     fun provideAIConfigDao(database: AppDatabase): AIConfigDao {
         return database.aiConfigDao()
+    }
+
+    @Provides
+    fun provideExerciseRecordDao(database: AppDatabase): ExerciseRecordDao {
+        return database.exerciseRecordDao()
+    }
+
+    @Provides
+    fun provideAITokenUsageDao(database: AppDatabase): AITokenUsageDao {
+        return database.aiTokenUsageDao()
+    }
+
+    @Provides
+    fun provideWeightRecordDao(database: AppDatabase): com.calorieai.app.data.repository.WeightRecordDao {
+        return database.weightRecordDao()
+    }
+
+    @Provides
+    fun provideAIChatHistoryDao(database: AppDatabase): AIChatHistoryDao {
+        return database.aiChatHistoryDao()
     }
 }

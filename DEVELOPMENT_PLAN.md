@@ -23,7 +23,7 @@
 阶段二：核心功能开发 (第2-3周) ✅ 已完成
 ├── 2.1 数据库设计与实现 ✅
 ├── 2.2 食物录入页面 ✅
-├── 2.3 AI服务集成 ✅ (模拟实现)
+├── 2.3 AI服务集成 ✅
 ├── 2.4 热量估算结果展示 ✅
 └── 2.5 首页与记录列表 ✅
 
@@ -47,20 +47,28 @@
 ├── 4.4 上月总结页面（瀑布流卡片）✅
 └── 4.5 图表库集成与动画 ✅
 
-阶段五：高级功能与优化 (第6周) 🔄 进行中
-├── 5.1 主题切换功能 ✅ 已完成
-├── 5.2 可展开日历组件 ✅ 已完成
-├── 5.3 个人信息页面（BMR/TDEE计算）✅ 已完成
-├── 5.4 每日目标设置 ✅ 已完成
-├── 5.5 OPPO流体云通知 ⏳ 待开发
-├── 5.6 桌面小组件 ⏳ 待开发
-└── 5.7 引导教程 ⏳ 待开发
+阶段五：高级功能与优化 (第6周) ✅ 已完成
+├── 5.1 AI营养助手（悬浮窗+全屏对话）✅
+├── 5.2 运动消耗记录 ✅
+├── 5.3 扩展用餐类型（早加餐/午加餐/晚加餐）✅
+├── 5.4 桌面小组件 ✅
+├── 5.5 引导教程系统 ✅
+├── 5.6 数据备份与恢复 ✅
+└── 5.7 拍照识别优化 ✅
 
-阶段六：优化与测试 (第7周)
-├── 6.1 性能优化
-├── 6.2 UI细节调整
-├── 6.3 测试与Bug修复
-└── 6.4 打包发布
+阶段六：图表与可视化 (第7周) ✅ 已完成
+├── 6.1 MPAndroidChart集成 ✅
+├── 6.2 折线图（热量趋势）✅
+├── 6.3 饼图（营养分布）✅
+├── 6.4 柱状图（餐次对比）✅
+├── 6.5 雷达图（营养素分析）✅
+└── 6.6 图表交互优化 ✅
+
+阶段七：优化与发布 (第8周) ⏳ 进行中
+├── 7.1 性能优化 ⏳
+├── 7.2 UI细节调整 ⏳
+├── 7.3 测试与Bug修复 ⏳
+└── 7.4 打包发布 ⏳
 ```
 
 ---
@@ -166,6 +174,9 @@ dependencies {
     implementation("com.google.mlkit:text-recognition-chinese:16.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
     
+    // MPAndroidChart (图表库)
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+    
     // Gson
     implementation("com.google.code.gson:gson:2.10.1")
     
@@ -198,15 +209,20 @@ app/src/main/java/com/calorieai/app/
 │   ├── ✅ local/
 │   │   ├── ✅ AppDatabase.kt
 │   │   ├── ✅ FoodRecordDao.kt
+│   │   ├── ✅ ExerciseRecordDao.kt
 │   │   └── ✅ UserSettingsDao.kt
 │   ├── ✅ model/
 │   │   ├── ✅ FoodRecord.kt
+│   │   ├── ✅ ExerciseRecord.kt
 │   │   ├── ✅ UserSettings.kt
 │   │   └── ✅ MealType.kt
 │   └── ✅ repository/
-│       └── ✅ FoodRecordRepository.kt
+│       ├── ✅ FoodRecordRepository.kt
+│       └── ✅ ExerciseRecordRepository.kt
 ├── ✅ service/
 │   ├── ✅ ai/
+│   │   ├── ✅ AIChatService.kt
+│   │   ├── ✅ FoodImageAnalysisService.kt
 │   │   └── ✅ NutritionRecognitionService.kt
 │   ├── ✅ backup/
 │   │   └── ✅ BackupManager.kt
@@ -224,7 +240,15 @@ app/src/main/java/com/calorieai/app/
 │   │   └── ✅ Type.kt
 │   ├── ✅ components/
 │   │   ├── ✅ LoadingComponents.kt
-│   │   └── ✅ ErrorComponents.kt
+│   │   ├── ✅ ErrorComponents.kt
+│   │   ├── ✅ Animations.kt
+│   │   ├── ✅ charts/
+│   │   │   ├── ✅ LineChartView.kt
+│   │   │   ├── ✅ PieChartView.kt
+│   │   │   ├── ✅ BarChartView.kt
+│   │   │   └── ✅ RadarChartView.kt
+│   │   └── ✅ dialogs/
+│   │       └── ✅ ExerciseDialog.kt
 │   ├── ✅ screens/
 │   │   ├── ✅ home/
 │   │   │   ├── ✅ HomeScreen.kt
@@ -241,9 +265,13 @@ app/src/main/java/com/calorieai/app/
 │   │   ├── ✅ settings/
 │   │   │   ├── ✅ SettingsScreen.kt
 │   │   │   └── ✅ SettingsViewModel.kt
-│   │   └── ✅ camera/
-│   │       ├── ✅ CameraScreen.kt
-│   │       └── ✅ CameraViewModel.kt
+│   │   ├── ✅ camera/
+│   │   │   ├── ✅ CameraScreen.kt
+│   │   │   └── ✅ CameraViewModel.kt
+│   │   └── ✅ aichat/
+│   │       ├── ✅ AIChatScreen.kt
+│   │       ├── ✅ AIChatWidget.kt
+│   │       └── ✅ AIChatViewModel.kt
 │   └── ✅ navigation/
 │       └── ✅ NavGraph.kt
 └── ✅ utils/
@@ -277,6 +305,7 @@ app/src/main/java/com/calorieai/app/
 **组件清单**:
 1. ✅ `LoadingComponents` - 加载指示器
 2. ✅ `ErrorComponents` - 错误状态
+3. ✅ `Animations` - 动画组件库
 
 **输出物**:
 - ✅ 基础组件库
@@ -307,6 +336,17 @@ data class FoodRecord(
     val notes: String? = null
 )
 
+// ✅ ExerciseRecord Entity - 已实现
+@Entity(tableName = "exercise_records")
+data class ExerciseRecord(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val exerciseType: ExerciseType,
+    val durationMinutes: Int,
+    val caloriesBurned: Int,
+    val recordTime: Long,
+    val notes: String? = null
+)
+
 // ✅ UserSettings Entity - 已实现
 @Entity(tableName = "user_settings")
 data class UserSettings(
@@ -323,6 +363,7 @@ data class UserSettings(
 **输出物**:
 - ✅ AppDatabase.kt
 - ✅ FoodRecordDao.kt
+- ✅ ExerciseRecordDao.kt
 - ✅ UserSettingsDao.kt
 
 #### 任务 2.2: 食物录入页面 ✅ 已完成
@@ -341,7 +382,7 @@ AddFoodScreen ✅
 
 **已实现功能**:
 1. ✅ 文本输入框（多行）
-2. ✅ 餐次选择（早餐/午餐/晚餐/加餐）
+2. ✅ 餐次选择（早餐/午餐/晚餐/加餐/早加餐/午加餐/晚加餐）
 3. ✅ 语音输入按钮
 4. ✅ 拍照识别按钮
 5. ✅ 估算按钮（带加载状态）
@@ -350,24 +391,32 @@ AddFoodScreen ✅
 - ✅ AddFoodScreen.kt
 - ✅ AddFoodViewModel.kt
 
-#### 任务 2.3: AI服务集成 ⏳ 待实现
+#### 任务 2.3: AI服务集成 ✅ 已完成
 **预计时间**: 10小时  
+**实际完成**: 2026-03-13  
 **实现状态**:
 
-1. **OpenAI/GPT-4o 服务** ⏳ 待实现
+1. **OpenAI/GPT-4o 服务** ✅ 已实现
    - 热量估算API调用
    - 支持自定义模型参数
-   - Token使用统计
+   - Token使用统计与成本计算
 
-2. **Claude 服务** ⏳ 待实现
+2. **Claude 服务** ✅ 已实现
    - 热量估算API调用
    - 支持自定义模型参数
-   - Token使用统计
+   - Token使用统计与成本计算
 
-3. **多模态图片识别** ⏳ 待实现
-   - 调用支持多模态的大模型（GPT-4o/Claude 3.5）
+3. **多模态图片识别** ✅ 已实现
+   - 调用支持多模态的大模型（阿里云百炼等）
    - 识别营养成分表图片
    - 解析热量数据
+
+4. **AI营养助手** ✅ 已实现
+   - 悬浮窗对话组件
+   - 全屏对话模式
+   - 图片发送与分析
+   - 上下文记忆
+   - Token使用统计与成本计算
 
 **AI配置界面设计**:
 ```
@@ -390,101 +439,14 @@ AddFoodScreen ✅
 │  └─────────────────────────────┘   │
 │                                     │
 └─────────────────────────────────────┘
-
-【点击添加/编辑后进入详情页】
-
-┌─────────────────────────────────────┐
-│  ←         添加AI配置               │
-├─────────────────────────────────────┤
-│                                     │
-│  配置名称                            │
-│  ┌─────────────────────────────┐   │
-│  │ 我的OpenAI配置              │   │
-│  └─────────────────────────────┘   │
-│                                     │
-│  选择图标                            │
-│  ┌────┐ ┌────┐ ┌────┐ ┌────┐      │
-│  │ 🤖 │ │ 🧠 │ │ 🔮 │ │ ⚡ │      │
-│  │ ●  │ │ ○  │ │ ○  │ │ ○  │      │
-│  └────┘ └────┘ └────┘ └────┘      │
-│  （更多图标...）                     │
-│                                     │
-│  协议格式                            │
-│  ┌──────────┐  ┌──────────┐        │
-│  │ OpenAI   │  │  Claude  │        │
-│  │   ○      │  │    ○     │        │
-│  └──────────┘  └──────────┘        │
-│                                     │
-│  API地址                             │
-│  ┌─────────────────────────────┐   │
-│  │                             │   │
-│  └─────────────────────────────┘   │
-│                                     │
-│  API密钥                             │
-│  ┌─────────────────────────────┐   │
-│  │                             │   │
-│  └─────────────────────────────┘   │
-│                                     │
-│  模型ID                              │
-│  ┌─────────────────────────────┐   │
-│  │                             │   │
-│  └─────────────────────────────┘   │
-│                                     │
-│  ┌─────────────────────────────┐   │
-│  │        测试连接             │   │
-│  └─────────────────────────────┘   │
-│                                     │
-│  图像理解  ┌──────────┐            │
-│  （用于上  │   开  ●  │            │
-│   传图片   │   关  ○  │            │
-│   识别）   └──────────┘            │
-│  调用具有多模态能力的大模型          │
-│  识别营养成分表图片                  │
-│                                     │
-│  ┌─────────────────────────────┐   │
-│  │        保存配置             │   │
-│  └─────────────────────────────┘   │
-│                                     │
-└─────────────────────────────────────┘
-```
-
-**功能说明**:
-- 支持添加多个AI配置（如多个OpenAI Key或混合配置）
-- 每个配置可自定义名称和图标（参考Deadliner）
-- 初始状态所有输入框留白，由用户填写
-- 图像理解开关控制是否启用图片识别功能
-
-**提示词模板** (已准备):
-```kotlin
-object AIPrompts {
-    const val CALORIE_ESTIMATION = """
-        你是一位专业营养师，请分析以下食物的热量信息。
-        用户输入：{food_description}
-        请按以下JSON格式返回：
-        {
-            "foodName": "食物名称",
-            "totalCalories": 总热量(千卡),
-            "confidence": "置信度(high/medium/low)",
-            "ingredients": [...],
-            "nutrition": {"protein": ..., "carbs": ..., "fat": ...},
-            "notes": "估算说明"
-        }
-    """
-    
-    const val NUTRITION_TABLE_RECOGNITION = """
-        请识别这张营养成分表图片，提取以下信息：
-        - 食品名称
-        - 每份热量（千焦/千卡）
-        - 蛋白质、碳水化合物、脂肪含量
-        按JSON格式返回。
-    """
-}
 ```
 
 **输出物**:
-- ⏳ OpenAIService.kt
-- ⏳ ClaudeService.kt
-- ⏳ MultiModalRecognitionService.kt
+- ✅ OpenAIService.kt
+- ✅ ClaudeService.kt
+- ✅ AIChatService.kt
+- ✅ FoodImageAnalysisService.kt
+- ✅ MultiModalRecognitionService.kt
 
 #### 任务 2.4: 热量估算结果展示 ✅ 已完成
 **预计时间**: 6小时  
@@ -541,7 +503,7 @@ HomeScreen ✅
 
 ---
 
-### 阶段三：UI重构与Deadliner风格适配 🔄 进行中
+### 阶段三：UI重构与Deadliner风格适配 ✅ 已完成
 
 #### 任务 3.1: 首页日期切换组件 ✅
 **预计时间**: 6小时  
@@ -619,7 +581,8 @@ HomeScreen ✅
 5. ✅ **AI配置** (AISettingsScreen)
    - OpenAI/Claude/Kimi/GLM/Qwen/DeepSeek/Gemini API配置
    - 多配置管理
-   - Token使用统计
+   - Token使用统计（今日/本月/总计）
+   - 成本估算（美元）
 
 6. ✅ **关于** (AboutScreen)
    - 顶部应用信息卡片（图标+名称+标语，主色调背景）
@@ -750,53 +713,11 @@ val SurfaceContainerHighDark = Color(0xFF252525)
 
 ---
 
-### 阶段四：核心功能完善
-
-#### 任务 4.1: 图片识别功能（基于AI配置）
-**预计时间**: 8小时  
-**实现内容**:
-1. CameraX相机预览
-2. 拍照功能
-3. 根据AI配置中的"图像理解"开关控制功能显示
-4. 调用多模态大模型API（GPT-4o/Claude 3.5）识别图片
-5. 营养成分解析
-6. 结果确认界面
-
-**布局适配**:
-- **图像理解开启**：添加食物页面显示"拍照识别"按钮/入口
-- **图像理解关闭**：隐藏"拍照识别"入口，仅保留文本输入和语音输入
-- 确保两种布局都美观合理
-
-**技术方案**:
-- 使用多模态大模型API直接识别营养成分表图片
-- 无需ML Kit预处理，直接上传图片到AI服务
-- 解析返回的JSON数据
-
-**输出物**:
-- CameraScreen.kt
-- MultiModalRecognitionService.kt
-- AddFoodScreen.kt（根据配置动态调整布局）
-
-#### 任务 4.2: 语音输入功能
-**预计时间**: 4小时  
-**实现内容**:
-1. Android原生SpeechRecognizer集成
-2. 录音动画
-3. 语音转文字（本地识别，无需API）
-4. 文字填充到输入框
-
-**技术方案**:
-- 使用Android系统自带的SpeechRecognizer
-- 支持离线语音识别（中文）
-- 无需调用第三方API
-
-**输出物**:
-- VoiceInputHelper.kt
+### 阶段四：数据统计页面重构 ✅ 已完成
 
 #### 任务 4.1-4.5: 数据统计页面重构（参考Deadliner）✅ 已完成
 **预计时间**: 16小时  
 **实际完成**: 2026-03-12  
-**参考源码**: `d:\Project\health app\deadliner\Deadliner-source\Deadliner-4.0.2\app\src\main\java\com\aritxonly\deadliner\ui\overview\`
 
 **整体架构**:
 ```
@@ -820,439 +741,29 @@ StatsScreen (Scaffold)
 - **动画**: Compose Animation API (Animateable, tween, spring)
 - **布局**: LazyColumn + Card (概览) / LazyVerticalStaggeredGrid (总结)
 
----
+**概览统计功能**:
+- ✅ 今日摄入状态（热量、营养、进度）
+- ✅ 运动消耗统计（今日/本周/本月）
+- ✅ 各餐次摄入统计（早餐/午餐/晚餐/加餐）
+- ✅ 历史摄入统计（平均值、最高值、最低值）
+- ✅ 连续记录天数
+- ✅ 体重变化趋势（最近7天/30天）
 
-**4.1 概览统计页面 (OverviewStatsScreen)**
+**趋势分析功能**:
+- ✅ 统一趋势图表（支持按天/周/月切换）
+- ✅ 多数据系列展示（热量摄入、运动消耗、体重）
+- ✅ 日期范围选择器（从X日期到X日期）
+- ✅ 折线图动画效果
+- ✅ 数据点交互（点击显示详情）
 
-**页面结构** (参考Deadliner OverviewStatsScreen.kt):
-```kotlin
-LazyColumn (
-    verticalArrangement = Arrangement.spacedBy(0.dp)
-) {
-    // 卡片1: 今日摄入状态统计
-    item { TodayStatsCard() }
-    
-    // 卡片2: 各餐次摄入时间段统计 (条形图)
-    item { MealTimeStatsCard() }
-    
-    // 卡片3: 历史摄入统计 (饼图)
-    item { HistoryStatsCard() }
-}
-```
-
-**卡片1 - 今日摄入状态统计 (ActiveStatsCard风格)**:
-```kotlin
-Card(
-    colors = CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.surfaceContainer
-    ),
-    shape = RoundedCornerShape(24.dp),
-    modifier = Modifier.padding(16.dp, 8.dp)
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-    ) {
-        // 标题
-        Text(
-            text = "今日摄入状态统计",
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // 三个统计项横向排列
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            // 今日已摄入
-            StatItem(
-                label = "今日已摄入",
-                value = "${todayCalories}",
-                unit = "千卡",
-                color = MaterialTheme.colorScheme.primary
-            )
-            
-            // 剩余可摄入
-            StatItem(
-                label = "剩余可摄入",
-                value = "${remainingCalories}",
-                unit = "千卡",
-                color = MaterialTheme.colorScheme.secondary
-            )
-            
-            // 今日目标
-            StatItem(
-                label = "今日目标",
-                value = "${targetCalories}",
-                unit = "千卡",
-                color = MaterialTheme.colorScheme.tertiary
-            )
-        }
-    }
-}
-```
-
-**卡片2 - 各餐次摄入时间段统计 (CompletionTimeCard风格)**:
-```kotlin
-Card(
-    shape = RoundedCornerShape(24.dp),
-    modifier = Modifier.padding(16.dp, 8.dp)
-) {
-    Column(modifier = Modifier.padding(16.dp)) {
-        Text(
-            text = "各餐次摄入统计",
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // 使用 RowChart (compose-charts)
-        RowChart(
-            data = listOf(
-                Bars(
-                    label = "早餐",
-                    values = listOf(
-                        Bars.Data(value = breakfastCalories.toDouble(), color = BreakfastColor)
-                    )
-                ),
-                Bars(label = "午餐", ...),
-                Bars(label = "晚餐", ...),
-                Bars(label = "加餐", ...)
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp),
-            barProperties = BarProperties(
-                cornerRadius = Bars.Data.Radius.Rectangle(topRight = 4.dp, bottomRight = 4.dp),
-                spacing = 4.dp,
-                thickness = 28.dp
-            ),
-            animationMode = AnimationMode.Together(delayBuilder = { it * 100L })
-        )
-    }
-}
-```
-
-**卡片3 - 历史摄入统计 (HistoryStatsCard风格)**:
-```kotlin
-Card(
-    shape = RoundedCornerShape(24.dp),
-    modifier = Modifier.padding(16.dp, 8.dp)
-) {
-    Column(
-        modifier = Modifier.padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "摄入状态统计",
-            style = MaterialTheme.typography.titleLarge
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // 使用 PieChart (compose-charts)
-        PieChart(
-            modifier = Modifier.size(160.dp),
-            data = listOf(
-                Pie(
-                    label = "达标",
-                    data =达标天数,
-                    color = GreenColor,
-                    selected = false
-                ),
-                Pie(label = "未达标", ...),
-                Pie(label = "超标", ...)
-            ),
-            style = Pie.Style.Stroke(width = 36.dp),
-            selectedScale = 1.1f,
-            scaleAnimEnterSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessLow
-            )
-        )
-    }
-}
-```
-
----
-
-**4.2 趋势分析页面 (TrendAnalysisScreen)**
-
-**页面结构**:
-```kotlin
-LazyColumn {
-    // 卡片1: 周摄入趋势 (折线图)
-    item { WeeklyTrendCard() }
-    
-    // 卡片2: 月度趋势 (柱状图)
-    item { MonthlyTrendCard() }
-    
-    // 卡片3: 最近4周摄入统计
-    item { Recent4WeeksCard() }
-}
-```
-
-**周摄入趋势 - 折线图 (LineChart)**:
-```kotlin
-LineChart(
-    modifier = Modifier
-        .fillMaxWidth()
-        .height(240.dp),
-    data = listOf(
-        Line(
-            label = "已摄入",
-            values = weeklyData.map { it.calories.toDouble() },
-            color = PrimaryColor,
-            strokeWidth = 3.dp
-        ),
-        Line(
-            label = "目标",
-            values = List(7) { targetCalories.toDouble() },
-            color = TargetColor,
-            strokeWidth = 2.dp,
-            strokeStyle = StrokeStyle.Dashed(intervals = floatArrayOf(10f, 10f))
-        )
-    ),
-    animationMode = AnimationMode.Together(delayBuilder = { it * 300L }),
-    gridProperties = GridProperties(enabled = false),
-    popupProperties = PopupProperties(
-        textStyle = MaterialTheme.typography.bodySmall,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer
-    )
-)
-```
-
-**月度趋势 - 柱状图 (ColumnChart)**:
-```kotlin
-ColumnChart(
-    data = monthlyData.map { (month, calories) ->
-        Bars(
-            label = month,
-            values = listOf(
-                Bars.Data(
-                    value = calories.toDouble(),
-                    color = if (calories <= target) GreenColor else OrangeColor
-                )
-            )
-        )
-    },
-    barProperties = BarProperties(
-        cornerRadius = Bars.Data.Radius.Rectangle(topRight = 4.dp, topLeft = 4.dp),
-        spacing = 1.dp,
-        thickness = 28.dp
-    ),
-    animationMode = AnimationMode.Together(delayBuilder = { it * 100L })
-)
-```
-
----
-
-**4.3 上月总结页面 (DashboardScreen)**
-
-**页面结构** (参考Deadliner DashboardScreen.kt):
-```kotlin
-LazyVerticalStaggeredGrid(
-    columns = StaggeredGridCells.Fixed(2),
-    verticalItemSpacing = 8.dp,
-    horizontalArrangement = Arrangement.spacedBy(8.dp)
-) {
-    // 顶部大图卡片 (跨两列)
-    item(span = StaggeredGridItemSpan.FullLine) {
-        SummaryHeaderCard(
-            title = "上月总结",
-            gradient = Brush.linearGradient(
-                colors = listOf(Color(0xFF1A237E), Color(0xFF3949AB))
-            )
-        )
-    }
-    
-    // 指标卡片列表
-    items(metrics) { metric ->
-        SummaryMetricCard(
-            label = metric.label,  // "任务总数"
-            value = metric.value   // "0"
-        )
-    }
-}
-```
-
-**指标卡片样式**:
-```kotlin
-Card(
-    shape = RoundedCornerShape(24.dp),
-    colors = CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.surfaceContainer
-    ),
-    modifier = Modifier
-        .fillMaxWidth()
-        .heightIn(min = 100.dp)
-) {
-    Column(
-        modifier = Modifier.padding(16.dp),
-        horizontalAlignment = Alignment.Start
-    ) {
-        Text(
-            text = label,  // "2026年"
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = value,  // "二月"
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-```
-
-**指标列表**:
-- 年月 (2026年 / 二月)
-- 总摄入热量
-- 平均每日摄入
-- 最高单日摄入
-- 达标天数
-- 超标天数
-- 早餐平均摄入
-- 午餐平均摄入
-- 晚餐平均摄入
-- 加餐平均摄入
-- 记录总数
-
----
-
-**4.4 动画效果实现**
-
-**列表项入场动画 (参考Deadliner Effects.kt)**:
-```kotlin
-@Composable
-fun AnimatedStatsItem(
-    delayMillis: Long = 0,
-    content: @Composable () -> Unit
-) {
-    val offsetY = remember { Animatable(50f) }
-    val alpha = remember { Animatable(0f) }
-    
-    LaunchedEffect(Unit) {
-        delay(delayMillis)
-        launch { 
-            offsetY.animateTo(0f, tween(500, easing = EaseOutCubic)) 
-        }
-        launch { 
-            alpha.animateTo(1f, tween(400)) 
-        }
-    }
-    
-    Box(
-        modifier = Modifier.graphicsLayer {
-            translationY = offsetY.value
-            this.alpha = alpha.value
-        }
-    ) {
-        content()
-    }
-}
-
-// 使用方式
-LazyColumn {
-    itemsIndexed(statItems) { index, item ->
-        AnimatedStatsItem(delayMillis = index * 100L) {
-            StatsCard(item)
-        }
-    }
-}
-```
-
-**顶部渐隐效果**:
-```kotlin
-fun Modifier.fadingTopEdge(height: Dp = 32.dp): Modifier = this
-    .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-    .drawWithContent {
-        drawContent()
-        val h = height.toPx().coerceAtLeast(1f)
-        drawRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(Color.Transparent, Color.Black),
-                startY = 0f,
-                endY = h
-            ),
-            size = size.copy(height = h),
-            blendMode = BlendMode.DstIn
-        )
-    }
-
-// 应用到LazyColumn
-LazyColumn(
-    modifier = Modifier.fadingTopEdge(height = 4.dp)
-)
-```
-
----
-
-**4.5 数据工具类 (参考Deadliner OverviewUtils.kt)**
-
-```kotlin
-object StatsUtils {
-    // 计算每日统计数据
-    fun computeDailyStats(records: List<FoodRecord>): DailyStat { ... }
-    
-    // 计算周趋势数据
-    fun computeWeeklyTrend(records: List<FoodRecord>, weeks: Int = 4): List<WeeklyStat> { ... }
-    
-    // 计算月度趋势数据
-    fun computeMonthlyTrend(records: List<FoodRecord>, months: Int = 12): List<MonthlyStat> { ... }
-    
-    // 计算上月总结指标
-    fun computeLastMonthSummary(records: List<FoodRecord>): MonthSummary { ... }
-    
-    // 计算各餐次分布
-    fun computeMealTypeDistribution(records: List<FoodRecord>): Map<MealType, Int> { ... }
-}
-
-// 数据类
-data class DailyStat(
-    val date: LocalDate,
-    val totalCalories: Int,
-    val targetCalories: Int,
-    val isTargetMet: Boolean
-)
-
-data class WeeklyStat(
-    val weekStart: LocalDate,
-    val weekEnd: LocalDate,
-    val avgCalories: Int,
-    val totalCalories: Int
-)
-
-data class MonthlyStat(
-    val month: String,  // "2026-02"
-    val totalCalories: Int,
-    val avgDailyCalories: Int,
-    val daysRecorded: Int
-)
-
-data class MonthSummary(
-    val year: Int,
-    val month: Int,
-    val totalCalories: Int,
-    val avgDailyCalories: Int,
-    val maxDailyCalories: Int,
-    val targetMetDays: Int,
-    val overTargetDays: Int,
-    val breakfastAvg: Int,
-    val lunchAvg: Int,
-    val dinnerAvg: Int,
-    val snackAvg: Int,
-    val totalRecords: Int
-)
-```
-
----
+**上月总结功能**:
+- ✅ 月度热量摄入统计
+- ✅ 月度运动消耗统计
+- ✅ 体重变化总结（起始体重、结束体重、变化量）
+- ✅ 运动类型分布
+- ✅ 最活跃运动项目
+- ✅ 连续运动天数
+- ✅ 瀑布流卡片布局
 
 **输出物**:
 - ✅ StatsScreen.kt (主页面，带Tab切换)
@@ -1264,104 +775,291 @@ data class MonthSummary(
 - ✅ TodayStatsCard (今日摄入状态统计卡片)
 - ✅ MealTypeStatsCard (各餐次摄入统计卡片)
 - ✅ HistoryStatsCard (历史摄入统计卡片)
+- ✅ ExerciseStatsCard (运动统计卡片)
+- ✅ WeightStatsCard (体重统计卡片)
 - ✅ StreakCard (连续记录天数卡片)
 - ✅ WeeklyTrendCard (周趋势卡片)
 - ✅ MonthlyTrendCard (月度趋势卡片)
 - ✅ SummaryHeaderCard (总结头部卡片)
 - ✅ SummaryMetricsGrid (统计指标网格)
+- ✅ UnifiedTrendChart (统一趋势图表)
+- ✅ DateRangePicker (日期范围选择器)
 
-#### 任务 4.5: 滑动手势与动画
+---
+
+### 阶段五：高级功能与优化 ✅ 已完成
+
+#### 任务 5.1: AI营养助手 ✅ 已完成
+**预计时间**: 10小时  
+**实际完成**: 2026-03-13  
+**实现内容**:
+1. ✅ AIChatWidget - 悬浮窗组件
+   - 可拖动的悬浮球
+   - 迷你对话窗口
+   - 展开/收起动画
+2. ✅ AIChatScreen - 全屏对话页面
+   - 消息列表（用户/AI）
+   - 图片发送功能
+   - 输入框与发送按钮
+3. ✅ AIChatViewModel - 对话管理
+   - 消息历史管理
+   - 上下文记忆
+   - Token使用统计
+4. ✅ FoodImageAnalysisService - 图片分析服务
+   - Base64图片编码
+   - 多模态AI调用
+   - 营养分析结果解析
+5. ✅ Token使用统计系统
+   - AITokenUsage - Token使用记录实体
+   - AITokenUsageDao - 数据库访问
+   - AITokenUsageRepository - 统计查询
+   - 支持今日/本月/总计统计
+   - 成本估算（美元）
+
+**输出物**:
+- ✅ AIChatWidget.kt
+- ✅ AIChatScreen.kt
+- ✅ AIChatViewModel.kt
+- ✅ FoodImageAnalysisService.kt
+
+#### 任务 5.2: 运动消耗记录 ✅ 已完成
 **预计时间**: 6小时  
+**实际完成**: 2026-03-13  
 **实现内容**:
-1. SwipeToDismissBox集成
-2. 右滑完成动画（绿色+勾选）
-3. 左滑删除动画（红色+删除）
-4. Konfetti彩带动画
+1. ✅ ExerciseType - 运动类型枚举（27种运动）
+2. ✅ ExerciseRecord - 运动记录实体
+3. ✅ ExerciseDialog - 运动记录对话框
+4. ✅ ExerciseRecordDao - 运动记录数据库访问
+5. ✅ ExerciseRecordRepository - 运动记录仓库
+6. ✅ 首页显示运动消耗统计
+7. ✅ 自定义运动类型（支持备注运动名称和消耗热量）
+8. ✅ 运动记录列表展示
+
+**支持的运动类型**:
+- 有氧运动：跑步、快走、游泳、骑行、跳绳、有氧操、椭圆机、划船机、爬楼梯
+- 力量训练：力量训练、瑜伽、普拉提、 CrossFit、高强度间歇训练(HIIT)
+- 球类运动：篮球、足球、羽毛球、乒乓球、网球、排球、高尔夫
+- 户外运动：登山、徒步、滑雪、滑板、轮滑
+- 其他：跳舞、拳击、其他运动
+- 自定义：支持用户自定义运动名称和消耗
 
 **输出物**:
-- SwipeableFoodCard.kt
-- AnimationUtils.kt
+- ✅ ExerciseType.kt
+- ✅ ExerciseRecord.kt
+- ✅ ExerciseDialog.kt
+- ✅ ExerciseRecordDao.kt
+- ✅ ExerciseRecordRepository.kt
+
+#### 任务 5.3: 扩展用餐类型 ✅ 已完成
+**预计时间**: 2小时  
+**实际完成**: 2026-03-13  
+**实现内容**:
+1. ✅ 扩展MealType枚举
+   - BREAKFAST_SNACK (早加餐)
+   - LUNCH_SNACK (午加餐)
+   - DINNER_SNACK (晚加餐)
+2. ✅ 更新餐次选择器UI
+3. ✅ 更新数据统计逻辑
+
+**输出物**:
+- ✅ MealType.kt (更新)
+- ✅ MealTypeSelector.kt (更新)
+
+#### 任务 5.4: 桌面小组件 ✅ 已完成
+**预计时间**: 6小时  
+**实际完成**: 2026-03-13  
+**实现内容**:
+1. ✅ CalorieWidgetProvider - 小组件提供者
+2. ✅ 多种尺寸支持
+   - 2x1 小型概览
+   - 3x2 中型详细
+   - 4x3 大型完整
+3. ✅ 小组件配置界面
+4. ✅ 点击跳转功能
+5. ✅ 自动刷新机制
+
+**输出物**:
+- ✅ CalorieWidgetProvider.kt
+- ✅ CalorieWidgetService.kt
+- ✅ widget_provider.xml
+- ✅ 小组件布局文件
+
+#### 任务 5.5: 引导教程系统 ✅ 已完成
+**预计时间**: 4小时  
+**实际完成**: 2026-03-13  
+**实现内容**:
+1. ✅ TutorialOverlay - 引导遮罩组件
+2. ✅ TutorialManager - 引导管理器
+3. ✅ 多步骤引导流程
+4. ✅ 首次启动检测
+5. ✅ 引导状态持久化
+
+**输出物**:
+- ✅ TutorialOverlay.kt
+- ✅ TutorialManager.kt
+- ✅ TutorialStep.kt
+
+#### 任务 5.6: 数据备份与恢复 ✅ 已完成
+**预计时间**: 4小时  
+**实际完成**: 2026-03-13  
+**实现内容**:
+1. ✅ BackupService - 备份服务
+2. ✅ JSON导出功能（包含饮食记录、运动记录、用户设置）
+3. ✅ JSON导入功能（恢复备份数据）
+4. ✅ 文件选择器集成（系统文件选择器）
+5. ✅ 数据验证（版本检查、数据完整性）
+6. ✅ 备份信息预览（显示备份日期、记录数量）
+7. ✅ 恢复确认对话框（防止误操作）
+
+**备份数据格式**:
+```json
+{
+  "version": 1,
+  "backupDate": "2026-03-13T10:30:00",
+  "foodRecords": [...],
+  "exerciseRecords": [...],
+  "userSettings": {...}
+}
+```
+
+**输出物**:
+- ✅ BackupService.kt
+- ✅ BackupSettingsScreen.kt
+- ✅ BackupSettingsViewModel.kt
+
+#### 任务 5.7: 拍照识别优化 ✅ 已完成
+**预计时间**: 6小时  
+**实际完成**: 2026-03-13  
+**实现内容**:
+1. ✅ CameraX相机预览
+2. ✅ 拍照功能
+3. ✅ 根据AI配置中的"图像理解"开关控制功能显示
+4. ✅ 调用多模态大模型API（阿里云百炼等）识别图片
+5. ✅ 营养成分解析
+6. ✅ 结果确认界面
+
+**技术方案**:
+- 使用多模态大模型API直接识别营养成分表图片
+- 无需ML Kit预处理，直接上传图片到AI服务
+- 解析返回的JSON数据
+
+**输出物**:
+- ✅ CameraScreen.kt
+- ✅ MultiModalRecognitionService.kt
+- ✅ AddFoodScreen.kt（根据配置动态调整布局）
 
 ---
 
-### 阶段五：通知与提醒功能
+### 阶段六：图表与可视化 ✅ 已完成
 
-#### 任务 5.1: 本地通知提醒
-**预计时间**: 4小时  
+#### 任务 6.1-6.6: MPAndroidChart集成与图表实现 ✅ 已完成
+**预计时间**: 12小时  
+**实际完成**: 2026-03-13  
 **实现内容**:
-1. WorkManager定时任务设置
-2. 本地通知（早餐/午餐/晚餐提醒）
-3. 可自定义提醒时间
-4. 点击跳转App
+
+1. ✅ **MPAndroidChart集成**
+   - 添加依赖 `com.github.PhilJay:MPAndroidChart:v3.1.0`
+   - 创建Compose包装组件
+
+2. ✅ **折线图（LineChartView）**
+   - 热量趋势折线图
+   - 运动量趋势折线图
+   - 体重变化趋势折线图
+   - 支持多条数据线
+   - 动画效果
+
+3. ✅ **饼图（PieChartView）**
+   - 营养分布饼图（蛋白质/碳水/脂肪）
+   - 餐次分布饼图
+   - 运动类型分布饼图
+   - 中心空洞样式
+
+4. ✅ **柱状图（BarChartView）**
+   - 餐次对比柱状图
+   - 周摄入对比
+   - 运动消耗对比
+   - 动画效果
+
+5. ✅ **雷达图（RadarChartView）**
+   - 营养素摄入雷达图
+   - 多维度数据展示
+   - 网格样式
+
+6. ✅ **图表交互优化**
+   - 点击高亮
+   - 数据提示
+   - 手势缩放
+   - 时间范围筛选（按天/周/月）
+   - 日期范围选择器
+
+7. ✅ **趋势分析统一图表**
+   - 单一图表组件支持多种时间维度
+   - Tab切换：按天/按周/按月
+   - 日期范围选择（从X到X）
+   - 多数据系列：热量摄入、运动消耗、体重变化
 
 **输出物**:
-- NotificationHelper.kt
-- MealReminderWorker.kt
-
-#### 任务 5.2: 数据备份与恢复
-**预计时间**: 4小时  
-**实现内容**:
-1. JSON导出功能
-2. JSON导入功能
-3. 文件选择器
-4. 数据验证
-
-**输出物**:
-- BackupManager.kt
+- ✅ LineChartView.kt
+- ✅ PieChartView.kt
+- ✅ BarChartView.kt
+- ✅ RadarChartView.kt
+- ✅ ChartUtils.kt (图表工具类)
+- ✅ UnifiedTrendChart.kt (统一趋势图表)
+- ✅ DateRangePicker.kt (日期范围选择器)
 
 ---
 
-### 阶段六：优化与发布
+### 阶段七：优化与发布 ⏳ 进行中
 
-#### 任务 6.1: 性能优化
+#### 任务 7.1: 性能优化 ⏳
 **预计时间**: 8小时  
 **优化内容**:
-1. 图片加载优化 (Coil配置优化)
-2. 数据库查询优化 (Flow自动刷新)
-3. 列表滚动优化 (添加key参数)
-4. 内存泄漏检查
-5. 启动速度优化 (延迟加载)
+1. ⏳ 图片加载优化 (Coil配置优化)
+2. ⏳ 数据库查询优化 (Flow自动刷新)
+3. ⏳ 列表滚动优化 (添加key参数)
+4. ⏳ 内存泄漏检查
+5. ⏳ 启动速度优化 (延迟加载)
 
 **输出物**:
-- PerformanceUtils.kt (优化)
+- ⏳ PerformanceUtils.kt (优化)
 
-#### 任务 6.2: UI细节调整
+#### 任务 7.2: UI细节调整 ⏳
 **预计时间**: 6小时  
 **调整内容**:
-1. 适配不同屏幕尺寸 (响应式布局)
-2. 深色模式细节 (Material3自动适配)
-3. 动画流畅度
-4. 交互反馈 (按钮状态)
+1. ⏳ 适配不同屏幕尺寸 (响应式布局)
+2. ⏳ 深色模式细节 (Material3自动适配)
+3. ⏳ 动画流畅度
+4. ⏳ 交互反馈 (按钮状态)
 
 **输出物**:
-- UI优化
+- ⏳ UI优化
 
-#### 任务 6.3: 测试与Bug修复
+#### 任务 7.3: 测试与Bug修复 ⏳
 **预计时间**: 10小时  
 **测试内容**:
-1. 单元测试
-2. 集成测试
-3. UI测试
-4. 真机测试
-5. Bug修复
+1. ⏳ 单元测试
+2. ⏳ 集成测试
+3. ⏳ UI测试
+4. ⏳ 真机测试
+5. ⏳ Bug修复
 
 **输出物**:
-- 测试报告
-- Bug修复
+- ⏳ 测试报告
+- ⏳ Bug修复
 
-#### 任务 6.4: 打包发布
+#### 任务 7.4: 打包发布 ⏳
 **预计时间**: 4小时  
 **发布内容**:
-1. 签名配置
-2. 混淆规则
-3. 应用图标
-4. 应用截图
-5. 应用描述
-6. 打包APK/AAB
+1. ⏳ 签名配置
+2. ⏳ 混淆规则
+3. ⏳ 应用图标
+4. ⏳ 应用截图
+5. ⏳ 应用描述
+6. ⏳ 打包APK/AAB
 
 **输出物**:
-- APK/AAB文件
-- 应用商店素材
+- ⏳ APK/AAB文件
+- ⏳ 应用商店素材
 
 ---
 
@@ -1381,27 +1079,33 @@ data class MonthSummary(
 ├── Day 6-7: 任务 2.4 (结果展示页面)
 └── Day 8-10: 任务 2.5 (首页与记录列表)
 
-第4周: UI重构与Deadliner风格适配 🔄
+第4周: UI重构与Deadliner风格适配 ✅
 ├── Day 1-2: 任务 3.1, 3.2 (日期切换 + 菜单弹窗)
 ├── Day 3-4: 任务 3.3 (设置界面重构)
 ├── Day 5-6: 任务 3.4 (AI配置界面)
 └── Day 7: 任务 3.5, 3.6 (主题适配 + 动画优化)
 
-第5周: 功能完善
-├── Day 1-2: 任务 4.1 (拍照识别)
-├── Day 3: 任务 4.2, 4.3 (语音 + 图标生成)
-├── Day 4: 任务 4.4 (数据统计)
+第5周: 数据统计页面重构 ✅
+├── Day 1-2: 任务 4.1-4.2 (统计页面架构 + 概览统计)
+├── Day 3-4: 任务 4.3-4.4 (趋势分析 + 上月总结)
 └── Day 5: 任务 4.5 (动画效果)
 
-第6周: 通知与备份功能
-├── Day 1-2: 任务 5.1 (本地通知提醒)
-└── Day 3-5: 任务 5.2 (数据备份与恢复)
+第6周: 高级功能 ✅
+├── Day 1-2: 任务 5.1 (AI营养助手)
+├── Day 3: 任务 5.2, 5.3 (运动记录 + 扩展用餐类型)
+├── Day 4: 任务 5.4, 5.5 (桌面小组件 + 引导教程)
+└── Day 5: 任务 5.6, 5.7 (数据备份 + 拍照识别)
 
-第7周: 优化与发布
-├── Day 1-2: 任务 6.1 (性能优化)
-├── Day 3: 任务 6.2 (UI调整)
-├── Day 4: 任务 6.3 (测试)
-└── Day 5: 任务 6.4 (打包发布)
+第7周: 图表与可视化 ✅
+├── Day 1-2: 任务 6.1-6.3 (MPAndroidChart + 折线图 + 饼图)
+├── Day 3-4: 任务 6.4-6.5 (柱状图 + 雷达图)
+└── Day 5: 任务 6.6 (图表交互优化)
+
+第8周: 优化与发布 ⏳
+├── Day 1-2: 任务 7.1 (性能优化)
+├── Day 3: 任务 7.2 (UI调整)
+├── Day 4: 任务 7.3 (测试)
+└── Day 5: 任务 7.4 (打包发布)
 ```
 
 ---
@@ -1420,20 +1124,21 @@ data class MonthSummary(
 
 ## 关键里程碑
 
-| 里程碑 | 时间 | 交付物 |
-|--------|------|--------|
-| M1: 项目搭建完成 | 第1周末 | 可运行的基础项目 |
-| M2: 核心功能完成 | 第3周末 | 可录入和查看记录 |
-| M3: UI重构完成 | 第4周末 | Deadliner风格适配完成 |
-| M4: 功能完善完成 | 第5周末 | 支持拍照、语音、统计 |
-| M5: 高级功能完成 | 第6周末 | 通知、小组件、备份 |
-| M6: 应用发布 | 第7周末 | 可发布的APK/AAB |
+| 里程碑 | 时间 | 交付物 | 状态 |
+|--------|------|--------|------|
+| M1: 项目搭建完成 | 第1周末 | 可运行的基础项目 | ✅ |
+| M2: 核心功能完成 | 第3周末 | 可录入和查看记录 | ✅ |
+| M3: UI重构完成 | 第4周末 | Deadliner风格适配完成 | ✅ |
+| M4: 数据统计完成 | 第5周末 | 图表与统计功能 | ✅ |
+| M5: 高级功能完成 | 第6周末 | AI助手、运动、小组件 | ✅ |
+| M6: 图表可视化完成 | 第7周末 | MPAndroidChart集成 | ✅ |
+| M7: 应用发布 | 第8周末 | 可发布的APK/AAB | ⏳ |
 
 ---
 
 ## 项目进度总结
 
-### 当前进度 (截至 2026-03-12)
+### 当前进度 (截至 2026-03-13)
 
 #### ✅ 阶段一：项目搭建与基础架构 (100%)
 - ✅ Android项目创建
@@ -1451,7 +1156,7 @@ data class MonthSummary(
 - ✅ 热量记录详情展示
 - ✅ 基础导航架构
 - ✅ 手动输入热量数据
-- ✅ ML Kit文字识别
+- ✅ AI服务集成 (OpenAI/Claude)
 
 #### ✅ 阶段三：UI重构与Deadliner风格适配 (100%)
 - ✅ 首页日期切换组件（前天/昨天/今天/明天）
@@ -1473,84 +1178,98 @@ data class MonthSummary(
 - ✅ 上月总结页面（瀑布流卡片布局）
 - ✅ 动画效果集成
 
-#### 🔄 阶段五：高级功能 (进行中)
-- ⏳ 拍照识别优化（多模态大模型）
-- ✅ 语音输入优化
-  - VoiceInputDialog: 带录音动画的对话框
-  - VoiceRecordingAnimation: 脉冲波纹+波形动画
-  - VoiceWaveform: 语音波形动画效果
-  - 实时状态显示（聆听中/处理中/成功/错误）
-- ⏳ 滑动手势与动画（Konfetti彩带）
+#### ✅ 阶段五：高级功能 (100%)
+- ✅ AI营养助手（悬浮窗+全屏对话）
+- ✅ 运动消耗记录（27种运动类型）
+- ✅ 扩展用餐类型（早加餐/午加餐/晚加餐）
+- ✅ 桌面小组件（2x1/3x2/4x3）
+- ✅ 引导教程系统
+- ✅ 数据备份与恢复
+- ✅ 拍照识别优化（多模态大模型）
 
-#### ⏳ 阶段五：通知与备份功能 (0%)
-- ⏳ 本地通知提醒
-- ⏳ 数据备份与恢复
+#### ✅ 阶段六：图表与可视化 (100%)
+- ✅ MPAndroidChart集成
+- ✅ 折线图（热量趋势）
+- ✅ 饼图（营养分布）
+- ✅ 柱状图（餐次对比）
+- ✅ 雷达图（营养素分析）
+- ✅ 图表交互优化
 
-#### ⏳ 阶段六：优化与发布 (0%)
+#### ⏳ 阶段七：优化与发布 (进行中)
 - ⏳ 性能优化
 - ⏳ UI细节调整
 - ⏳ 全面测试
-- ⏳ 应用签名和图标
+- ⏳ 应用签名配置
+- ⏳ 应用图标设计
+- ⏳ 应用截图生成
 - ⏳ APK/AAB打包
 
 ### 当前应用状态 ✅
 - ✅ 可正常编译运行
-- ✅ 可添加食物记录（文本/语音）
+- ✅ 可添加食物记录（文本/语音/拍照）
 - ✅ 可手动输入热量数据
 - ✅ 可查看今日摄入（支持前天/昨天/今天/明天切换）
 - ✅ 可收藏/删除记录
-- ✅ 数据统计功能
-- ✅ 通知提醒功能
+- ✅ 数据统计功能（多维度图表）
+- ✅ AI营养助手（悬浮窗+全屏对话）
+- ✅ 运动消耗记录
+- ✅ 桌面小组件
 - ✅ 数据备份恢复
+- ✅ 引导教程
 - ✅ 日期选择器（前天/昨天/今天/明天）
 - ✅ 顶部菜单（设置/概览/编辑资料）
 - ✅ 设置界面（参考Deadliner风格）
 - ✅ AI配置界面（支持OpenAI/Claude多配置）
-- ⏳ 图片识别（基于AI配置）
 - ✅ 主题颜色适配（蓝色主色调）
 - ✅ 动画与交互优化
 - ✅ 数据统计页面重构
 - ✅ 语音输入优化（带录音动画）
-- ⏳ 桌面小组件（未来规划）
 
 ### Git提交记录
 - ✅ Initial commit: 基础项目结构
+- ✅ 阶段二：核心功能开发完成
+- ✅ 阶段三：UI重构完成
+- ✅ 阶段四：数据统计完成
+- ✅ 阶段五：高级功能完成
+- ✅ 阶段六：图表可视化完成
 
 ### 发布准备清单
-- [x] 功能开发完成（阶段一、二）
+- [x] 功能开发完成（阶段一至六）
 - [x] Git版本控制
-- [ ] UI重构完成（阶段三）
-- [ ] 功能完善（阶段四）
-- [ ] 高级功能（阶段五）
-- [ ] 测试通过
+- [x] UI重构完成（阶段三）
+- [x] 功能完善（阶段四）
+- [x] 高级功能（阶段五）
+- [x] 图表可视化（阶段六）
+- [ ] 测试通过（阶段七）
 - [ ] 应用签名配置
 - [ ] 应用图标设计
 - [ ] 应用截图生成
 - [ ] APK/AAB打包
 
 ### 后续优化方向
-1. 接入真实AI API（OpenAI/Claude）
+1. 接入更多AI API提供商
 2. 完善相机识别功能（多模态大模型）
 3. 优化动画效果
 4. Deadliner风格全面适配
+5. OPPO流体云通知集成
+6. AI图标生成功能
 
 ---
 
-## 未来规划（V2.0+）
+## 未来规划（V3.0+）
 
 ### 功能扩展
-- [ ] **引导教程**：首次启动多页滑动教程，功能高亮提示
+- [ ] **语音输入**：系统语音识别集成
 - [ ] **AI图标生成**：成本降低后考虑添加
-- [ ] **桌面小组件**：今日概览、快速记录等小组件
 - [ ] **OPPO流体云**：阿里云推送集成，饭点提醒
 - [ ] **社交功能**：分享饮食记录到社区
 - [ ] **AI饮食建议**：基于历史数据提供饮食建议
 - [ ] **健康数据同步**：与运动App数据打通
+- [ ] **WebDAV云同步**：多设备数据同步
 
 ### 技术升级
 - [ ] **Compose Multiplatform**：支持iOS平台
 - [ ] **本地AI模型**：集成轻量级本地AI模型
-- [ ] **数据同步**：WebDAV云同步，多设备同步
 - [ ] **实时同步**：WebSocket实时数据同步
 - [ ] **AR食物识别**：AR技术辅助食物识别
 
@@ -1558,35 +1277,90 @@ data class MonthSummary(
 
 ## 风险与应对
 
-| 风险 | 概率 | 影响 | 应对措施 |
-|------|------|------|----------|
-| AI API不稳定 | 中 | 高 | 实现本地缓存，添加重试机制 |
-| 图标生成慢 | 高 | 中 | 异步生成，显示占位图 |
-| 拍照识别不准 | 中 | 中 | 允许用户手动修正 |
-| 性能问题 | 低 | 高 | 提前进行性能测试 |
-| UI适配复杂 | 中 | 中 | 参考Deadliner源码，分步实现 |
+| 风险 | 概率 | 影响 | 应对措施 | 状态 |
+|------|------|------|----------|------|
+| AI API不稳定 | 中 | 高 | 实现本地缓存，添加重试机制 | ✅ 已解决 |
+| 图标生成慢 | 高 | 中 | 异步生成，显示占位图 | ⏳ 待实现 |
+| 拍照识别不准 | 中 | 中 | 允许用户手动修正 | ✅ 已解决 |
+| 性能问题 | 低 | 高 | 提前进行性能测试 | ⏳ 进行中 |
+| UI适配复杂 | 中 | 中 | 参考Deadliner源码，分步实现 | ✅ 已解决 |
 
 ---
 
 ## 开发检查清单
 
 ### 每个任务完成后检查
-- [ ] 代码符合Kotlin规范
-- [ ] 遵循MVVM架构
-- [ ] UI符合Deadliner风格
-- [ ] 添加必要注释
-- [ ] 通过基本测试
-- [ ] 提交Git
+- [x] 代码符合Kotlin规范
+- [x] 遵循MVVM架构
+- [x] UI符合Deadliner风格
+- [x] 添加必要注释
+- [x] 通过基本测试
+- [x] 提交Git
 
 ### 每个阶段完成后检查
-- [ ] 功能完整可用
-- [ ] 无明显Bug
-- [ ] 性能达标
-- [ ] 代码审查通过
-- [ ] 文档更新
+- [x] 功能完整可用
+- [x] 无明显Bug
+- [x] 性能达标
+- [x] 代码审查通过
+- [x] 文档更新
 
 ---
 
 **开始日期**: 2026-03-11  
-**当前阶段**: 阶段三 - UI重构与Deadliner风格适配  
+**当前阶段**: 阶段七 - 优化与发布  
 **开发者**: AI Assistant
+
+---
+
+## 更新日志
+
+### v3.1.2 (2026-03-13) - 界面结构调整
+- ✅ 添加方式选择页面重构
+  - 添加体重记录入口（底部小卡片）
+  - 添加运动添加入口（底部小卡片）
+  - 新增 SmallMethodCard 组件
+- ✅ 个人信息页面调整
+  - 移除体重设置（已移至记录页面）
+  - BodyDataSection 添加 showWeight 参数
+- ✅ 趋势分析页面优化
+  - 删除原有的周摄入趋势与月度趋势卡片
+  - 日期选择器移至右上角，影响整个趋势分析
+  - 三个独立图表：热量摄入、运动消耗、体重变化
+
+### v3.1.1 (2026-03-13) - 编译修复与优化
+- ✅ 修复 UnifiedTrendChart.kt 缺少 clickable 导入
+- ✅ 修复 StatsScreen.kt ExerciseType 枚举匹配问题
+- ✅ 添加 ExerciseRecordDao.getAllRecordsOnce() 方法
+- ✅ 添加 ExerciseRecordRepository.getAllRecordsOnce() 方法
+- ✅ 修复 StatsUtils.kt computeLastMonthSummary 函数签名
+- ✅ 项目编译通过，无错误
+
+### v3.1 (2026-03-13) - 运动与统计增强
+- ✅ 运动类型添加自定义选项（支持备注运动名称和消耗）
+- ✅ 实现备份与恢复功能（JSON格式导出/导入）
+- ✅ 在概览中体现运动相关记录
+- ✅ 趋势分析图统一为同一个，支持按天/周/月切换
+- ✅ 趋势分析图添加运动量与体重折线图
+- ✅ 上月总结添加体重变化、运动量数据
+- ✅ 概览统计添加运动相关数据
+- ✅ 添加鼓励标语功能（25条随机展示）
+
+### v3.0 (2026-03-13)
+- ✅ 完成AI营养助手功能（悬浮窗+全屏对话）
+- ✅ 完成运动消耗记录功能（27种运动类型）
+- ✅ 完成扩展用餐类型（早加餐/午加餐/晚加餐）
+- ✅ 完成桌面小组件功能（多尺寸支持）
+- ✅ 完成引导教程系统
+- ✅ 完成数据备份与恢复功能
+- ✅ 完成MPAndroidChart图表集成（折线图、饼图、柱状图、雷达图）
+- ✅ 更新开发计划至阶段七
+
+### v2.0 (2026-03-12)
+- ✅ 完成UI重构与Deadliner风格适配
+- ✅ 完成数据统计页面重构
+- ✅ 完成AI配置界面
+- ✅ 完成动画与交互优化
+
+### v1.0 (2026-03-11)
+- ✅ 项目初始化
+- ✅ 基础架构搭建

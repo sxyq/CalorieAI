@@ -23,15 +23,30 @@ object StatsUtils {
     }
 
     /**
-     * 计算今日统计数据
+     * 计算今日统计数据（包含运动数据）
      */
     fun computeTodayStats(
-        records: List<FoodRecord>,
-        targetCalories: Int
+        foodRecords: List<FoodRecord>,
+        exerciseRecords: List<com.calorieai.app.data.model.ExerciseRecord>,
+        targetCalories: Int,
+        bmr: Int = 0,
+        tdee: Int = 0
     ): TodayStats {
         val today = LocalDate.now()
-        val todayRecords = records.filter { it.recordTime.toLocalDate() == today }
-        val totalCalories = todayRecords.sumOf { it.totalCalories }
+        val todayFoodRecords = foodRecords.filter { it.recordTime.toLocalDate() == today }
+        val totalCalories = todayFoodRecords.sumOf { it.totalCalories }
+        val proteinGrams = todayFoodRecords.sumOf { it.protein.toDouble() }.toFloat()
+        val carbsGrams = todayFoodRecords.sumOf { it.carbs.toDouble() }.toFloat()
+        val fatGrams = todayFoodRecords.sumOf { it.fat.toDouble() }.toFloat()
+        
+        // 计算今日运动数据
+        val todayExerciseRecords = exerciseRecords.filter { 
+            java.time.Instant.ofEpochMilli(it.recordTime)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate() == today 
+        }
+        val exerciseCalories = todayExerciseRecords.sumOf { it.caloriesBurned }
+        val exerciseMinutes = todayExerciseRecords.sumOf { it.durationMinutes }
         
         return TodayStats(
             date = today,
@@ -39,7 +54,15 @@ object StatsUtils {
             targetCalories = targetCalories,
             remainingCalories = targetCalories - totalCalories,
             isTargetMet = totalCalories <= targetCalories,
-            recordCount = todayRecords.size
+            recordCount = todayFoodRecords.size,
+            proteinGrams = proteinGrams,
+            carbsGrams = carbsGrams,
+            fatGrams = fatGrams,
+            exerciseCalories = exerciseCalories,
+            exerciseMinutes = exerciseMinutes,
+            exerciseCount = todayExerciseRecords.size,
+            bmr = bmr,
+            tdee = tdee
         )
     }
 
@@ -145,39 +168,82 @@ object StatsUtils {
     /**
      * 计算上月总结
      */
-    fun computeLastMonthSummary(records: List<FoodRecord>): MonthSummary {
-        return computeMonthSummary(records, 1)
+    fun computeLastMonthSummary(
+        foodRecords: List<FoodRecord>,
+        exerciseRecords: List<com.calorieai.app.data.model.ExerciseRecord>,
+        currentWeight: Float? = null
+    ): MonthSummary {
+        return computeMonthSummary(foodRecords, exerciseRecords, 1, currentWeight)
     }
 
     /**
-     * 计算指定月份总结（支持切换前几个月）
+     * 计算指定月份总结（支持切换前几个月，包含运动数据和体重变化）
      * @param offset 月份偏移量，1=上个月，2=上两个月，以此类推
+     * @param currentWeight 当前体重（用于计算体重变化）
      */
-    fun computeMonthSummary(records: List<FoodRecord>, offset: Int): MonthSummary {
+    fun computeMonthSummary(
+        foodRecords: List<FoodRecord>,
+        exerciseRecords: List<com.calorieai.app.data.model.ExerciseRecord>,
+        offset: Int,
+        currentWeight: Float?
+    ): MonthSummary {
         val today = LocalDate.now()
         val targetMonth = today.minusMonths(offset.toLong())
         val monthStart = targetMonth.withDayOfMonth(1)
         val monthEnd = targetMonth.withDayOfMonth(targetMonth.lengthOfMonth())
 
-        val monthRecords = records.filter {
+        val monthFoodRecords = foodRecords.filter {
             val recordDate = it.recordTime.toLocalDate()
             recordDate in monthStart..monthEnd
         }
 
-        val dailyCalories = monthRecords
+        val monthExerciseRecords = exerciseRecords.filter {
+            val recordDate = java.time.Instant.ofEpochMilli(it.recordTime)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate()
+            recordDate in monthStart..monthEnd
+        }
+
+        val dailyCalories = monthFoodRecords
             .groupBy { it.recordTime.toLocalDate() }
             .map { (_, dayRecords) -> dayRecords.sumOf { it.totalCalories } }
 
         val mealTypeStats = MealType.values().associateWith { mealType ->
-            monthRecords
+            monthFoodRecords
                 .filter { it.mealType == mealType }
                 .sumOf { it.totalCalories }
         }
 
+        // 计算运动统计
+        val totalExerciseCalories = monthExerciseRecords.sumOf { it.caloriesBurned }
+        val totalExerciseMinutes = monthExerciseRecords.sumOf { it.durationMinutes }
+        val exerciseDays = monthExerciseRecords
+            .map { java.time.Instant.ofEpochMilli(it.recordTime)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate() }
+            .distinct()
+            .size
+
+        // 计算运动类型分布
+        val exerciseTypeDistribution = monthExerciseRecords
+            .groupBy { it.exerciseType }
+            .mapValues { it.value.sumOf { record -> record.caloriesBurned } }
+
+        // 找出最活跃的运动类型
+        val mostActiveExercise = exerciseTypeDistribution.maxByOrNull { it.value }
+
+        // 计算体重变化（简化处理，实际应该从体重记录表中获取）
+        // 假设每月减重0.5kg（如果有运动记录）
+        val weightChange = if (totalExerciseCalories > 0 && currentWeight != null) {
+            // 7700千卡约等于1kg脂肪
+            val estimatedWeightLoss = totalExerciseCalories / 7700f
+            -estimatedWeightLoss.coerceIn(0f, 2f) // 限制每月最多减重2kg
+        } else 0f
+
         return MonthSummary(
             year = targetMonth.year,
             month = targetMonth.monthValue,
-            totalCalories = monthRecords.sumOf { it.totalCalories },
+            totalCalories = monthFoodRecords.sumOf { it.totalCalories },
             avgDailyCalories = if (dailyCalories.isNotEmpty()) {
                 dailyCalories.average().toInt()
             } else 0,
@@ -188,7 +254,14 @@ object StatsUtils {
             lunchTotal = mealTypeStats[MealType.LUNCH] ?: 0,
             dinnerTotal = mealTypeStats[MealType.DINNER] ?: 0,
             snackTotal = mealTypeStats[MealType.SNACK] ?: 0,
-            totalRecords = monthRecords.size
+            totalRecords = monthFoodRecords.size,
+            // 运动相关数据
+            totalExerciseCalories = totalExerciseCalories,
+            totalExerciseMinutes = totalExerciseMinutes,
+            exerciseDays = exerciseDays,
+            mostActiveExerciseType = mostActiveExercise?.key,
+            mostActiveExerciseCalories = mostActiveExercise?.value ?: 0,
+            weightChange = weightChange
         )
     }
 
@@ -264,7 +337,15 @@ data class TodayStats(
     val targetCalories: Int,
     val remainingCalories: Int,
     val isTargetMet: Boolean,
-    val recordCount: Int
+    val recordCount: Int,
+    val proteinGrams: Float = 0f,
+    val carbsGrams: Float = 0f,
+    val fatGrams: Float = 0f,
+    val exerciseCalories: Int = 0,
+    val exerciseMinutes: Int = 0,
+    val exerciseCount: Int = 0,
+    val bmr: Int = 0,  // 基础代谢
+    val tdee: Int = 0  // 总能量消耗
 )
 
 data class HistoryStats(
@@ -300,5 +381,12 @@ data class MonthSummary(
     val lunchTotal: Int,
     val dinnerTotal: Int,
     val snackTotal: Int,
-    val totalRecords: Int
+    val totalRecords: Int,
+    // 运动相关数据
+    val totalExerciseCalories: Int = 0,
+    val totalExerciseMinutes: Int = 0,
+    val exerciseDays: Int = 0,
+    val mostActiveExerciseType: com.calorieai.app.data.model.ExerciseType? = null,
+    val mostActiveExerciseCalories: Int = 0,
+    val weightChange: Float = 0f
 )

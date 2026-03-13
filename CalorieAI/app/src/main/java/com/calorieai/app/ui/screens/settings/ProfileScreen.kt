@@ -76,7 +76,7 @@ fun ProfileScreen(
                 onUserIdChange = viewModel::updateUserId
             )
 
-            // 身体数据
+            // 身体数据（体重已移至记录页面）
             SettingsSection(title = "身体数据") {
                 BodyDataSection(
                     gender = uiState.gender,
@@ -86,7 +86,8 @@ fun ProfileScreen(
                     onGenderChange = viewModel::updateGender,
                     onAgeChange = viewModel::updateAge,
                     onHeightChange = viewModel::updateHeight,
-                    onWeightChange = viewModel::updateWeight
+                    onWeightChange = viewModel::updateWeight,
+                    showWeight = false // 体重设置已移至记录页面
                 )
             }
 
@@ -248,7 +249,8 @@ private fun BodyDataSection(
     onGenderChange: (String) -> Unit,
     onAgeChange: (Int?) -> Unit,
     onHeightChange: (Float?) -> Unit,
-    onWeightChange: (Float?) -> Unit
+    onWeightChange: (Float?) -> Unit,
+    showWeight: Boolean = true
 ) {
     Column(
         modifier = Modifier.padding(16.dp)
@@ -300,26 +302,27 @@ private fun BodyDataSection(
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Decimal,
-                imeAction = ImeAction.Next
+                imeAction = if (showWeight) ImeAction.Next else ImeAction.Done
             ),
             suffix = { Text("cm") }
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // 体重
-        OutlinedTextField(
-            value = weight?.toString() ?: "",
-            onValueChange = { onWeightChange(it.toFloatOrNull()) },
-            label = { Text("体重") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Decimal,
-                imeAction = ImeAction.Done
-            ),
-            suffix = { Text("kg") }
-        )
+        // 体重（可选显示）
+        if (showWeight) {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = weight?.toString() ?: "",
+                onValueChange = { onWeightChange(it.toFloatOrNull()) },
+                label = { Text("体重") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal,
+                    imeAction = ImeAction.Done
+                ),
+                suffix = { Text("kg") }
+            )
+        }
     }
 }
 
