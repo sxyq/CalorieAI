@@ -18,6 +18,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import com.calorieai.app.ui.components.liquidGlass
 
 /**
  * 关于页面
@@ -28,7 +31,19 @@ import androidx.compose.ui.unit.dp
 fun AboutScreen(
     onNavigateBack: () -> Unit
 ) {
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
+                    MaterialTheme.colorScheme.surface,
+                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                )
+            )
+        )
+    ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("关于") },
@@ -116,6 +131,7 @@ fun AboutScreen(
             }
         }
     }
+    } // End of Liquid Glass background Box
 }
 
 /**
@@ -123,14 +139,14 @@ fun AboutScreen(
  */
 @Composable
 private fun AppInfoCard() {
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+            .padding(16.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(24.dp),
+                tint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+            )
     ) {
         Box(
             modifier = Modifier

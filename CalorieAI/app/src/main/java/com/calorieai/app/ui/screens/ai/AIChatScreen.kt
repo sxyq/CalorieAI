@@ -24,6 +24,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Brush
+import com.calorieai.app.ui.components.liquidGlass
+import com.calorieai.app.ui.components.interactiveScale
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.ui.theme.DeadlinerColors
 import kotlinx.coroutines.launch
@@ -47,7 +51,19 @@ fun AIChatScreen(
     var showHistoryDialog by remember { mutableStateOf(false) }
     var showNewChatConfirm by remember { mutableStateOf(false) }
 
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    MaterialTheme.colorScheme.surface,
+                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                )
+            )
+        )
+    ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
@@ -243,6 +259,7 @@ fun AIChatScreen(
             }
         )
     }
+    } // End of Liquid Glass background Box
 }
 
 /**
@@ -424,18 +441,22 @@ private fun SessionItem(
     onPin: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
     
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isCurrent) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
-        )
+            .interactiveScale(interactionSource)
+            .liquidGlass(
+                shape = RoundedCornerShape(16.dp),
+                tint = if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f) 
+                       else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
+                onClick = onClick
+            )
     ) {
         Row(
             modifier = Modifier
@@ -623,21 +644,21 @@ private fun ChatMessageItem(message: ChatMessage) {
         }
         
         Column(
-            horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
+            horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
+            modifier = Modifier.weight(1f, fill = false)
         ) {
-            Surface(
-                shape = RoundedCornerShape(
-                    topStart = 16.dp,
-                    topEnd = 16.dp,
-                    bottomStart = if (isUser) 16.dp else 4.dp,
-                    bottomEnd = if (isUser) 4.dp else 16.dp
-                ),
-                color = if (isUser) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-                tonalElevation = if (isUser) 0.dp else 2.dp
+            Box(
+                modifier = Modifier.liquidGlass(
+                    shape = RoundedCornerShape(
+                        topStart = 16.dp,
+                        topEnd = 16.dp,
+                        bottomStart = if (isUser) 16.dp else 4.dp,
+                        bottomEnd = if (isUser) 4.dp else 16.dp
+                    ),
+                    tint = if (isUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                           else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    blurRadius = 30f
+                )
             ) {
                 Text(
                     text = message.content,

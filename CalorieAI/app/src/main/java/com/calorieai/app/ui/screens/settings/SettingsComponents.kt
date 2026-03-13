@@ -8,6 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.calorieai.app.ui.components.liquidGlass
 
 /**
  * 设置分组卡片
@@ -25,18 +26,18 @@ internal fun SettingsSection(
     enabled: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    Card(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (mainContent && enabled) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHigh
-            }
-        )
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(24.dp),
+                tint = if (mainContent && enabled) {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                } else {
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                }
+            )
     ) {
         Column(
             modifier = Modifier
@@ -79,24 +80,18 @@ internal fun SettingsSwitchItem(
     modifier: Modifier = Modifier,
     isMainSwitch: Boolean = false
 ) {
-    Card(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isMainSwitch && checked) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
-        ),
-        border = if (isMainSwitch && checked) {
-            androidx.compose.foundation.BorderStroke(
-                width = 2.dp,
-                color = MaterialTheme.colorScheme.primary
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(16.dp),
+                tint = if (isMainSwitch && checked) {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                }
             )
-        } else null
     ) {
         Row(
             modifier = Modifier

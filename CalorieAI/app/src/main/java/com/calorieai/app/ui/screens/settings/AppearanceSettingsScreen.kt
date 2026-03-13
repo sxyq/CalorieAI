@@ -18,6 +18,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import com.calorieai.app.ui.components.liquidGlass
+import com.calorieai.app.ui.components.interactiveScale
+import androidx.compose.foundation.interaction.MutableInteractionSource
 
 /**
  * 界面外观设置页面
@@ -31,7 +37,19 @@ fun AppearanceSettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
+                    MaterialTheme.colorScheme.surface,
+                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                )
+            )
+        )
+    ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("界面外观") },
@@ -68,6 +86,7 @@ fun AppearanceSettingsScreen(
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
+    } // End of setup Box wrapper
 }
 
 /**
@@ -142,22 +161,27 @@ private fun FontSizeSelector(
     ) {
         FontSize.values().forEach { size ->
             val isSelected = size == selectedSize
-            Card(
+            val interactionSource = remember { MutableInteractionSource() }
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .padding(horizontal = 4.dp)
                     .clip(RoundedCornerShape(12.dp))
+                    .interactiveScale(interactionSource)
+                    .liquidGlass(
+                        shape = RoundedCornerShape(12.dp),
+                        tint = if (isSelected) {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.4f)
+                        }
+                    )
                     .selectable(
                         selected = isSelected,
+                        interactionSource = interactionSource,
+                        indication = androidx.compose.foundation.LocalIndication.current,
                         onClick = { onSizeSelected(size) }
-                    ),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isSelected) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHigh
-                    }
-                )
+                    )
             ) {
                 Box(
                     modifier = Modifier

@@ -19,6 +19,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import com.calorieai.app.ui.components.liquidGlass
 import coil.compose.rememberAsyncImagePainter
 import com.calorieai.app.service.ai.FoodAnalysisResult
 
@@ -37,7 +41,19 @@ fun PhotoAnalysisScreen(
         viewModel.analyzePhoto(photoUri, context)
     }
 
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
+                    MaterialTheme.colorScheme.surface,
+                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                )
+            )
+        )
+    ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("拍照识别") },
@@ -82,6 +98,7 @@ fun PhotoAnalysisScreen(
             }
         }
     }
+    } // End of Liquid Glass background Box
 }
 
 @Composable
@@ -179,9 +196,12 @@ private fun AnalysisResultContent(
             .padding(16.dp)
     ) {
         // 图片预览
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
+        Box(
+            modifier = Modifier.fillMaxWidth()
+                .liquidGlass(
+                    shape = RoundedCornerShape(12.dp),
+                    tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
+                )
         ) {
             Image(
                 painter = rememberAsyncImagePainter(photoUri),
@@ -217,11 +237,12 @@ private fun AnalysisResultContent(
         Spacer(modifier = Modifier.height(16.dp))
 
         // 分析结果卡片
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-            )
+        Box(
+            modifier = Modifier.fillMaxWidth()
+                .liquidGlass(
+                    shape = RoundedCornerShape(16.dp),
+                    tint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                )
         ) {
             Column(
                 modifier = Modifier.padding(16.dp)

@@ -17,6 +17,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import com.calorieai.app.ui.components.liquidGlass
+import com.calorieai.app.ui.components.interactiveScale
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,7 +49,19 @@ fun BackupSettingsScreen(
         uri?.let { viewModel.loadBackupInfo(it) }
     }
 
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
+                    MaterialTheme.colorScheme.surface,
+                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                )
+            )
+        )
+    ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("备份与恢复") },
@@ -63,11 +82,13 @@ fun BackupSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // AI配置备份选项
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .liquidGlass(
+                        shape = RoundedCornerShape(16.dp),
+                        tint = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.4f)
+                    )
             ) {
                 Row(
                     modifier = Modifier
@@ -137,12 +158,13 @@ fun BackupSettingsScreen(
                     }
                 }
                 uiState.resultMessage != null -> {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (uiState.isSuccess) {
-                                MaterialTheme.colorScheme.primaryContainer
+                    Box(
+                        modifier = Modifier.liquidGlass(
+                            shape = RoundedCornerShape(16.dp),
+                            tint = if (uiState.isSuccess) {
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
                             } else {
-                                MaterialTheme.colorScheme.errorContainer
+                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
                             }
                         )
                     ) {
@@ -170,9 +192,10 @@ fun BackupSettingsScreen(
             }
 
             // 说明文字
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+            Box(
+                modifier = Modifier.liquidGlass(
+                    shape = RoundedCornerShape(16.dp),
+                    tint = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                 )
             ) {
                 Column(
@@ -204,6 +227,7 @@ fun BackupSettingsScreen(
             }
         }
     }
+    } // End of Liquid Glass background Box
 }
 
 @Composable
@@ -213,9 +237,20 @@ private fun BackupActionCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit
 ) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .interactiveScale(interactionSource)
+            .liquidGlass(
+                shape = RoundedCornerShape(16.dp),
+                tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
+                onClick = onClick
+            )
     ) {
         Row(
             modifier = Modifier

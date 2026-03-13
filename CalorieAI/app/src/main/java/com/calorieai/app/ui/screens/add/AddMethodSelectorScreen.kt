@@ -26,6 +26,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.calorieai.app.ui.components.liquidGlass
+import com.calorieai.app.ui.components.interactiveScale
+import androidx.compose.foundation.interaction.MutableInteractionSource
 
 /**
  * 添加方式选择页面
@@ -49,7 +52,14 @@ fun AddMethodSelectorScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                    )
+                )
+            )
             .clickable { onNavigateBack() }
     ) {
         AnimatedVisibility(
@@ -178,15 +188,21 @@ private fun SmallMethodCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
         modifier = modifier
             .height(100.dp)
             .clip(RoundedCornerShape(16.dp))
-            .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = containerColor
-        )
+            .interactiveScale(interactionSource)
+            .liquidGlass(
+                shape = RoundedCornerShape(16.dp),
+                tint = containerColor.copy(alpha = 0.6f)
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
+                onClick = onClick
+            )
     ) {
         Column(
             modifier = Modifier
@@ -229,16 +245,22 @@ private fun MethodCard(
     gradientColors: List<Color>,
     onClick: () -> Unit
 ) {
-    Card(
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(120.dp)
             .clip(RoundedCornerShape(24.dp))
-            .clickable { onClick() },
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent
-        )
+            .interactiveScale(interactionSource)
+            .liquidGlass(
+                shape = RoundedCornerShape(24.dp),
+                tint = Color.Transparent
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
+                onClick = onClick
+            )
     ) {
         Box(
             modifier = Modifier

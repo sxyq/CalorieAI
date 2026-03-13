@@ -17,6 +17,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.background
 
 /**
  * 交互与行为设置页面
@@ -30,7 +32,19 @@ fun InteractionSettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
+                    MaterialTheme.colorScheme.surface,
+                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                )
+            )
+        )
+    ) {
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("交互与行为") },
@@ -115,6 +129,7 @@ fun InteractionSettingsScreen(
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
+    } // End of Liquid Glass background Box
 }
 
 /**

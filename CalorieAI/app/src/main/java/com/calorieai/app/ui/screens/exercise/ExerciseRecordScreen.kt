@@ -17,6 +17,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import com.calorieai.app.ui.components.liquidGlass
+import androidx.compose.foundation.background
 import com.calorieai.app.data.model.ExerciseType
 import com.calorieai.app.data.model.getExerciseTypeDisplayName
 import java.text.SimpleDateFormat
@@ -35,7 +39,19 @@ fun ExerciseRecordScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
 
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
+                    MaterialTheme.colorScheme.surface,
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                )
+            )
+        )
+    ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { 
@@ -233,6 +249,7 @@ fun ExerciseRecordScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+    } // End of setup Box wrapper
 
     // 历史记录对话框
     if (uiState.showHistoryDialog) {
@@ -252,11 +269,13 @@ private fun TodayCaloriesCard(
     todayCalories: Int,
     exerciseCount: Int
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer
-        )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .liquidGlass(
+                shape = MaterialTheme.shapes.extraLarge,
+                tint = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
+            )
     ) {
         Column(
             modifier = Modifier

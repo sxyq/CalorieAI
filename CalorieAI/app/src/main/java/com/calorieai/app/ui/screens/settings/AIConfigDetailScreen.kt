@@ -27,6 +27,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.AIConfig
 import com.calorieai.app.data.model.AIConfigPresets
 import com.calorieai.app.data.model.AIProtocol
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import com.calorieai.app.ui.components.liquidGlass
+import com.calorieai.app.ui.components.interactiveScale
+import androidx.compose.foundation.interaction.MutableInteractionSource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,7 +55,19 @@ fun AIConfigDetailScreen(
         }
     }
 
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
+                    MaterialTheme.colorScheme.surface,
+                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                )
+            )
+        )
+    ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(if (uiState.isEditing) "编辑AI配置" else "添加AI配置") },
@@ -202,6 +219,7 @@ fun AIConfigDetailScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+    } // End of Liquid Glass background Box
 
     // 图标选择器弹窗
     if (showIconSelector) {
@@ -235,15 +253,21 @@ fun IconSelectorSection(
     selectedIcon: String,
     onClick: () -> Unit
 ) {
-    Card(
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
+            .interactiveScale(interactionSource)
+            .liquidGlass(
+                shape = RoundedCornerShape(16.dp),
+                tint = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
+                onClick = onClick
+            )
     ) {
         Row(
             modifier = Modifier
@@ -298,10 +322,10 @@ fun ProtocolSelector(
     selectedProtocol: AIProtocol,
     onProtocolSelected: (AIProtocol) -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    Box(
+        modifier = Modifier.fillMaxWidth().liquidGlass(
+            shape = RoundedCornerShape(16.dp),
+            tint = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
         )
     ) {
         Column(
@@ -422,15 +446,23 @@ fun TestConnectionButton(
 
         testResult?.let { result ->
             Spacer(modifier = Modifier.height(8.dp))
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = when (result) {
-                        is TestResult.Success -> MaterialTheme.colorScheme.primaryContainer
-                        is TestResult.Error -> MaterialTheme.colorScheme.errorContainer
-                    }
-                ),
-                modifier = Modifier.clickable { onClearResult() }
+            val interactionSource = remember { MutableInteractionSource() }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .interactiveScale(interactionSource)
+                    .liquidGlass(
+                        shape = RoundedCornerShape(12.dp),
+                        tint = when (result) {
+                            is TestResult.Success -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                            is TestResult.Error -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f)
+                        }
+                    )
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = androidx.compose.foundation.LocalIndication.current,
+                        onClick = { onClearResult() }
+                    )
             ) {
                 Row(
                     modifier = Modifier
@@ -476,10 +508,10 @@ fun ImageUnderstandingCard(
     isEnabled: Boolean,
     onToggle: (Boolean) -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    Box(
+        modifier = Modifier.fillMaxWidth().liquidGlass(
+            shape = RoundedCornerShape(16.dp),
+            tint = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
         )
     ) {
         Row(
@@ -724,15 +756,21 @@ fun PresetItem(
     description: String,
     onClick: () -> Unit
 ) {
-    Card(
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
+            .interactiveScale(interactionSource)
+            .liquidGlass(
+                shape = RoundedCornerShape(12.dp),
+                tint = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
+                onClick = onClick
+            )
     ) {
         Row(
             modifier = Modifier

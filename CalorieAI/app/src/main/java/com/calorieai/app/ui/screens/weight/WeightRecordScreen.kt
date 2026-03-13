@@ -16,10 +16,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import com.calorieai.app.ui.components.liquidGlass
+import androidx.compose.foundation.background
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -36,7 +38,19 @@ fun WeightRecordScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
 
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    MaterialTheme.colorScheme.surface,
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)
+                )
+            )
+        )
+    ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { 
@@ -116,9 +130,14 @@ fun WeightRecordScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            OutlinedCard(
-                onClick = { viewModel.showDatePicker() },
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .liquidGlass(
+                        shape = MaterialTheme.shapes.medium,
+                        tint = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    )
+                    .androidx.compose.foundation.clickable { viewModel.showDatePicker() }
             ) {
                 Row(
                     modifier = Modifier
@@ -202,6 +221,7 @@ fun WeightRecordScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+    } // End of setup Box wrapper
 
     // 日期选择器对话框
     if (uiState.showDatePicker) {
@@ -244,11 +264,13 @@ private fun CurrentWeightCard(
     currentWeight: Float?,
     lastRecordDate: Long?
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .liquidGlass(
+                shape = MaterialTheme.shapes.extraLarge,
+                tint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            )
     ) {
         Column(
             modifier = Modifier

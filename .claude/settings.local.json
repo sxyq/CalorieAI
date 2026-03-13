@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd .. && cp -r CalorieAI_Project/* CalorieAI/ 2>/dev/null || true && ls -la CalorieAI)",
+      "Bash(find CalorieAI/app -name \"*.md\" -o -name \"*.txt\" -o -name \"*.gradle*\" 2>/dev/null | head -20)",
+      "Bash(echo $ANDROID_HOME)",
+      "Bash(echo $PATH | tr ':' '\\\\n' | grep -i android || echo \"No Android paths found\")",
+      "Bash(export ANDROID_HOME=\"$LOCALAPPDATA/Android/Sdk\" && echo \"ANDROID_HOME set to: $ANDROID_HOME\")",
+      "Read(//c/Users/syy/AppData/Local/Android/Sdk/**)",
+      "Read(//c/Users/syy/AppData/Local/Android/Sdk//**)",
+      "Bash(export ANDROID_HOME=\"/c/Users/syy/AppData/Local/Android/Sdk\" && export PATH=\"$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/36.1.0:$PATH\" && echo \"Environment configured\" && which adb && which emulator)",
+      "WebSearch",
+      "Bash(find . -name \"*.md\" -path \"*/.claude/*\" 2>/dev/null | head -20)",
+      "Bash(export ANDROID_HOME=\"/c/Users/syy/AppData/Local/Android/Sdk\" && export PATH=\"$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH\" && emulator -list-avds 2>/dev/null || echo \"No AVDs found\")",
+      "Bash(export ANDROID_HOME=\"/c/Users/syy/AppData/Local/Android/Sdk\")",
+      "Bash(export PATH=\"$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH\")",
+      "Read(//d/Project/CalorieAI/$ANDROID_HOME/**)",
+      "Bash(mkdir -p \"$HOME/.android/avd\")",
+      "Read(//d/Project/CalorieAI/$HOME/**)",
+      "Bash(export ANDROID_HOME=\"/c/Users/syy/AppData/Local/Android/Sdk\" && export PATH=\"$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH\" && adb devices)",
+      "Read(//d/Project/CalorieAI/CalorieAI/**)",
+      "Bash(curl -o cmdline-tools.zip \"https://dl.google.com/android/repository/commandlinetools-win-9477386_latest.zip\")",
+      "Bash(mkdir -p \"$HOME/.android/avd/Pixel_7_API_34.avd/\" && cat > \"$HOME/.android/avd/Pixel_7_API_34.avd/config.ini\" << 'EOF'\nAvdId=Pixel_7_API_34\nPlayStore.enabled=false\nabi.type=x86_64\navd.ini.displayname=Pixel 7 API 34\navd.ini.encoding=UTF-8\ndisk.dataPartition.size=6442450944\nfastboot.forceColdBoot=no\nhw.accelerometer=yes\nhw.arc=false\nhw.audioInput=yes\nhw.battery=yes\nhw.camera.back=virtualscene\nhw.camera.front=emulated\nhw.cpu.arch=x86_64\nhw.cpu.ncore=4\nhw.dPad=no\nhw.device.hash2=MD5:5c288dd95a1c1e2a2f2d1e5d0a5c1d5e\nhw.device.manufacturer=Google\nhw.device.name=pixel_7\nhw.gps=yes\nhw.gpu.enabled=yes\nhw.gpu.mode=auto\nhw.initialOrientation=Portrait\nhw.keyboard=yes\nhw.lcd.density=420\nhw.lcd.height=2400\nhw.lcd.width=1080\nhw.mainKeys=no\nhw.ramSize=2048\nhw.sdCard=yes\nhw.sensors.orientation=yes\nhw.sensors.proximity=yes\nhw.trackBall=no\ntag.display=Google APIs\ntag.id=google_apis\nEOF\necho \"Created AVD config\")",
+      "Bash(mkdir -p \"$ANDROID_HOME/system-images/android-34/google_apis/x86_64/\")",
+      "Read(//d/Project/CalorieAI/CalorieAI/$ANDROID_HOME/system-images/android-34/google_apis/**)",
+      "Bash(curl -L -o sysimg.zip \"https://dl.google.com/android/repository/sys-img/google_apis/x86_64-34_r13.zip\")",
+      "Bash(unzip -q sysimg.zip)",
+      "Bash(rm sysimg.zip)",
+      "Bash(sleep 10 && export ANDROID_HOME=\"/c/Users/syy/AppData/Local/Android/Sdk\" && export PATH=\"$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH\" && adb devices)",
+      "Bash(export ANDROID_HOME=\"/c/Users/syy/AppData/Local/Android/Sdk\" && export PATH=\"$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH\" && emulator -list-avds)",
+      "Bash(mv x86_64/* .)",
+      "Bash(rm -rf x86_64)",
+      "Bash(cmd.exe /c \"dir C:\\\\Users\\\\syy\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\system-images\\\\android-34\\\\google_apis\\\\x86_64\\\\\" 2>&1 | head -20)",
+      "Read(//d/Project/CalorieAI/CalorieAI/$LOCALAPPDATA/Android/Sdk/**)",
+      "Bash(echo \"LOCALAPPDATA=$LOCALAPPDATA\")",
+      "Bash(echo \"HOME=$HOME\")",
+      "Bash(mount | grep -i \"C:/Users\" || mount | head -5)"
+    ]
+  }
+}

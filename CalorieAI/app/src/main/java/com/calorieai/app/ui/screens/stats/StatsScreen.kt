@@ -25,6 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.Brush
+import com.calorieai.app.ui.components.liquidGlass
+import com.calorieai.app.ui.components.interactiveScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -52,7 +55,19 @@ fun StatsScreen(
     val tabs = listOf("概览统计", "趋势分析", "上月总结")
     val tabIcons = listOf(Icons.Default.Analytics, Icons.Default.Monitor, Icons.Default.Dashboard)
 
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                    MaterialTheme.colorScheme.surface,
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                )
+            )
+        )
+    ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("概览") },
@@ -116,6 +131,7 @@ fun StatsScreen(
                 }
             }
         }
+    }
     }
 }
 
@@ -182,14 +198,15 @@ private fun TodayStatsCard(stats: TodayStats) {
     val progress = (stats.totalCalories.toFloat() / stats.targetCalories).coerceIn(0f, 1f)
     val remaining = stats.remainingCalories
 
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
+            .padding(16.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(24.dp),
+                tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                blurRadius = 40f
+            )
     ) {
         Column(
             modifier = Modifier
@@ -340,14 +357,14 @@ private fun TodayStatsCard(stats: TodayStats) {
  */
 @Composable
 private fun ExerciseStatsCard(stats: TodayStats) {
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
-        )
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(20.dp),
+                tint = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f)
+            )
     ) {
         Column(
             modifier = Modifier
@@ -512,15 +529,14 @@ private fun MealTypeStatsCard(stats: Map<com.calorieai.app.data.model.MealType, 
     val totalCalories = activeStats.sumOf { it.second }
     val maxCalories = activeStats.maxOfOrNull { it.second }?.coerceAtLeast(1) ?: 1
 
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(20.dp),
+                tint = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            )
     ) {
         Column(
             modifier = Modifier
@@ -623,11 +639,10 @@ private fun MealTypeGridItem(
         else -> Color(0xFF1DD1A1)
     }
     
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+    Box(
+        modifier = modifier.liquidGlass(
+            shape = RoundedCornerShape(16.dp),
+            tint = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
     ) {
         Column(
@@ -747,14 +762,14 @@ private fun MealBar(
  */
 @Composable
 private fun HistoryStatsCard(stats: HistoryStats?) {
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(24.dp),
+                tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)
+            )
     ) {
         Column(
             modifier = Modifier

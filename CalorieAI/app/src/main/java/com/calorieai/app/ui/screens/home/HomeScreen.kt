@@ -25,6 +25,13 @@ import com.calorieai.app.ui.components.TopMenuButton
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.util.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.calorieai.app.ui.components.liquidGlass
+import com.calorieai.app.ui.components.interactiveScale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,7 +64,19 @@ fun HomeScreen(
         }
     }
     
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    MaterialTheme.colorScheme.surface,
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
+                )
+            )
+        )
+    ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("CalorieAI") },
@@ -152,16 +171,18 @@ fun HomeScreen(
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
                         }
-                        items(
+                        itemsIndexed(
                             items = uiState.records,
-                            key = { "food_" + it.id } // 使用key优化列表性能
-                        ) { record ->
-                            FoodRecordItem(
-                                record = record,
-                                onClick = { onNavigateToResult(record.id) },
-                                onStarClick = { viewModel.toggleStarred(record) },
-                                onDeleteClick = { viewModel.deleteRecord(record) }
-                            )
+                            key = { _, record -> "food_" + record.id } // 使用key优化列表性能
+                        ) { index, record ->
+                            com.calorieai.app.ui.components.AnimatedListItem(index = index) {
+                                FoodRecordItem(
+                                    record = record,
+                                    onClick = { onNavigateToResult(record.id) },
+                                    onStarClick = { viewModel.toggleStarred(record) },
+                                    onDeleteClick = { viewModel.deleteRecord(record) }
+                                )
+                            }
                         }
                     }
                     
@@ -176,14 +197,16 @@ fun HomeScreen(
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
                         }
-                        items(
+                        itemsIndexed(
                             items = uiState.exerciseRecords,
-                            key = { "exercise_" + it.id }
-                        ) { record ->
-                            ExerciseRecordItem(
-                                record = record,
-                                onDeleteClick = { viewModel.deleteExerciseRecord(record) }
-                            )
+                            key = { _, record -> "exercise_" + record.id }
+                        ) { index, record ->
+                            com.calorieai.app.ui.components.AnimatedListItem(index = index + uiState.records.size) {
+                                ExerciseRecordItem(
+                                    record = record,
+                                    onDeleteClick = { viewModel.deleteExerciseRecord(record) }
+                                )
+                            }
                         }
                     }
                 }
@@ -200,6 +223,7 @@ fun HomeScreen(
             showExerciseDialog = false
         }
     )
+    } // End of Liquid Glass background Box
 }
 
 @Composable
@@ -223,11 +247,15 @@ fun TodayOverviewCard(
         else -> "摄入统计"
     }
     
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        shape = MaterialTheme.shapes.extraLarge
+            .padding(16.dp)
+            .liquidGlass(
+                shape = MaterialTheme.shapes.extraLarge,
+                tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
+                blurRadius = 40f
+            )
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
@@ -396,15 +424,22 @@ fun FoodRecordItem(
     val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     var showDeleteDialog by remember { mutableStateOf(false) }
     
-    Card(
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp)
+            .padding(vertical = 4.dp, horizontal = 4.dp)
+            .interactiveScale(interactionSource)
+            .liquidGlass(
+                shape = MaterialTheme.shapes.large,
+                tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)
+            )
             .combinedClickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
                 onClick = onClick,
                 onLongClick = { showDeleteDialog = true }
-            ),
-        shape = MaterialTheme.shapes.large
+            )
     ) {
         Column(
             modifier = Modifier
@@ -526,18 +561,22 @@ fun ExerciseRecordItem(
         record.exerciseType.displayName
     }
     
-    Card(
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp)
+            .padding(vertical = 4.dp, horizontal = 4.dp)
+            .interactiveScale(interactionSource)
+            .liquidGlass(
+                shape = MaterialTheme.shapes.large,
+                tint = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+            )
             .combinedClickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
                 onClick = { },
                 onLongClick = { showDeleteDialog = true }
-            ),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-        )
+            )
     ) {
         Row(
             modifier = Modifier

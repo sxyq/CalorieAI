@@ -21,6 +21,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.AIConfig
 import com.calorieai.app.data.model.AIProtocol
 import com.calorieai.app.ui.components.TokenUsageCard
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import com.calorieai.app.ui.components.liquidGlass
+import com.calorieai.app.ui.components.interactiveScale
+import androidx.compose.foundation.interaction.MutableInteractionSource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,7 +36,19 @@ fun AISettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
+                    MaterialTheme.colorScheme.surface,
+                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                )
+            )
+        )
+    ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("AI配置") },
@@ -96,6 +113,7 @@ fun AISettingsScreen(
             }
         }
     }
+    } // End of Liquid Glass background Box
 }
 
 /**
@@ -106,15 +124,21 @@ fun AddConfigButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+            .interactiveScale(interactionSource)
+            .liquidGlass(
+                shape = RoundedCornerShape(16.dp),
+                tint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
+                onClick = onClick
+            )
     ) {
         Row(
             modifier = Modifier
@@ -152,16 +176,22 @@ fun AIConfigItem(
     modifier: Modifier = Modifier
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
 
-    Card(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
+            .interactiveScale(interactionSource)
+            .liquidGlass(
+                shape = RoundedCornerShape(24.dp),
+                tint = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
+                onClick = onClick
+            )
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -289,11 +319,13 @@ fun AIConfigItem(
  */
 @Composable
 fun RateLimitInfoCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
-        )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .liquidGlass(
+                shape = RoundedCornerShape(16.dp),
+                tint = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
+            )
     ) {
         Column(
             modifier = Modifier.padding(16.dp)

@@ -15,7 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import com.calorieai.app.ui.components.liquidGlass
+import androidx.compose.foundation.background
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.model.getMealTypeName
@@ -80,7 +83,19 @@ fun AddFoodScreen(
         }
     }
     
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                    MaterialTheme.colorScheme.surface,
+                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                )
+            )
+        )
+    ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("记录食物") },
@@ -109,7 +124,7 @@ fun AddFoodScreen(
                             isListening = false
                             showVoiceDialog = false
                         }
-                        ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED -> {
+                        androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED -> {
                             startVoiceInput(context, voiceHelper, onStart = {
                                 isListening = true
                                 showVoiceDialog = true
@@ -145,12 +160,13 @@ fun AddFoodScreen(
             )
             
             // 输入示例
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                ),
-                shape = MaterialTheme.shapes.medium
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .liquidGlass(
+                        shape = MaterialTheme.shapes.medium,
+                        tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+                    )
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
@@ -186,6 +202,7 @@ fun AddFoodScreen(
             }
         }
     }
+    } // End of setup Box wrapper
     
     // 语音输入对话框
     VoiceInputDialog(

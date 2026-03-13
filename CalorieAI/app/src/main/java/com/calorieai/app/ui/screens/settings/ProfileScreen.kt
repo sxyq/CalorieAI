@@ -23,6 +23,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import com.calorieai.app.ui.components.liquidGlass
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import com.calorieai.app.ui.components.interactiveScale
 
 /**
  * 个人信息页面
@@ -38,7 +43,19 @@ fun ProfileScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showAvatarPicker by remember { mutableStateOf(false) }
 
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
+                    MaterialTheme.colorScheme.surface,
+                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                )
+            )
+        )
+    ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("个人信息") },
@@ -121,6 +138,7 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
+    } // End of Liquid Glass background Box
 
     // 头像选择器（简化版）
     if (showAvatarPicker) {
@@ -149,14 +167,15 @@ private fun ProfileAvatarSection(
     onUserNameChange: (String) -> Unit,
     onUserIdChange: (String) -> Unit
 ) {
-    Card(
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+            .padding(16.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(24.dp),
+                tint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+            )
     ) {
         Column(
             modifier = Modifier
@@ -404,14 +423,14 @@ private fun MetabolismCard(
     unit: String,
     description: String
 ) {
-    Card(
+    Box(
         modifier = Modifier
             .width(140.dp)
-            .padding(4.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+            .padding(4.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(12.dp),
+                tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+            )
     ) {
         Column(
             modifier = Modifier.padding(12.dp),

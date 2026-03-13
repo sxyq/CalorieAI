@@ -15,6 +15,10 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import com.calorieai.app.ui.components.liquidGlass
+import androidx.compose.foundation.background
 import com.calorieai.app.data.model.FoodRecord
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,7 +34,19 @@ fun ResultScreen(
         viewModel.loadRecord(recordId)
     }
     
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
+                    MaterialTheme.colorScheme.surface,
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                )
+            )
+        )
+    ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("记录详情") },
@@ -71,6 +87,7 @@ fun ResultScreen(
             }
         }
     }
+    } // End of setup Box wrapper
 }
 
 @Composable
@@ -92,9 +109,13 @@ fun ResultContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // 食物名称
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.extraLarge
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .liquidGlass(
+                    shape = MaterialTheme.shapes.extraLarge,
+                    tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                )
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -130,8 +151,13 @@ fun ResultContent(
         )
         
         // 营养成分输入
-        Card(
-            modifier = Modifier.fillMaxWidth()
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .liquidGlass(
+                    shape = MaterialTheme.shapes.medium,
+                    tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                )
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -170,11 +196,13 @@ fun ResultContent(
         }
         
         // 原始输入
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .liquidGlass(
+                    shape = MaterialTheme.shapes.medium,
+                    tint = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(

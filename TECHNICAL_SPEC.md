@@ -20,7 +20,8 @@
 3. [UI组件](#ui组件)
 4. [ViewModel](#viewmodel)
 5. [工具类](#工具类)
-6. [开发日志](#开发日志)
+24. [Liquid Glass 设计系统](#liquid-glass-设计系统)
+25. [开发日志](#开发日志)
 
 ---
 
@@ -958,6 +959,48 @@ private fun parseResponse(responseBody: String, protocol: String): String
 - GLM: 统一价格
 - Qwen: 统一价格
 - DeepSeek: 统一价格
+
+)
+```
+
+---
+
+## Liquid Glass 设计系统
+
+为了提升应用的视觉体验，引入了基于“液态玻璃”（Liquid Glass）风格的设计系统。该系统利用 Android S(12) 及更高版本的 `RenderEffect` 实现毛玻璃效果，并结合动态缩放交互。
+
+### 1. 核心修饰符 (Modifiers)
+
+#### liquidGlass
+**位置**: `ui/components/LiquidGlassComponents.kt`
+**实现**: 
+- `graphicsLayer`: 应用高斯模糊 (RenderEffect.createBlurEffect)
+- `background`: 半透明着色 (tint)
+- `border`: 线性渐变边框，模拟边缘高光反射
+
+```kotlin
+fun Modifier.liquidGlass(
+    shape: Shape = RoundedCornerShape(24.dp),
+    tint: Color = Color.White.copy(alpha = 0.25f),
+    blurRadius: Float = 40f,
+    borderAlpha: Float = 0.4f
+): Modifier
+```
+
+#### interactiveScale
+**位置**: `ui/components/LiquidGlassComponents.kt`
+**实现**: 
+- 监听 `MutableInteractionSource` 的按压状态
+- 使用 `animateFloatAsState` 实现 Spring 弹簧缩放效果 (按下时缩小至 0.92f)
+
+### 2. 容器组件 (Containers)
+
+#### GlassGooeyContainer
+**实现**: 应用“粘性”（Gooey）融合效果，通过高质量模糊配合颜色矩阵（ColorMatrix）的 Alpha 阈值过滤，使内部重叠的玻璃元素产生融合效果。
+
+### 3. 应用场景
+- **卡片替换**: 所有的 `Card` 组件逐渐重构为使用 `Box + liquidGlass`
+- **背景增强**: 页面 `Scaffold` 背景使用 `Box + Brush.linearGradient` 配合低 Alpha 值的玻璃层
 
 ---
 
