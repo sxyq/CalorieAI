@@ -23,7 +23,7 @@ class AIChatService @Inject constructor(
     private val json = Json { ignoreUnknownKeys = true }
     
     companion object {
-        const val DEFAULT_DAILY_LIMIT = 10
+        const val DEFAULT_DAILY_LIMIT = 50
     }
 
     suspend fun sendMessage(message: String): String {
@@ -196,19 +196,23 @@ class AIChatService @Inject constructor(
     }
 
     private fun parseResponse(responseBody: String, protocol: String): String {
-        return when (protocol) {
-            "CLAUDE" -> {
-                val response = json.decodeFromString<ClaudeChatResponse>(responseBody)
-                response.content.firstOrNull()?.text ?: "无法解析响应"
+        return try {
+            when (protocol) {
+                "CLAUDE" -> {
+                    val response = json.decodeFromString<ClaudeChatResponse>(responseBody)
+                    response.content.firstOrNull()?.text ?: "抱歉，我无法理解您的请求"
+                }
+                "GEMINI" -> {
+                    val response = json.decodeFromString<GeminiChatResponse>(responseBody)
+                    response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: "抱歉，我无法理解您的请求"
+                }
+                else -> {
+                    val response = json.decodeFromString<OpenAIChatResponse>(responseBody)
+                    response.choices.firstOrNull()?.message?.content ?: "抱歉，我无法理解您的请求"
+                }
             }
-            "GEMINI" -> {
-                val response = json.decodeFromString<GeminiChatResponse>(responseBody)
-                response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: "无法解析响应"
-            }
-            else -> {
-                val response = json.decodeFromString<OpenAIChatResponse>(responseBody)
-                response.choices.firstOrNull()?.message?.content ?: "无法解析响应"
-            }
+        } catch (e: Exception) {
+            "抱歉，解析响应时出错：${e.message}"
         }
     }
 }

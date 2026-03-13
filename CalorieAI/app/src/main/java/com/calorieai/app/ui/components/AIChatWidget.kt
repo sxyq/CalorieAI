@@ -5,6 +5,9 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,7 +23,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.ui.theme.DeadlinerColors
+import com.calorieai.app.ui.screens.ai.AIChatViewModel
+import kotlinx.coroutines.launch
 
 /**
  * AI聊天小窗口（悬浮按钮形式）
@@ -83,13 +89,17 @@ fun AIChatWidget(
 }
 
 /**
- * AI聊天迷你窗口 - 现代化重构
+ * AI聊天迷你窗口 - 支持直接对话
  */
 @Composable
 private fun AIChatMiniWindow(
     onDismiss: () -> Unit,
-    onExpandToFullScreen: () -> Unit
+    onExpandToFullScreen: () -> Unit,
+    viewModel: AIChatViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     var inputText by remember { mutableStateOf("") }
     
     Dialog(
@@ -107,8 +117,8 @@ private fun AIChatMiniWindow(
         ) {
             Card(
                 modifier = Modifier
-                    .width(340.dp)
-                    .wrapContentHeight(),
+                    .width(360.dp)
+                    .height(500.dp),
                 shape = RoundedCornerShape(28.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -116,7 +126,7 @@ private fun AIChatMiniWindow(
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxSize()
                 ) {
                     // 渐变背景标题栏
                     Box(
@@ -130,7 +140,7 @@ private fun AIChatMiniWindow(
                                     )
                                 )
                             )
-                            .padding(20.dp)
+                            .padding(16.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -143,7 +153,7 @@ private fun AIChatMiniWindow(
                                 // AI头像
                                 Box(
                                     modifier = Modifier
-                                        .size(48.dp)
+                                        .size(44.dp)
                                         .clip(CircleShape)
                                         .background(Color.White.copy(alpha = 0.2f)),
                                     contentAlignment = Alignment.Center
@@ -152,7 +162,7 @@ private fun AIChatMiniWindow(
                                         imageVector = Icons.Default.SmartToy,
                                         contentDescription = null,
                                         tint = Color.White,
-                                        modifier = Modifier.size(28.dp)
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
@@ -164,7 +174,7 @@ private fun AIChatMiniWindow(
                                         color = Color.White
                                     )
                                     Text(
-                                        text = "随时为你服务",
+                                        text = if (uiState.isLoading) "思考中..." else "在线",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = Color.White.copy(alpha = 0.8f)
                                     )
@@ -196,51 +206,120 @@ private fun AIChatMiniWindow(
                         }
                     }
                     
-                    // 快捷功能网格
-                    Column(
+                    // 消息列表区域
+                    Box(
                         modifier = Modifier
+                            .weight(1f)
                             .fillMaxWidth()
-                            .padding(16.dp)
                     ) {
-                        Text(
-                            text = "快捷功能",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = 12.dp, start = 4.dp)
-                        )
-                        
-                        // 3列网格布局
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            QuickActionCard(
-                                icon = Icons.Default.Assessment,
-                                title = "热量评估",
-                                color = Color(0xFFFF6B6B),
-                                onClick = { 
-                                    inputText = "帮我评估一下今天的热量摄入"
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                            QuickActionCard(
-                                icon = Icons.Default.RestaurantMenu,
-                                title = "菜谱规划",
-                                color = Color(0xFF4ECDC4),
-                                onClick = { 
-                                    inputText = "帮我规划一下今天的菜谱"
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                            QuickActionCard(
-                                icon = Icons.Default.HealthAndSafety,
-                                title = "健康咨询",
-                                color = Color(0xFFFFE66D),
-                                onClick = { 
-                                    inputText = "我有健康问题想咨询"
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
+                        if (uiState.messages.isEmpty()) {
+                            // 空状态 - 显示快捷功能
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp)
+                            ) {
+                                Text(
+                                    text = "快捷功能",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                )
+                                
+                                // 3列网格布局
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    QuickActionCard(
+                                        icon = Icons.Default.Assessment,
+                                        title = "热量评估",
+                                        color = Color(0xFFFF6B6B),
+                                        onClick = { 
+                                            inputText = "帮我评估一下今天的热量摄入"
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    QuickActionCard(
+                                        icon = Icons.Default.RestaurantMenu,
+                                        title = "菜谱规划",
+                                        color = Color(0xFF4ECDC4),
+                                        onClick = { 
+                                            inputText = "帮我规划一下今天的菜谱"
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    QuickActionCard(
+                                        icon = Icons.Default.HealthAndSafety,
+                                        title = "健康咨询",
+                                        color = Color(0xFFFFE66D),
+                                        onClick = { 
+                                            inputText = "我有健康问题想咨询"
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.height(16.dp))
+                                
+                                // 欢迎消息
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    )
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp)
+                                    ) {
+                                        Text(
+                                            text = "你好！我是你的AI助手。我可以帮你：",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "📊 评估今日热量消耗是否合理\n🍽️ 规划健康菜谱\n💬 解答营养健康问题",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "点击上方快捷按钮或输入你的问题开始吧！",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            // 显示消息列表
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(uiState.messages) { message ->
+                                    MiniChatMessageItem(message = message)
+                                }
+                                
+                                // 正在输入指示器
+                                if (uiState.isLoading) {
+                                    item {
+                                        TypingIndicator()
+                                    }
+                                }
+                            }
+                            
+                            // 自动滚动到底部
+                            LaunchedEffect(uiState.messages.size, uiState.isLoading) {
+                                if (uiState.messages.isNotEmpty()) {
+                                    scope.launch {
+                                        listState.animateScrollToItem(uiState.messages.size - 1)
+                                    }
+                                }
+                            }
                         }
                     }
                     
@@ -248,13 +327,13 @@ private fun AIChatMiniWindow(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
+                            .padding(12.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(52.dp)
-                                .clip(RoundedCornerShape(26.dp))
+                                .height(48.dp)
+                                .clip(RoundedCornerShape(24.dp))
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                 .padding(horizontal = 4.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -265,7 +344,7 @@ private fun AIChatMiniWindow(
                                     // TODO: 实现语音输入功能
                                     inputText = "语音输入功能即将上线"
                                 },
-                                modifier = Modifier.size(44.dp)
+                                modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Mic,
@@ -300,31 +379,160 @@ private fun AIChatMiniWindow(
                             // 发送按钮
                             Box(
                                 modifier = Modifier
-                                    .size(44.dp)
+                                    .size(40.dp)
                                     .clip(CircleShape)
                                     .background(
-                                        if (inputText.isNotBlank()) 
+                                        if (inputText.isNotBlank() && !uiState.isLoading) 
                                             MaterialTheme.colorScheme.primary 
                                         else 
                                             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                                     )
-                                    .clickable(enabled = inputText.isNotBlank()) { 
-                                        // TODO: 实现发送消息功能
-                                        onExpandToFullScreen()
+                                    .clickable(enabled = inputText.isNotBlank() && !uiState.isLoading) { 
+                                        viewModel.sendMessage(inputText)
+                                        inputText = ""
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Send,
-                                    contentDescription = "发送",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                                if (uiState.isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Send,
+                                        contentDescription = "发送",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 迷你窗口消息项
+ */
+@Composable
+private fun MiniChatMessageItem(
+    message: com.calorieai.app.ui.screens.ai.ChatMessage,
+    modifier: Modifier = Modifier
+) {
+    val isUser = message.isFromUser
+    
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+    ) {
+        if (!isUser) {
+            // AI头像
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(DeadlinerColors.accentBlue),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SmartToy,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+        
+        // 消息气泡
+        Card(
+            modifier = Modifier.widthIn(max = 240.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isUser) 
+                    DeadlinerColors.accentBlue 
+                else 
+                    MaterialTheme.colorScheme.surfaceVariant
+            ),
+            shape = RoundedCornerShape(
+                topStart = 16.dp,
+                topEnd = 16.dp,
+                bottomStart = if (isUser) 16.dp else 4.dp,
+                bottomEnd = if (isUser) 4.dp else 16.dp
+            )
+        ) {
+            Text(
+                text = message.content,
+                modifier = Modifier.padding(12.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (isUser) Color.White else MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+/**
+ * 正在输入指示器
+ */
+@Composable
+private fun TypingIndicator(
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Start
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(DeadlinerColors.accentBlue),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.SmartToy,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(3) { index ->
+                    val infiniteTransition = rememberInfiniteTransition(label = "typing$index")
+                    val alpha by infiniteTransition.animateFloat(
+                        initialValue = 0.3f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(600, delayMillis = index * 100),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "alpha$index"
+                    )
                     
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = alpha)
+                            )
+                    )
                 }
             }
         }
@@ -358,7 +566,7 @@ private fun QuickActionCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(40.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(color.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
@@ -367,15 +575,15 @@ private fun QuickActionCard(
                     imageVector = icon,
                     contentDescription = null,
                     tint = color,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
             
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             
             Text(
                 text = title,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
                 fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface
             )

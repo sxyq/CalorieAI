@@ -318,7 +318,7 @@ fun RateLimitInfoCard() {
             Spacer(modifier = Modifier.height(8.dp))
             
             Text(
-                text = "• 默认API每天限制10次调用",
+                text = "• 默认API每天限制50次调用",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onTertiaryContainer
             )

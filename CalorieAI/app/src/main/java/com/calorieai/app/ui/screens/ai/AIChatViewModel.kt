@@ -116,6 +116,11 @@ class AIChatViewModel @Inject constructor(
     fun sendMessage() {
         val message = _uiState.value.inputText.trim()
         if (message.isBlank()) return
+        sendMessage(message)
+    }
+
+    fun sendMessage(message: String) {
+        if (message.isBlank()) return
 
         val userMessage = ChatMessage(
             content = message,
@@ -139,7 +144,7 @@ class AIChatViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val response = aiChatService.sendMessage(message)
-                
+
                 val aiMessage = ChatMessage(
                     content = response,
                     isFromUser = false
@@ -150,15 +155,15 @@ class AIChatViewModel @Inject constructor(
                     isLoading = false,
                     isTyping = false
                 )
-                
+
                 // 更新剩余调用次数
                 updateRemainingCalls()
-                
+
                 // 自动保存会话
                 saveCurrentSession()
             } catch (e: Exception) {
                 val errorMessage = ChatMessage(
-                    content = "抱歉，发生了错误：${e.message}",
+                    content = "抱歉，我遇到了一些问题：${e.message}",
                     isFromUser = false
                 )
                 _uiState.value = _uiState.value.copy(

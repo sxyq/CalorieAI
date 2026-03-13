@@ -44,6 +44,8 @@ class StatsViewModel @Inject constructor(
                 exerciseRecordRepository.getAllRecords(),
                 weightRecordRepository.getLatestRecord()
             ) { foodRecords, exerciseRecords, latestWeight ->
+                Triple(foodRecords, exerciseRecords, latestWeight)
+            }.collect { (foodRecords, exerciseRecords, latestWeight) ->
                 val settings = userSettingsRepository.getSettingsOnce()
                 val targetCalories = settings?.dailyCalorieGoal ?: 2000
                 val userWeight = latestWeight?.weight ?: settings?.userWeight
@@ -78,8 +80,8 @@ class StatsViewModel @Inject constructor(
                 val currentMonthOffset = _uiState.value.selectedMonthOffset
                 val summary = StatsUtils.computeMonthSummary(foodRecords, exerciseRecords, currentMonthOffset, userWeight)
 
-                // 计算统一趋势数据
-                val trendData = computeTrendData(
+                // 计算统一趋势数据（使用挂起版本以获取体重数据）
+                val trendData = computeTrendDataSuspend(
                     foodRecords,
                     exerciseRecords,
                     _uiState.value.trendTimeDimension,
@@ -87,7 +89,7 @@ class StatsViewModel @Inject constructor(
                     _uiState.value.trendEndDate
                 )
 
-                _uiState.value.copy(
+                _uiState.value = _uiState.value.copy(
                     todayStats = todayStats,
                     mealTypeStats = mealTypeStats,
                     historyStats = historyStats,
@@ -98,8 +100,6 @@ class StatsViewModel @Inject constructor(
                     trendChartData = trendData,
                     isLoading = false
                 )
-            }.collect { state ->
-                _uiState.value = state
             }
         }
     }
