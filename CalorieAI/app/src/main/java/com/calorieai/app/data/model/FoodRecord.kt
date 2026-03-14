@@ -12,16 +12,31 @@ import com.calorieai.app.data.model.ExerciseType
 data class FoodRecord(
     @PrimaryKey
     val id: String = java.util.UUID.randomUUID().toString(),
-    
+
     val foodName: String,
     val userInput: String,
     val totalCalories: Int,
+
+    // 基础营养素
     val protein: Float,
     val carbs: Float,
     val fat: Float,
-    
+
+    // 扩展营养素
+    val fiber: Float = 0f,           // 膳食纤维 (g)
+    val sugar: Float = 0f,           // 糖分 (g)
+    val sodium: Float = 0f,          // 钠 (mg)
+    val cholesterol: Float = 0f,     // 胆固醇 (mg)
+    val saturatedFat: Float = 0f,    // 饱和脂肪 (g)
+    val transFat: Float = 0f,        // 反式脂肪 (g)
+    val calcium: Float = 0f,         // 钙 (mg)
+    val iron: Float = 0f,            // 铁 (mg)
+    val vitaminC: Float = 0f,        // 维生素C (mg)
+    val vitaminA: Float = 0f,        // 维生素A (μg)
+    val potassium: Float = 0f,       // 钾 (mg)
+
     val ingredients: List<Ingredient> = emptyList(),
-    
+
     val mealType: MealType,
     val recordTime: Long = System.currentTimeMillis(),
     val iconUrl: String? = null,
