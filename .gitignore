@@ -1,0 +1,7 @@
+# IDE and editor directories
+.vscode/
+.idea/
+.claude/
+
+# Project requirements
+requirements.md
