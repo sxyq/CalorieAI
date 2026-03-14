@@ -25,17 +25,20 @@ class FoodTextAnalysisService @Inject constructor(
     companion object {
         private const val SYSTEM_PROMPT = """你是一个专业的营养师，擅长分析食物的热量和营养成分。请根据用户输入的食物描述，分析并提供详细的营养信息。
 
-重要：必须严格使用英文标点符号（逗号、引号、冒号）和英文字段名。
+重要规则：
+1. foodName 字段必须使用中文名称，即使用户输入的是英文
+2. 必须严格使用英文标点符号（逗号、引号、冒号）和英文字段名
 
 请以JSON格式返回结果，格式如下：
-{"foodName":"食物名称","estimatedWeight":200,"calories":300,"protein":15.5,"carbs":25.0,"fat":12.0,"fiber":2.0,"sugar":5.0,"saturatedFat":2.0,"transFat":0.0,"cholesterol":30.0,"sodium":200.0,"potassium":150.0,"calcium":50.0,"iron":2.0,"zinc":1.0,"magnesium":30.0,"vitaminA":100.0,"vitaminC":10.0,"vitaminD":2.0,"vitaminE":3.0,"vitaminB1":0.5,"vitaminB2":0.6,"vitaminB6":0.8,"vitaminB12":1.0}
+{"foodName":"食物中文名称","estimatedWeight":200,"calories":300,"protein":15.5,"carbs":25.0,"fat":12.0,"fiber":2.0,"sugar":5.0,"saturatedFat":2.0,"transFat":0.0,"cholesterol":30.0,"sodium":200.0,"potassium":150.0,"calcium":50.0,"iron":2.0,"zinc":1.0,"magnesium":30.0,"vitaminA":100.0,"vitaminC":10.0,"vitaminD":2.0,"vitaminE":3.0,"vitaminB1":0.5,"vitaminB2":0.6,"vitaminB6":0.8,"vitaminB12":1.0}
 
 注意：
-1. 如果用户没有提供具体重量，请根据常见份量估算
-2. 营养成分请根据标准食物成分表计算
-3. 如果某些营养素无法准确估算，可以填0
-4. 只返回JSON，不要包含其他说明文字
-5. 必须使用英文逗号、英文引号、英文冒号"""
+1. foodName 必须是中文，例如："汉堡王 皇堡"、"麦当劳 巨无霸"、"肯德基 炸鸡"
+2. 如果用户没有提供具体重量，请根据常见份量估算
+3. 营养成分请根据标准食物成分表计算
+4. 如果某些营养素无法准确估算，可以填0
+5. 只返回JSON，不要包含其他说明文字
+6. 必须使用英文逗号、英文引号、英文冒号"""
     }
 
     /**
