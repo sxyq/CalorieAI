@@ -20,7 +20,7 @@ class AIDefaultConfigInitializer @Inject constructor(
         // 默认AI配置常量
         const val DEFAULT_AI_ID = "default_longcat_ai"
         const val DEFAULT_AI_NAME = "LongCat AI (默认)"
-        const val DEFAULT_API_URL = "https://api.longcat.chat/openai"
+        const val DEFAULT_API_URL = "https://api.longcat.chat/openai/v1/chat/completions"
         const val DEFAULT_API_KEY = "ak_1qe7Ym0Yp8Hs3qa74O5wt2gy6Rt6I"
         const val DEFAULT_MODEL_ID = "LongCat-Flash-Omni-2603"
         const val DEFAULT_DAILY_LIMIT = 50  // 每天调用限制
@@ -29,12 +29,13 @@ class AIDefaultConfigInitializer @Inject constructor(
     /**
      * 初始化默认AI配置
      * 如果没有配置，则创建默认配置
+     * 如果已有默认配置但URL不正确，则修复URL
      */
     suspend fun initializeDefaultConfig() {
         val configs = aiConfigDao.getAllConfigs().first()
         
-        // 如果没有配置，创建默认配置
         if (configs.isEmpty()) {
+            // 没有配置，创建默认配置
             val defaultConfig = AIConfig(
                 id = DEFAULT_AI_ID,
                 name = DEFAULT_AI_NAME,
@@ -48,6 +49,19 @@ class AIDefaultConfigInitializer @Inject constructor(
                 isDefault = true
             )
             aiConfigDao.insertConfig(defaultConfig)
+        } else {
+            // 修复所有配置中不完整的 URL
+            configs.forEach { config ->
+                val needsFix = !config.apiUrl.contains("/chat/completions")
+                if (needsFix) {
+                    val fixedUrl = when {
+                        config.apiUrl.endsWith("/") -> "${config.apiUrl}v1/chat/completions"
+                        config.apiUrl.contains("/v1") -> "${config.apiUrl}/chat/completions"
+                        else -> "${config.apiUrl}/v1/chat/completions"
+                    }
+                    aiConfigDao.updateConfig(config.copy(apiUrl = fixedUrl))
+                }
+            }
         }
     }
 }
