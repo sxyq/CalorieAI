@@ -162,8 +162,19 @@ class AIChatViewModel @Inject constructor(
                 // 自动保存会话
                 saveCurrentSession()
             } catch (e: Exception) {
+                e.printStackTrace() // 打印完整错误堆栈以便调试
+                
+                val errorMsg = when {
+                    e.message?.contains("未配置AI服务") == true -> "未配置AI服务，请先在设置中配置AI服务"
+                    e.message?.contains("API调用次数已用完") == true -> e.message!!
+                    e.message?.contains("API调用失败") == true -> e.message!!
+                    e.message?.contains("API返回为空") == true -> "AI服务返回为空，请检查网络连接"
+                    e.message != null -> "抱歉，我遇到了一些问题：${e.message}"
+                    else -> "未知错误，请检查网络连接或AI配置。错误类型：${e.javaClass.simpleName}"
+                }
+                
                 val errorMessage = ChatMessage(
-                    content = "抱歉，我遇到了一些问题：${e.message}",
+                    content = errorMsg,
                     isFromUser = false
                 )
                 _uiState.value = _uiState.value.copy(

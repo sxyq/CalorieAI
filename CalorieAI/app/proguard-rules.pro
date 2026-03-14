@@ -16,3 +16,10 @@
 # Keep Gson
 -keep class com.google.gson.** { *; }
 -keep class com.google.gson.reflect.** { *; }
+
+# Keep AI API Client data classes (重要：保护 @SerializedName 注解)
+-keep class com.calorieai.app.service.ai.common.AIApiClient$** { *; }
+-keep class com.calorieai.app.service.ai.** { *; }
+-keepclassmembers class com.calorieai.app.service.ai.** {
+    @com.google.gson.annotations.SerializedName <fields>;
+}

@@ -36,19 +36,7 @@ fun AISettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Box(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
-                    MaterialTheme.colorScheme.surface,
-                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-                )
-            )
-        )
-    ) {
     Scaffold(
-        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("AI配置") },
@@ -101,10 +89,12 @@ fun AISettingsScreen(
                         items = uiState.configs,
                         key = { it.id }
                     ) { config ->
+                        val isDefault = config.id == uiState.defaultConfigId
                         AIConfigItem(
                             config = config,
-                            isDefault = config.id == uiState.defaultConfigId,
-                            onClick = { onNavigateToDetail(config.id) },
+                            isDefault = isDefault,
+                            isPreset = config.isPreset,
+                            onClick = { if (!config.isPreset) onNavigateToDetail(config.id) },
                             onSetDefault = { viewModel.setDefaultConfig(config.id) },
                             onDelete = { viewModel.deleteConfig(config) }
                         )
@@ -113,7 +103,7 @@ fun AISettingsScreen(
             }
         }
     }
-    } // End of Liquid Glass background Box
+
 }
 
 /**
@@ -170,6 +160,7 @@ fun AddConfigButton(
 fun AIConfigItem(
     config: AIConfig,
     isDefault: Boolean,
+    isPreset: Boolean,
     onClick: () -> Unit,
     onSetDefault: () -> Unit,
     onDelete: () -> Unit,
@@ -182,15 +173,31 @@ fun AIConfigItem(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
-            .interactiveScale(interactionSource)
+            .then(
+                if (!isPreset) {
+                    Modifier.interactiveScale(interactionSource)
+                } else {
+                    Modifier
+                }
+            )
             .liquidGlass(
                 shape = RoundedCornerShape(24.dp),
-                tint = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
+                tint = if (isPreset) {
+                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.3f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
+                }
             )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = androidx.compose.foundation.LocalIndication.current,
-                onClick = onClick
+            .then(
+                if (!isPreset) {
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = androidx.compose.foundation.LocalIndication.current,
+                        onClick = onClick
+                    )
+                } else {
+                    Modifier
+                }
             )
     ) {
         Column(
@@ -257,12 +264,14 @@ fun AIConfigItem(
                     )
                 }
 
-                // 更多操作
-                IconButton(onClick = { showDeleteDialog = true }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "更多"
-                    )
+                // 更多操作（仅非预设配置显示）
+                if (!isPreset) {
+                    IconButton(onClick = { showDeleteDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "更多"
+                        )
+                    }
                 }
             }
 

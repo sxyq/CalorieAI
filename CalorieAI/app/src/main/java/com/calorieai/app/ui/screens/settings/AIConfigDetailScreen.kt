@@ -55,29 +55,25 @@ fun AIConfigDetailScreen(
         }
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
-                    MaterialTheme.colorScheme.surface,
-                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-                )
-            )
-        )
-    ) {
     Scaffold(
-        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(if (uiState.isEditing) "编辑AI配置" else "添加AI配置") },
+                title = { 
+                    Text(
+                        when {
+                            uiState.isPreset -> "预设配置详情"
+                            uiState.isEditing -> "编辑AI配置"
+                            else -> "添加AI配置"
+                        }
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
                 },
                 actions = {
-                    if (!uiState.isEditing) {
+                    if (!uiState.isEditing && !uiState.isPreset) {
                         TextButton(
                             onClick = { showPresetSelector = true }
                         ) {
@@ -95,10 +91,16 @@ fun AIConfigDetailScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // 图标选择器
+            // 预设配置提示
+            if (uiState.isPreset) {
+                PresetConfigNotice()
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // 图标选择器（预设配置只读）
             IconSelectorSection(
                 selectedIcon = uiState.selectedIcon,
-                onClick = { showIconSelector = true }
+                onClick = { if (!uiState.isPreset) showIconSelector = true }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -106,21 +108,24 @@ fun AIConfigDetailScreen(
             // 配置名称输入
             OutlinedTextField(
                 value = uiState.name,
-                onValueChange = viewModel::updateName,
+                onValueChange = { if (!uiState.isPreset) viewModel.updateName(it) },
                 label = { Text("配置名称") },
                 placeholder = { Text("例如：我的OpenAI") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                readOnly = uiState.isPreset,
+                enabled = !uiState.isPreset
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 协议选择
+            // 协议选择（预设配置只读）
             ProtocolSelector(
                 selectedProtocol = uiState.protocol,
-                onProtocolSelected = viewModel::updateProtocol
+                onProtocolSelected = { if (!uiState.isPreset) viewModel.updateProtocol(it) },
+                enabled = !uiState.isPreset
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -128,7 +133,7 @@ fun AIConfigDetailScreen(
             // API地址输入
             OutlinedTextField(
                 value = uiState.apiUrl,
-                onValueChange = viewModel::updateApiUrl,
+                onValueChange = { if (!uiState.isPreset) viewModel.updateApiUrl(it) },
                 label = { Text("API地址") },
                 placeholder = { Text("https://api.openai.com/v1/chat/completions") },
                 singleLine = true,
@@ -137,7 +142,9 @@ fun AIConfigDetailScreen(
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Uri,
                     imeAction = ImeAction.Next
-                )
+                ),
+                readOnly = uiState.isPreset,
+                enabled = !uiState.isPreset
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -145,7 +152,7 @@ fun AIConfigDetailScreen(
             // API密钥输入
             OutlinedTextField(
                 value = uiState.apiKey,
-                onValueChange = viewModel::updateApiKey,
+                onValueChange = { if (!uiState.isPreset) viewModel.updateApiKey(it) },
                 label = { Text("API密钥") },
                 placeholder = { Text("sk-...") },
                 singleLine = true,
@@ -153,14 +160,18 @@ fun AIConfigDetailScreen(
                 shape = RoundedCornerShape(12.dp),
                 visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
-                    IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
-                        Icon(
-                            imageVector = if (apiKeyVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (apiKeyVisible) "隐藏" else "显示"
-                        )
+                    if (!uiState.isPreset) {
+                        IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
+                            Icon(
+                                imageVector = if (apiKeyVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = if (apiKeyVisible) "隐藏" else "显示"
+                            )
+                        }
                     }
                 },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                readOnly = uiState.isPreset,
+                enabled = !uiState.isPreset
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -168,24 +179,28 @@ fun AIConfigDetailScreen(
             // 模型ID输入
             OutlinedTextField(
                 value = uiState.modelId,
-                onValueChange = viewModel::updateModelId,
+                onValueChange = { if (!uiState.isPreset) viewModel.updateModelId(it) },
                 label = { Text("模型ID") },
                 placeholder = { Text("gpt-4o 或 claude-3-5-sonnet-20241022") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                readOnly = uiState.isPreset,
+                enabled = !uiState.isPreset
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 测试连接按钮
-            TestConnectionButton(
-                isTesting = uiState.isTesting,
-                testResult = uiState.testResult,
-                onTest = viewModel::testConnection,
-                onClearResult = viewModel::clearTestResult
-            )
+            // 测试连接按钮（预设配置隐藏）
+            if (!uiState.isPreset) {
+                TestConnectionButton(
+                    isTesting = uiState.isTesting,
+                    testResult = uiState.testResult,
+                    onTest = viewModel::testConnection,
+                    onClearResult = viewModel::clearTestResult
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -197,29 +212,31 @@ fun AIConfigDetailScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // 保存按钮
-            Button(
-                onClick = {
-                    if (viewModel.saveConfig()) {
-                        onNavigateBack()
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    text = "保存",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
+            // 保存按钮（预设配置不显示）
+            if (!uiState.isPreset) {
+                Button(
+                    onClick = {
+                        if (viewModel.saveConfig()) {
+                            onNavigateBack()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "保存",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
-    } // End of Liquid Glass background Box
+
 
     // 图标选择器弹窗
     if (showIconSelector) {
@@ -315,17 +332,50 @@ fun IconSelectorSection(
 }
 
 /**
+ * 预设配置提示
+ */
+@Composable
+fun PresetConfigNotice() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .liquidGlass(
+                shape = RoundedCornerShape(16.dp),
+                tint = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
+            )
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.tertiary
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = "这是预设配置，不可编辑。如需自定义，请添加新配置。",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onTertiaryContainer
+            )
+        }
+    }
+}
+
+/**
  * 协议选择器
  */
 @Composable
 fun ProtocolSelector(
     selectedProtocol: AIProtocol,
-    onProtocolSelected: (AIProtocol) -> Unit
+    onProtocolSelected: (AIProtocol) -> Unit,
+    enabled: Boolean = true
 ) {
     Box(
         modifier = Modifier.fillMaxWidth().liquidGlass(
             shape = RoundedCornerShape(16.dp),
-            tint = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
+            tint = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (enabled) 0.5f else 0.3f)
         )
     ) {
         Column(
@@ -346,16 +396,18 @@ fun ProtocolSelector(
                     protocol = AIProtocol.OPENAI,
                     title = "OpenAI",
                     isSelected = selectedProtocol == AIProtocol.OPENAI,
-                    onClick = { onProtocolSelected(AIProtocol.OPENAI) },
-                    modifier = Modifier.weight(1f)
+                    onClick = { if (enabled) onProtocolSelected(AIProtocol.OPENAI) },
+                    modifier = Modifier.weight(1f),
+                    enabled = enabled
                 )
 
                 ProtocolOption(
                     protocol = AIProtocol.CLAUDE,
                     title = "Claude",
                     isSelected = selectedProtocol == AIProtocol.CLAUDE,
-                    onClick = { onProtocolSelected(AIProtocol.CLAUDE) },
-                    modifier = Modifier.weight(1f)
+                    onClick = { if (enabled) onProtocolSelected(AIProtocol.CLAUDE) },
+                    modifier = Modifier.weight(1f),
+                    enabled = enabled
                 )
             }
         }
@@ -371,7 +423,8 @@ fun ProtocolOption(
     title: String,
     isSelected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     val borderColor = if (isSelected) {
         MaterialTheme.colorScheme.primary
@@ -394,7 +447,7 @@ fun ProtocolOption(
                 shape = RoundedCornerShape(12.dp)
             )
             .background(backgroundColor)
-            .clickable(onClick = onClick)
+            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(vertical = 16.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -402,7 +455,11 @@ fun ProtocolOption(
             text = title,
             fontSize = 15.sp,
             fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+            color = when {
+                !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                isSelected -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.onSurface
+            }
         )
     }
 }

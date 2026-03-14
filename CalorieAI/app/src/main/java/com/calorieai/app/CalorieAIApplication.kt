@@ -25,7 +25,8 @@ class CalorieAIApplication : Application() {
             try {
                 aiDefaultConfigInitializer.initializeDefaultConfig()
             } catch (e: Exception) {
-                e.printStackTrace()
+                // 捕获所有异常，避免应用崩溃
+                android.util.Log.e("CalorieAI", "初始化AI配置失败", e)
             }
         }
     }

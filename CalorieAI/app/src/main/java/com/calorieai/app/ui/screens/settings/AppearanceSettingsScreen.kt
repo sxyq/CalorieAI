@@ -37,19 +37,7 @@ fun AppearanceSettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Box(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
-                    MaterialTheme.colorScheme.surface,
-                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-                )
-            )
-        )
-    ) {
     Scaffold(
-        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("界面外观") },
@@ -86,7 +74,7 @@ fun AppearanceSettingsScreen(
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
-    } // End of setup Box wrapper
+
 }
 
 /**

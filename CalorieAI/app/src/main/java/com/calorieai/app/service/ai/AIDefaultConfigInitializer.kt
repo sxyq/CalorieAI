@@ -46,7 +46,8 @@ class AIDefaultConfigInitializer @Inject constructor(
                 apiKey = DEFAULT_API_KEY,
                 modelId = DEFAULT_MODEL_ID,
                 isImageUnderstanding = true,
-                isDefault = true
+                isDefault = true,
+                isPreset = true
             )
             aiConfigDao.insertConfig(defaultConfig)
         } else {

@@ -59,6 +59,10 @@ class AISettingsViewModel @Inject constructor(
     }
 
     fun deleteConfig(config: AIConfig) {
+        // 预设配置不能删除
+        if (config.isPreset) {
+            return
+        }
         viewModelScope.launch {
             aiConfigRepository.deleteConfig(config)
         }

@@ -3,8 +3,16 @@ package com.calorieai.app.ui.screens.add
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -13,17 +21,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import com.calorieai.app.ui.components.liquidGlass
-import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.model.getMealTypeName
 import com.calorieai.app.service.voice.VoiceInputHelper
 import com.calorieai.app.ui.components.VoiceInputDialog
+import com.calorieai.app.ui.components.interactiveScale
+import com.calorieai.app.ui.components.liquidGlass
 import javax.inject.Inject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,13 +61,11 @@ fun AddFoodScreen(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            // 权限已授予，开始录音
             startVoiceInput(context, voiceHelper, onStart = {
                 isListening = true
                 showVoiceDialog = true
             })
         } else {
-            // 权限被拒绝，显示说明对话框
             showPermissionDialog = true
         }
     }
@@ -66,143 +74,92 @@ fun AddFoodScreen(
     LaunchedEffect(voiceState) {
         when (val state = voiceState) {
             is com.calorieai.app.service.voice.VoiceState.Success -> {
-                // 识别成功，更新文本
                 viewModel.onFoodDescriptionChange(
                     if (uiState.foodDescription.isBlank()) state.text 
                     else "${uiState.foodDescription} ${state.text}"
                 )
-                // 关闭对话框
                 showVoiceDialog = false
                 isListening = false
             }
             is com.calorieai.app.service.voice.VoiceState.Error -> {
-                // 错误发生，保持对话框显示错误信息
                 isListening = false
             }
             else -> {}
         }
     }
     
-    Box(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                    MaterialTheme.colorScheme.surface,
-                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-                )
-            )
-        )
-    ) {
     Scaffold(
-        containerColor = Color.Transparent,
-        topBar = {
-            TopAppBar(
-                title = { Text("记录食物") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // 输入方式选择
-            InputMethodSelector(
-                onCameraClick = onNavigateToCamera,
-                onVoiceClick = {
-                    when {
-                        isListening -> {
-                            voiceHelper.stopListening()
-                            isListening = false
-                            showVoiceDialog = false
+            topBar = {
+                TopAppBar(
+                    title = { Text("记录食物") },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                         }
-                        androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED -> {
-                            startVoiceInput(context, voiceHelper, onStart = {
-                                isListening = true
-                                showVoiceDialog = true
-                            })
-                        }
-                        else -> {
-                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                        }
-                    }
-                },
-                isVoiceListening = isListening
-            )
-            
-            // 餐次选择
-            MealTypeSelector(
-                selectedMealType = uiState.selectedMealType,
-                onMealTypeSelected = viewModel::onMealTypeChange
-            )
-            
-            // 食物描述输入
-            OutlinedTextField(
-                value = uiState.foodDescription,
-                onValueChange = viewModel::onFoodDescriptionChange,
-                label = { Text("描述你吃的食物") },
-                placeholder = { Text("例如：番茄炒蛋，番茄150g，鸡蛋2个，油10g") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                keyboardOptions = KeyboardOptions(
-                    imeAction = ImeAction.Done
-                ),
-                maxLines = 10
-            )
-            
-            // 输入示例
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .liquidGlass(
-                        shape = MaterialTheme.shapes.medium,
-                        tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-                    )
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = "你这顿又吃了什么？😋",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "• 番茄炒蛋，番茄150g，鸡蛋2个，油10g\n• 米饭200g\n• 麦当劳巨无霸套餐",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                    },
+                )
             }
-            
-            // 保存按钮
-            Button(
-                onClick = { viewModel.saveFoodRecord(onNavigateToResult) },
+        ) { paddingValues ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                enabled = uiState.foodDescription.isNotBlank() && !uiState.isLoading,
-                shape = MaterialTheme.shapes.large
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                } else {
-                    Text("保存记录")
-                }
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // 输入方式选择 - 软玻璃按钮
+                SoftInputMethodSelector(
+                    onCameraClick = onNavigateToCamera,
+                    onVoiceClick = {
+                        when {
+                            isListening -> {
+                                voiceHelper.stopListening()
+                                isListening = false
+                                showVoiceDialog = false
+                            }
+                            androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED -> {
+                                startVoiceInput(context, voiceHelper, onStart = {
+                                    isListening = true
+                                    showVoiceDialog = true
+                                })
+                            }
+                            else -> {
+                                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        }
+                    },
+                    isVoiceListening = isListening
+                )
+                
+                // 餐次选择 - 软玻璃分段按钮
+                SoftMealTypeSelector(
+                    selectedMealType = uiState.selectedMealType,
+                    onMealTypeSelected = viewModel::onMealTypeChange
+                )
+                
+                // 食物描述输入 - 软玻璃输入框
+                SoftTextInputField(
+                    value = uiState.foodDescription,
+                    onValueChange = viewModel::onFoodDescriptionChange,
+                    placeholder = "描述你吃的食物，例如：番茄炒蛋，番茄150g，鸡蛋2个..."
+                )
+                
+                // 快捷输入示例 - 软玻璃卡片
+                SoftExampleCard()
+                
+                // 保存按钮 - 软玻璃主按钮
+                SoftSaveButton(
+                    onClick = { viewModel.saveFoodRecord(onNavigateToResult) },
+                    isLoading = uiState.isLoading,
+                    enabled = uiState.foodDescription.isNotBlank() && !uiState.isLoading
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
-    }
-    } // End of setup Box wrapper
     
     // 语音输入对话框
     VoiceInputDialog(
@@ -229,7 +186,6 @@ fun AddFoodScreen(
                 TextButton(
                     onClick = {
                         showPermissionDialog = false
-                        // 打开应用设置
                         val intent = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                             data = android.net.Uri.fromParts("package", context.packageName, null)
                         }
@@ -247,10 +203,353 @@ fun AddFoodScreen(
         )
     }
     
-    // 清理
     DisposableEffect(Unit) {
         onDispose {
             voiceHelper.destroy()
+        }
+    }
+}
+
+/**
+ * 软玻璃输入方式选择器
+ */
+@Composable
+private fun SoftInputMethodSelector(
+    onCameraClick: () -> Unit,
+    onVoiceClick: () -> Unit,
+    isVoiceListening: Boolean
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // 拍照按钮 - 软玻璃
+        SoftGlassButton(
+            onClick = onCameraClick,
+            modifier = Modifier.weight(1f),
+            icon = { 
+                Icon(
+                    Icons.Default.CameraAlt, 
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+            },
+            label = "拍照识别",
+            tint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+        )
+        
+        // 语音按钮 - 软玻璃，录音中状态
+        val voiceTint = if (isVoiceListening) {
+            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f)
+        } else {
+            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+        }
+        
+        SoftGlassButton(
+            onClick = onVoiceClick,
+            modifier = Modifier.weight(1f),
+            icon = {
+                Icon(
+                    if (isVoiceListening) Icons.Default.Mic else Icons.Default.MicNone,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = if (isVoiceListening) {
+                        MaterialTheme.colorScheme.onTertiaryContainer
+                    } else {
+                        LocalContentColor.current
+                    }
+                )
+            },
+            label = if (isVoiceListening) "录音中..." else "语音输入",
+            tint = voiceTint,
+            contentColor = if (isVoiceListening) {
+                MaterialTheme.colorScheme.onTertiaryContainer
+            } else {
+                LocalContentColor.current
+            }
+        )
+    }
+}
+
+/**
+ * 软玻璃按钮组件
+ */
+@Composable
+private fun SoftGlassButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: @Composable () -> Unit,
+    label: String,
+    tint: Color = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
+    contentColor: Color = LocalContentColor.current
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    
+    Box(
+        modifier = modifier
+            .height(52.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(20.dp),
+                tint = tint,
+                blurRadius = 25f,
+                borderAlpha = 0.3f
+            )
+            .interactiveScale(interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            CompositionLocalProvider(LocalContentColor provides contentColor) {
+                icon()
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = contentColor
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 软玻璃餐次选择器
+ */
+@Composable
+private fun SoftMealTypeSelector(
+    selectedMealType: MealType,
+    onMealTypeSelected: (MealType) -> Unit
+) {
+    val mealTypes = listOf(MealType.BREAKFAST, MealType.LUNCH, MealType.DINNER, MealType.SNACK)
+    
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .liquidGlass(
+                shape = RoundedCornerShape(20.dp),
+                tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.35f),
+                blurRadius = 20f,
+                borderAlpha = 0.25f
+            )
+            .padding(4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            mealTypes.forEach { mealType ->
+                val isSelected = selectedMealType == mealType
+                val interactionSource = remember { MutableInteractionSource() }
+                
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .then(
+                            if (isSelected) {
+                                Modifier.liquidGlass(
+                                    shape = RoundedCornerShape(16.dp),
+                                    tint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                                    blurRadius = 15f,
+                                    borderAlpha = 0.4f
+                                )
+                            } else {
+                                Modifier
+                            }
+                        )
+                        .interactiveScale(interactionSource)
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClick = { onMealTypeSelected(mealType) }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = getMealTypeName(mealType),
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                        ),
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 软玻璃文本输入框
+ */
+@Composable
+private fun SoftTextInputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 160.dp, max = 240.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(24.dp),
+                tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.45f),
+                blurRadius = 30f,
+                borderAlpha = 0.35f
+            )
+            .padding(16.dp)
+    ) {
+        if (value.isEmpty()) {
+            Text(
+                text = placeholder,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
+        }
+        
+        // 使用 BasicTextField 实现更自定义的输入体验
+        androidx.compose.foundation.text.BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                color = MaterialTheme.colorScheme.onSurface
+            ),
+            keyboardOptions = KeyboardOptions(
+                imeAction = ImeAction.Done
+            ),
+            maxLines = 8,
+            decorationBox = { innerTextField ->
+                innerTextField()
+            }
+        )
+    }
+}
+
+/**
+ * 软玻璃示例卡片
+ */
+@Composable
+private fun SoftExampleCard() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .liquidGlass(
+                shape = RoundedCornerShape(20.dp),
+                tint = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f),
+                blurRadius = 25f,
+                borderAlpha = 0.25f
+            )
+            .padding(16.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Lightbulb,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.tertiary
+                )
+                Text(
+                    text = "输入示例",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                SoftExampleItem("番茄炒蛋，番茄150g，鸡蛋2个，油10g")
+                SoftExampleItem("米饭200g")
+                SoftExampleItem("麦当劳巨无霸套餐")
+            }
+        }
+    }
+}
+
+/**
+ * 示例项
+ */
+@Composable
+private fun SoftExampleItem(text: String) {
+    Text(
+        text = "• $text",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+    )
+}
+
+/**
+ * 软玻璃保存按钮
+ */
+@Composable
+private fun SoftSaveButton(
+    onClick: () -> Unit,
+    isLoading: Boolean,
+    enabled: Boolean
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    val backgroundTint = if (enabled) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    }
+    
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(24.dp),
+                tint = backgroundTint,
+                blurRadius = if (enabled) 35f else 20f,
+                borderAlpha = if (enabled) 0.5f else 0.2f
+            )
+            .graphicsLayer {
+                alpha = if (enabled) 1f else 0.6f
+            }
+            .interactiveScale(interactionSource, pressedScale = 0.97f)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = enabled,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                strokeWidth = 2.dp
+            )
+        } else {
+            Text(
+                text = "保存记录",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
         }
     }
 }
@@ -266,80 +565,7 @@ private fun startVoiceInput(
     onStart()
     voiceHelper.startListening(
         context = context,
-        onResult = { _ ->
-            // 结果通过StateFlow传递
-        },
-        onError = { _ ->
-            // 错误通过StateFlow传递
-        }
+        onResult = { _ -> },
+        onError = { _ -> }
     )
-}
-
-@Composable
-fun InputMethodSelector(
-    onCameraClick: () -> Unit,
-    onVoiceClick: () -> Unit,
-    isVoiceListening: Boolean
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // 拍照按钮
-        OutlinedButton(
-            onClick = onCameraClick,
-            modifier = Modifier.weight(1f),
-            shape = MaterialTheme.shapes.medium
-        ) {
-            Icon(Icons.Default.CameraAlt, contentDescription = null)
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("拍照识别")
-        }
-        
-        // 语音按钮
-        OutlinedButton(
-            onClick = onVoiceClick,
-            modifier = Modifier.weight(1f),
-            shape = MaterialTheme.shapes.medium,
-            colors = if (isVoiceListening) {
-                ButtonDefaults.outlinedButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            } else {
-                ButtonDefaults.outlinedButtonColors()
-            }
-        ) {
-            Icon(
-                if (isVoiceListening) Icons.Default.Mic else Icons.Default.MicNone,
-                contentDescription = null
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(if (isVoiceListening) "录音中..." else "语音输入")
-        }
-    }
-}
-
-@Composable
-@OptIn(ExperimentalMaterial3Api::class)
-fun MealTypeSelector(
-    selectedMealType: MealType,
-    onMealTypeSelected: (MealType) -> Unit
-) {
-    val mealTypes = listOf(MealType.BREAKFAST, MealType.LUNCH, MealType.DINNER, MealType.SNACK)
-    
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        mealTypes.forEachIndexed { index, mealType ->
-            SegmentedButton(
-                selected = selectedMealType == mealType,
-                onClick = { onMealTypeSelected(mealType) },
-                shape = SegmentedButtonDefaults.itemShape(
-                    index = index,
-                    count = mealTypes.size
-                )
-            ) {
-                Text(getMealTypeName(mealType))
-            }
-        }
-    }
 }

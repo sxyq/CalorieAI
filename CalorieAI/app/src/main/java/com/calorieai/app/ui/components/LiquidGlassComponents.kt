@@ -34,26 +34,15 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Android LiquidGlass Modifier 
- * 应用液态玻璃效果：高斯模糊 + 半透明着色 + 边缘高光反射
+ * 简化版：仅保留背景和边框，移除模糊效果
  */
 fun Modifier.liquidGlass(
     shape: Shape = RoundedCornerShape(24.dp),
-    tint: Color = Color.White.copy(alpha = 0.25f),
-    blurRadius: Float = 40f,
-    borderAlpha: Float = 0.4f
+    tint: Color = Color.White.copy(alpha = 0.15f),
+    blurRadius: Float = 20f,
+    borderAlpha: Float = 0.3f
 ): Modifier = composed {
     this
-        .graphicsLayer {
-            clip = true
-            this.shape = shape
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                renderEffect = RenderEffect.createBlurEffect(
-                    blurRadius, 
-                    blurRadius, 
-                    Shader.TileMode.DECAL
-                ).asComposeRenderEffect()
-            }
-        }
         .background(tint, shape)
         .border(
             width = 1.dp,
@@ -72,13 +61,15 @@ fun Modifier.liquidGlass(
 
 /**
  * Interactive Scale 动效：缩放响应
+ * @param pressedScale 按下时的缩放比例，默认 0.92f
  */
 fun Modifier.interactiveScale(
-    interactionSource: MutableInteractionSource
+    interactionSource: MutableInteractionSource,
+    pressedScale: Float = 0.92f
 ): Modifier = composed {
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1f,
+        targetValue = if (isPressed) pressedScale else 1f,
         animationSpec = spring(
             dampingRatio = 0.5f,
             stiffness = Spring.StiffnessMedium
@@ -90,7 +81,7 @@ fun Modifier.interactiveScale(
 }
 
 /**
- * Gooey 容器，融合内部的玻璃组件
+ * Gooey 容器，简化版：移除模糊效果
  */
 @Composable
 fun GlassGooeyContainer(
@@ -100,21 +91,7 @@ fun GlassGooeyContainer(
     content: @Composable BoxScope.() -> Unit
 ) {
     Box(
-        modifier = modifier.graphicsLayer {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val blur = RenderEffect.createBlurEffect(blurRadius, blurRadius, Shader.TileMode.DECAL)
-                val colorMatrix = ColorMatrix(
-                    floatArrayOf(
-                        1f, 0f, 0f, 0f, 0f,
-                        0f, 1f, 0f, 0f, 0f,
-                        0f, 0f, 1f, 0f, 0f,
-                        0f, 0f, 0f, alphaThreshold, -255f * 7f 
-                    )
-                )
-                val colorMatrixEffect = RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(colorMatrix))
-                renderEffect = RenderEffect.createChainEffect(colorMatrixEffect, blur).asComposeRenderEffect()
-            }
-        },
+        modifier = modifier,
         content = content
     )
 }

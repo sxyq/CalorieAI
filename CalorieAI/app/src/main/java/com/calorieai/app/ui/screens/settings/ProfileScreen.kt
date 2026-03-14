@@ -43,19 +43,7 @@ fun ProfileScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showAvatarPicker by remember { mutableStateOf(false) }
 
-    Box(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
-                    MaterialTheme.colorScheme.surface,
-                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-                )
-            )
-        )
-    ) {
     Scaffold(
-        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("个人信息") },
@@ -138,7 +126,7 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
-    } // End of Liquid Glass background Box
+
 
     // 头像选择器（简化版）
     if (showAvatarPicker) {

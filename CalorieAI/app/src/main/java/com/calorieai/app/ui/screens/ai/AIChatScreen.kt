@@ -51,19 +51,7 @@ fun AIChatScreen(
     var showHistoryDialog by remember { mutableStateOf(false) }
     var showNewChatConfirm by remember { mutableStateOf(false) }
 
-    Box(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                    MaterialTheme.colorScheme.surface,
-                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-                )
-            )
-        )
-    ) {
     Scaffold(
-        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
@@ -259,7 +247,7 @@ fun AIChatScreen(
             }
         )
     }
-    } // End of Liquid Glass background Box
+
 }
 
 /**

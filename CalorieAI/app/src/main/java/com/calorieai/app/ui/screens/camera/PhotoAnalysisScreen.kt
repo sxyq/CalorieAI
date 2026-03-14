@@ -41,19 +41,7 @@ fun PhotoAnalysisScreen(
         viewModel.analyzePhoto(photoUri, context)
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
-                    MaterialTheme.colorScheme.surface,
-                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-                )
-            )
-        )
-    ) {
     Scaffold(
-        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("拍照识别") },
@@ -98,7 +86,7 @@ fun PhotoAnalysisScreen(
             }
         }
     }
-    } // End of Liquid Glass background Box
+
 }
 
 @Composable

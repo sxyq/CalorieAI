@@ -5,8 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.repository.FoodRecordRepository
-import com.calorieai.app.service.ai.FoodTextAnalysisService
 import com.calorieai.app.service.ai.TextFoodAnalysisResult
+import com.calorieai.app.service.ai.FoodTextAnalysisService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

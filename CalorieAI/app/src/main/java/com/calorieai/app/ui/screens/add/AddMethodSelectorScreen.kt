@@ -52,14 +52,7 @@ fun AddMethodSelectorScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-                    )
-                )
-            )
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
             .clickable { onNavigateBack() }
     ) {
         AnimatedVisibility(

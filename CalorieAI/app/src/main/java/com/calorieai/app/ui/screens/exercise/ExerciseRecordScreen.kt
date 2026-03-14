@@ -39,19 +39,7 @@ fun ExerciseRecordScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
 
-    Box(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
-                    MaterialTheme.colorScheme.surface,
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                )
-            )
-        )
-    ) {
     Scaffold(
-        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { 
@@ -249,7 +237,7 @@ fun ExerciseRecordScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
-    } // End of setup Box wrapper
+
 
     // 历史记录对话框
     if (uiState.showHistoryDialog) {

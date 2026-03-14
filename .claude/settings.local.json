@@ -34,7 +34,8 @@
       "Read(//d/Project/CalorieAI/CalorieAI/$LOCALAPPDATA/Android/Sdk/**)",
       "Bash(echo \"LOCALAPPDATA=$LOCALAPPDATA\")",
       "Bash(echo \"HOME=$HOME\")",
-      "Bash(mount | grep -i \"C:/Users\" || mount | head -5)"
+      "Bash(mount | grep -i \"C:/Users\" || mount | head -5)",
+      "Bash(./gradlew.bat tasks:*)"
     ]
   }
 }

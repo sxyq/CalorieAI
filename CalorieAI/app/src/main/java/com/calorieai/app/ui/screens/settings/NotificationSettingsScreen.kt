@@ -34,19 +34,7 @@ fun NotificationSettingsScreen(
     var showLunchTimePicker by remember { mutableStateOf(false) }
     var showDinnerTimePicker by remember { mutableStateOf(false) }
 
-    Box(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
-                    MaterialTheme.colorScheme.surface,
-                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-                )
-            )
-        )
-    ) {
     Scaffold(
-        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("通知") },
@@ -159,7 +147,7 @@ fun NotificationSettingsScreen(
             )
         }
     }
-    } // End of Liquid Glass background Box
+
 }
 
 /**

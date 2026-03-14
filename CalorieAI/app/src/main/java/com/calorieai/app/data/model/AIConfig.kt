@@ -19,7 +19,8 @@ data class AIConfig(
     val apiKey: String,                 // API密钥（加密存储）
     val modelId: String,                // 模型ID
     val isImageUnderstanding: Boolean,  // 是否启用图像理解
-    val isDefault: Boolean = false      // 是否为默认配置
+    val isDefault: Boolean = false,     // 是否为默认配置
+    val isPreset: Boolean = false       // 是否为预设配置（不可编辑、不可删除）
 )
 
 enum class AIProtocol {
@@ -67,7 +68,8 @@ object AIConfigPresets {
         apiUrl = "https://api.openai.com/v1/chat/completions",
         apiKey = "",
         modelId = "gpt-5",
-        isImageUnderstanding = true
+        isImageUnderstanding = true,
+        isPreset = true
     )
 
     val OPENAI_GPT4O = AIConfig(
@@ -78,7 +80,8 @@ object AIConfigPresets {
         apiUrl = "https://api.openai.com/v1/chat/completions",
         apiKey = "",
         modelId = "gpt-4o",
-        isImageUnderstanding = true
+        isImageUnderstanding = true,
+        isPreset = true
     )
 
     // Claude 预设
@@ -90,7 +93,8 @@ object AIConfigPresets {
         apiUrl = "https://api.anthropic.com/v1/messages",
         apiKey = "",
         modelId = "claude-4-6-opus-20251001",
-        isImageUnderstanding = true
+        isImageUnderstanding = true,
+        isPreset = true
     )
 
     val CLAUDE_3_5_SONNET = AIConfig(
@@ -101,7 +105,8 @@ object AIConfigPresets {
         apiUrl = "https://api.anthropic.com/v1/messages",
         apiKey = "",
         modelId = "claude-3-5-sonnet-20241022",
-        isImageUnderstanding = true
+        isImageUnderstanding = true,
+        isPreset = true
     )
 
     // Kimi 预设
@@ -113,7 +118,8 @@ object AIConfigPresets {
         apiUrl = "https://api.moonshot.cn/v1/chat/completions",
         apiKey = "",
         modelId = "kimi-k2-5",
-        isImageUnderstanding = true
+        isImageUnderstanding = true,
+        isPreset = true
     )
 
     // GLM 预设
@@ -125,7 +131,8 @@ object AIConfigPresets {
         apiUrl = "https://open.bigmodel.cn/api/paas/v4/chat/completions",
         apiKey = "",
         modelId = "glm-4-plus",
-        isImageUnderstanding = true
+        isImageUnderstanding = true,
+        isPreset = true
     )
 
     // Qwen 预设
@@ -137,7 +144,8 @@ object AIConfigPresets {
         apiUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
         apiKey = "",
         modelId = "qwen2.5-max",
-        isImageUnderstanding = true
+        isImageUnderstanding = true,
+        isPreset = true
     )
 
     // DeepSeek 预设
@@ -149,7 +157,8 @@ object AIConfigPresets {
         apiUrl = "https://api.deepseek.com/v1/chat/completions",
         apiKey = "",
         modelId = "deepseek-chat",
-        isImageUnderstanding = false
+        isImageUnderstanding = false,
+        isPreset = true
     )
 
     val DEEPSEEK_R1 = AIConfig(
@@ -160,7 +169,8 @@ object AIConfigPresets {
         apiUrl = "https://api.deepseek.com/v1/chat/completions",
         apiKey = "",
         modelId = "deepseek-reasoner",
-        isImageUnderstanding = false
+        isImageUnderstanding = false,
+        isPreset = true
     )
 
     // Gemini 预设
@@ -172,7 +182,8 @@ object AIConfigPresets {
         apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro-exp:generateContent",
         apiKey = "",
         modelId = "gemini-2.0-pro-exp",
-        isImageUnderstanding = true
+        isImageUnderstanding = true,
+        isPreset = true
     )
 
     // 所有预设列表

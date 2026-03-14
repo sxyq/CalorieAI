@@ -31,19 +31,7 @@ import com.calorieai.app.ui.components.liquidGlass
 fun AboutScreen(
     onNavigateBack: () -> Unit
 ) {
-    Box(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
-                    MaterialTheme.colorScheme.surface,
-                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-                )
-            )
-        )
-    ) {
     Scaffold(
-        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("关于") },
@@ -131,7 +119,7 @@ fun AboutScreen(
             }
         }
     }
-    } // End of Liquid Glass background Box
+
 }
 
 /**

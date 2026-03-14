@@ -1,15 +1,23 @@
 package com.calorieai.app.ui.screens.add
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -18,10 +26,11 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.model.getMealTypeName
+import com.calorieai.app.ui.components.interactiveScale
+import com.calorieai.app.ui.components.liquidGlass
 
 /**
- * 手动录入页面
- * 用户手动输入食物名称、热量和营养成分
+ * 手动录入页面 - Liquid Glass 重构版
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,180 +53,434 @@ fun ManualAddScreen(
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            // 食物名称输入
-            OutlinedTextField(
-                value = uiState.foodName,
-                onValueChange = viewModel::updateFoodName,
-                label = { Text("食物名称") },
-                placeholder = { Text("例如：红烧肉") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 热量输入
-            OutlinedTextField(
-                value = uiState.calories,
-                onValueChange = viewModel::updateCalories,
-                label = { Text("热量 (千卡)") },
-                placeholder = { Text("例如：350") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Next
+                // 食物名称输入 - 软玻璃
+                SoftInputField(
+                    value = uiState.foodName,
+                    onValueChange = viewModel::updateFoodName,
+                    label = "食物名称",
+                    placeholder = "例如：红烧肉",
+                    icon = Icons.Default.Restaurant,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                 )
+
+                // 热量输入 - 软玻璃
+                SoftInputField(
+                    value = uiState.calories,
+                    onValueChange = viewModel::updateCalories,
+                    label = "热量 (千卡)",
+                    placeholder = "例如：350",
+                    icon = Icons.Default.LocalFireDepartment,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Next
+                    ),
+                    suffix = "千卡"
+                )
+
+                // 营养成分标题
+                Text(
+                    text = "营养成分 (克)",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+
+                // 蛋白质、碳水、脂肪 - 软玻璃三列输入
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    SoftNutritionInput(
+                        value = uiState.protein,
+                        onValueChange = viewModel::updateProtein,
+                        label = "蛋白质",
+                        modifier = Modifier.weight(1f)
+                    )
+                    SoftNutritionInput(
+                        value = uiState.carbs,
+                        onValueChange = viewModel::updateCarbs,
+                        label = "碳水",
+                        modifier = Modifier.weight(1f)
+                    )
+                    SoftNutritionInput(
+                        value = uiState.fat,
+                        onValueChange = viewModel::updateFat,
+                        label = "脂肪",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                // 餐次选择 - 软玻璃
+                Text(
+                    text = "餐次",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+
+                SoftMealTypeSelector(
+                    selectedMealType = uiState.mealType,
+                    onMealTypeSelected = viewModel::updateMealType
+                )
+
+                // 备注输入 - 软玻璃多行
+                SoftMultilineInputField(
+                    value = uiState.notes,
+                    onValueChange = viewModel::updateNotes,
+                    label = "备注 (可选)",
+                    placeholder = "添加备注信息...",
+                    icon = Icons.Default.Edit
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 保存按钮 - 软玻璃
+                SoftSaveButton(
+                    onClick = {
+                        viewModel.saveRecord()
+                        onSaveComplete()
+                    },
+                    enabled = uiState.foodName.isNotBlank() && uiState.calories.isNotBlank()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+}
+
+/**
+ * 软玻璃输入框
+ */
+@Composable
+private fun SoftInputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    suffix: String? = null
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .liquidGlass(
+                shape = RoundedCornerShape(20.dp),
+                tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
+                blurRadius = 25f,
+                borderAlpha = 0.3f
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 营养成分标题
+            .padding(16.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                text = "营养成分 (克)",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(vertical = 8.dp)
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // 蛋白质、碳水、脂肪
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                NutritionInput(
-                    value = uiState.protein,
-                    onValueChange = viewModel::updateProtein,
-                    label = "蛋白质",
-                    modifier = Modifier.weight(1f)
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
                 )
-                NutritionInput(
-                    value = uiState.carbs,
-                    onValueChange = viewModel::updateCarbs,
-                    label = "碳水",
-                    modifier = Modifier.weight(1f)
+
+                androidx.compose.foundation.text.BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.weight(1f),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    keyboardOptions = keyboardOptions,
+                    singleLine = true,
+                    decorationBox = { innerTextField ->
+                        if (value.isEmpty()) {
+                            Text(
+                                text = placeholder,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                        }
+                        innerTextField()
+                    }
                 )
-                NutritionInput(
-                    value = uiState.fat,
-                    onValueChange = viewModel::updateFat,
-                    label = "脂肪",
-                    modifier = Modifier.weight(1f)
-                )
+
+                if (suffix != null) {
+                    Text(
+                        text = suffix,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 餐次选择
-            Text(
-                text = "餐次",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-
-            ManualMealTypeSelector(
-                selectedMealType = uiState.mealType,
-                onMealTypeSelected = viewModel::updateMealType
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 备注输入
-            OutlinedTextField(
-                value = uiState.notes,
-                onValueChange = viewModel::updateNotes,
-                label = { Text("备注 (可选)") },
-                placeholder = { Text("添加备注信息...") },
-                minLines = 3,
-                maxLines = 5,
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // 保存按钮
-            Button(
-                onClick = {
-                    viewModel.saveRecord()
-                    onSaveComplete()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                shape = MaterialTheme.shapes.medium,
-                enabled = uiState.foodName.isNotBlank() && uiState.calories.isNotBlank()
-            ) {
-                Text(
-                    text = "保存记录",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
 /**
- * 营养成分输入框
+ * 软玻璃营养成分输入
  */
 @Composable
-private fun NutritionInput(
+private fun SoftNutritionInput(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
     modifier: Modifier = Modifier
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        singleLine = true,
-        modifier = modifier,
-        shape = MaterialTheme.shapes.medium,
-        keyboardOptions = KeyboardOptions(
-            keyboardType = KeyboardType.Decimal,
-            imeAction = ImeAction.Next
-        )
-    )
+    Box(
+        modifier = modifier
+            .liquidGlass(
+                shape = RoundedCornerShape(16.dp),
+                tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.35f),
+                blurRadius = 20f,
+                borderAlpha = 0.25f
+            )
+            .padding(12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            androidx.compose.foundation.text.BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                textStyle = MaterialTheme.typography.titleMedium.copy(
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                ),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal,
+                    imeAction = ImeAction.Next
+                ),
+                singleLine = true,
+                decorationBox = { innerTextField ->
+                    if (value.isEmpty()) {
+                        Text(
+                            text = "0",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
+                    }
+                    innerTextField()
+                }
+            )
+
+            Text(
+                text = "g",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+        }
+    }
 }
 
 /**
- * 餐次选择器（与AI录入保持一致）
+ * 软玻璃餐次选择器
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ManualMealTypeSelector(
+private fun SoftMealTypeSelector(
     selectedMealType: MealType,
     onMealTypeSelected: (MealType) -> Unit
 ) {
     val mealTypes = listOf(MealType.BREAKFAST, MealType.LUNCH, MealType.DINNER, MealType.SNACK)
-    
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        mealTypes.forEachIndexed { index, mealType ->
-            SegmentedButton(
-                selected = selectedMealType == mealType,
-                onClick = { onMealTypeSelected(mealType) },
-                shape = SegmentedButtonDefaults.itemShape(
-                    index = index,
-                    count = mealTypes.size
-                )
-            ) {
-                Text(getMealTypeName(mealType))
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .liquidGlass(
+                shape = RoundedCornerShape(20.dp),
+                tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
+                blurRadius = 20f,
+                borderAlpha = 0.25f
+            )
+            .padding(4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            mealTypes.forEach { mealType ->
+                val isSelected = selectedMealType == mealType
+                val interactionSource = remember { MutableInteractionSource() }
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .then(
+                            if (isSelected) {
+                                Modifier.liquidGlass(
+                                    shape = RoundedCornerShape(16.dp),
+                                    tint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                                    blurRadius = 15f,
+                                    borderAlpha = 0.4f
+                                )
+                            } else {
+                                Modifier
+                            }
+                        )
+                        .interactiveScale(interactionSource)
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClick = { onMealTypeSelected(mealType) }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = getMealTypeName(mealType),
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                        ),
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
             }
         }
+    }
+}
+
+/**
+ * 软玻璃多行输入框
+ */
+@Composable
+private fun SoftMultilineInputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 100.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(20.dp),
+                tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
+                blurRadius = 25f,
+                borderAlpha = 0.3f
+            )
+            .padding(16.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            androidx.compose.foundation.text.BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    color = MaterialTheme.colorScheme.onSurface
+                ),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                minLines = 2,
+                maxLines = 4,
+                decorationBox = { innerTextField ->
+                    if (value.isEmpty()) {
+                        Text(
+                            text = placeholder,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    }
+                    innerTextField()
+                }
+            )
+        }
+    }
+}
+
+/**
+ * 软玻璃保存按钮
+ */
+@Composable
+private fun SoftSaveButton(
+    onClick: () -> Unit,
+    enabled: Boolean
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+
+    val backgroundTint = if (enabled) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(24.dp),
+                tint = backgroundTint,
+                blurRadius = if (enabled) 35f else 20f,
+                borderAlpha = if (enabled) 0.5f else 0.2f
+            )
+            .graphicsLayer {
+                alpha = if (enabled) 1f else 0.6f
+            }
+            .interactiveScale(interactionSource, pressedScale = 0.97f)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = enabled,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "保存记录",
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.SemiBold
+            ),
+            color = if (enabled) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
+        )
     }
 }

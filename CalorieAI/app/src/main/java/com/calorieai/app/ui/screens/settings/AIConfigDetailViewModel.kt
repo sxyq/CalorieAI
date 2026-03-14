@@ -34,7 +34,8 @@ class AIConfigDetailViewModel @Inject constructor(
                         apiKey = config.apiKey,
                         modelId = config.modelId,
                         isImageUnderstanding = config.isImageUnderstanding,
-                        isEditing = true
+                        isEditing = true,
+                        isPreset = config.isPreset
                     )
                 }
             }
@@ -103,6 +104,12 @@ class AIConfigDetailViewModel @Inject constructor(
     fun saveConfig(): Boolean {
         val state = _uiState.value
 
+        // 预设配置不能保存
+        if (state.isPreset) {
+            _uiState.value = state.copy(errorMessage = "预设配置不能修改")
+            return false
+        }
+
         if (state.name.isBlank()) {
             _uiState.value = state.copy(errorMessage = "请输入配置名称")
             return false
@@ -156,6 +163,7 @@ data class AIConfigDetailUiState(
     val modelId: String = "",
     val isImageUnderstanding: Boolean = false,
     val isEditing: Boolean = false,
+    val isPreset: Boolean = false,
     val isTesting: Boolean = false,
     val testResult: TestResult? = null,
     val errorMessage: String? = null

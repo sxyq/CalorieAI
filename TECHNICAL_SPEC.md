@@ -981,11 +981,17 @@ private fun parseResponse(responseBody: String, protocol: String): String
 ```kotlin
 fun Modifier.liquidGlass(
     shape: Shape = RoundedCornerShape(24.dp),
-    tint: Color = Color.White.copy(alpha = 0.25f),
-    blurRadius: Float = 40f,
-    borderAlpha: Float = 0.4f
+    tint: Color = Color.White.copy(alpha = 0.15f),
+    blurRadius: Float = 20f,
+    borderAlpha: Float = 0.3f
 ): Modifier
 ```
+
+**参数说明**:
+- `shape`: 玻璃形状，默认 24dp 圆角
+- `tint`: 着色颜色，默认白色 15% 透明度（避免过度模糊）
+- `blurRadius`: 模糊半径，默认 20f（已优化，避免界面过糊）
+- `borderAlpha`: 边框透明度，默认 0.3f
 
 #### interactiveScale
 **位置**: `ui/components/LiquidGlassComponents.kt`
@@ -1001,6 +1007,79 @@ fun Modifier.liquidGlass(
 ### 3. 应用场景
 - **卡片替换**: 所有的 `Card` 组件逐渐重构为使用 `Box + liquidGlass`
 - **背景增强**: 页面 `Scaffold` 背景使用 `Box + Brush.linearGradient` 配合低 Alpha 值的玻璃层
+
+### 4. 页面重构记录 (2026-03-14)
+
+#### 已完成重构的页面
+
+| 页面 | 视觉风格 | 关键特性 |
+|------|----------|----------|
+| **ResultScreen** | 深度玻璃态 | 发光热量数字、GlassGooeyContainer 营养网格、对角线渐变背景 |
+| **HomeScreen** | 动态层级 | 悬浮玻璃日期选择器、多色彩玻璃层卡片、微光边框记录项 |
+| **StatsScreen** | 全局毛玻璃 | 玻璃 Tab 行、瀑布流统计卡片、透明背景图表容器 |
+| **AddFoodScreen** | 软玻璃 | 柔和渐变背景、软玻璃输入框、软玻璃按钮组 |
+| **ManualAddScreen** | 软玻璃 | 软玻璃输入表单、三列营养成分输入、软玻璃餐次选择器 |
+| **CameraScreen** | 玻璃相机 | 玻璃快门按钮、玻璃提示卡片、玻璃权限按钮 |
+| **SettingsScreen** | 玻璃设置 | 玻璃设置项卡片、分组玻璃容器 |
+| **ProfileScreen** | 玻璃用户 | 玻璃头像区域、代谢数据玻璃卡片 |
+| **AIChatScreen** | 玻璃对话 | 玻璃消息气泡、玻璃会话项 |
+
+#### 重构技术规范
+
+**背景层级架构**:
+```kotlin
+// 每一屏的根节点采用 Box + Scaffold 模式
+Box(
+    modifier = Modifier.fillMaxSize().background(
+        Brush.linearGradient(
+            colors = listOf(
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)
+            )
+        )
+    )
+) {
+    Scaffold(
+        containerColor = Color.Transparent, // 关键：设为透明
+        // ...
+    )
+}
+```
+
+**玻璃卡片标准参数** (优化后):
+```kotlin
+Modifier.liquidGlass(
+    shape = RoundedCornerShape(20.dp),           // 统一圆角
+    tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.25f), // 低透明度避免过糊
+    blurRadius = 15f,                            // 降低模糊半径
+    borderAlpha = 0.3f                           // 轻微边框
+)
+```
+
+**按压反馈**:
+```kotlin
+val interactionSource = remember { MutableInteractionSource() }
+Modifier
+    .interactiveScale(interactionSource)  // 缩放反馈
+    .clickable(
+        interactionSource = interactionSource,
+        indication = null,                  // 禁用默认波纹
+        onClick = { }
+    )
+```
+
+#### 优化记录
+
+**2026-03-14 玻璃效果优化**:
+- 问题：界面整体过于模糊，像被厚玻璃蒙住
+- 原因：blurRadius 值过高（35f-50f），tint alpha 过大
+- 解决方案：
+  - 默认 blurRadius: 40f → 20f
+  - 默认 tint alpha: 0.25f → 0.15f
+  - 默认 borderAlpha: 0.4f → 0.3f
+  - 各页面 blurRadius 统一降至 12f-15f
+  - 背景渐变 alpha 降至 0.15f-0.3f
 
 ---
 
