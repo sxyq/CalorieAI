@@ -1,0 +1,78 @@
+<resources>
+    <string name="app_name">CalorieAI</string>
+    
+    <!-- 通用 -->
+    <string name="back">返回</string>
+    <string name="save">保存</string>
+    <string name="cancel">取消</string>
+    <string name="delete">删除</string>
+    <string name="edit">编辑</string>
+    <string name="confirm">确认</string>
+    <string name="loading">加载中…</string>
+    <string name="error">出错了</string>
+    <string name="retry">重试</string>
+    
+    <!-- 首页 -->
+    <string name="today_intake">今日摄入</string>
+    <string name="calorie_goal">目标</string>
+    <string name="remaining">剩余</string>
+    <string name="kcal">千卡</string>
+    <string name="breakfast">早餐</string>
+    <string name="lunch">午餐</string>
+    <string name="dinner">晚餐</string>
+    <string name="snack">加餐</string>
+    <string name="no_records">暂无记录</string>
+    <string name="add_food">记录食物</string>
+    
+    <!-- 添加食物 -->
+    <string name="input_food">输入食物</string>
+    <string name="text_input">文本</string>
+    <string name="voice_input">语音</string>
+    <string name="camera_input">拍照</string>
+    <string name="food_description_hint">描述你吃的食物，例如：番茄炒蛋，番茄150g，鸡蛋2个，油10g</string>
+    <string name="estimate_calories">估算热量</string>
+    <string name="input_example">输入示例</string>
+    
+    <!-- 结果页面 -->
+    <string name="calorie_result">热量估算结果</string>
+    <string name="total_calories">总热量</string>
+    <string name="protein">蛋白质</string>
+    <string name="carbs">碳水化合物</string>
+    <string name="fat">脂肪</string>
+    <string name="ingredients">食材明细</string>
+    <string name="confidence_high">高置信度</string>
+    <string name="confidence_medium">中置信度</string>
+    <string name="confidence_low">低置信度</string>
+    <string name="save_record">保存记录</string>
+    <string name="re_estimate">重新估算</string>
+    
+    <!-- 统计 -->
+    <string name="statistics">统计</string>
+    <string name="daily">日</string>
+    <string name="weekly">周</string>
+    <string name="monthly">月</string>
+    <string name="average_calories">平均摄入</string>
+    <string name="highest_intake">最高摄入</string>
+    <string name="goal_achievement">目标达成率</string>
+    
+    <!-- 设置 -->
+    <string name="settings">设置</string>
+    <string name="daily_goal">每日目标</string>
+    <string name="personal_info">个人信息</string>
+    <string name="ai_settings">AI设置</string>
+    <string name="notifications">通知提醒</string>
+    <string name="data_backup">数据备份</string>
+    <string name="theme">主题</string>
+    <string name="about">关于</string>
+    
+    <!-- 餐次提醒 -->
+    <string name="breakfast_reminder">早餐提醒</string>
+    <string name="lunch_reminder">午餐提醒</string>
+    <string name="dinner_reminder">晚餐提醒</string>
+    <string name="reminder_time">提醒时间</string>
+    
+    <!-- 权限 -->
+    <string name="permission_camera_required">需要相机权限来拍照识别营养成分表</string>
+    <string name="permission_audio_required">需要麦克风权限来使用语音输入</string>
+    <string name="permission_notification_required">需要通知权限来发送餐次提醒</string>
+</resources>
