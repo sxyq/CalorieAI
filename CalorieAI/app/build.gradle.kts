@@ -37,6 +37,15 @@ android {
             applicationIdSuffix = ".debug"
         }
     }
+    
+    // 打包选项
+    android.applicationVariants.all {
+        outputs.all {
+            if (this is com.android.build.gradle.internal.api.BaseVariantOutputImpl) {
+                this.outputFileName = "CalorieAI-v1.0.apk"
+            }
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
