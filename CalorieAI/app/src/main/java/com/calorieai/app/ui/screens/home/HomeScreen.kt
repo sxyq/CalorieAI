@@ -34,7 +34,6 @@ import java.util.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -72,19 +71,8 @@ fun HomeScreen(
         }
     }
     
-    Box(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                    MaterialTheme.colorScheme.surface,
-                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
-                )
-            )
-        )
-    ) {
     Scaffold(
-        containerColor = Color.Transparent,
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = { Text("CalorieAI") },
@@ -221,7 +209,7 @@ fun HomeScreen(
             }
         }
     }
-    
+
     // 运动消耗对话框
     ExerciseDialog(
         isVisible = showExerciseDialog,
@@ -231,7 +219,6 @@ fun HomeScreen(
             showExerciseDialog = false
         }
     )
-    } // End of Liquid Glass background Box
 }
 
 @Composable
@@ -436,7 +423,7 @@ fun FoodRecordItem(
     
     // 滑动偏移量
     var offsetX by remember { mutableFloatStateOf(0f) }
-    val maxSwipe = 120f // 最大滑动距离
+    val maxSwipe = 280f // 最大滑动距离，确保"380千卡"等长文本能完全显示
     
     // 动画化偏移量
     val animatedOffsetX by animateFloatAsState(

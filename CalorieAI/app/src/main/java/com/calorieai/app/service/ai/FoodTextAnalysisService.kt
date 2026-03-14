@@ -43,30 +43,71 @@ class FoodTextAnalysisService @Inject constructor(
 
     /**
      * 分析食物文本描述
+     * @param foodDescription 食物描述
+     * @param maxRetries 最大重试次数（默认2次）
+     * @param onRetry 重试回调，用于显示提示
      */
-    suspend fun analyzeFoodText(foodDescription: String): Result<TextFoodAnalysisResult> = withContext(Dispatchers.IO) {
-        try {
-            val config = aiConfigRepository.getDefaultConfig().firstOrNull()
-                ?: return@withContext Result.failure(Exception("未配置AI服务"))
+    suspend fun analyzeFoodText(
+        foodDescription: String,
+        maxRetries: Int = 2,
+        onRetry: ((attempt: Int, maxAttempts: Int) -> Unit)? = null
+    ): Result<TextFoodAnalysisResult> = withContext(Dispatchers.IO) {
+        var lastException: Exception? = null
+        
+        repeat(maxRetries + 1) { attempt ->
+            try {
+                val config = aiConfigRepository.getDefaultConfig().firstOrNull()
+                    ?: return@withContext Result.failure(Exception("未配置AI服务"))
 
-            val userPrompt = "请分析以下食物的热量和营养成分：$foodDescription"
+                val userPrompt = "请分析以下食物的热量和营养成分：$foodDescription"
 
-            val responseText = aiApiClient.chat(
-                config = config,
-                systemPrompt = SYSTEM_PROMPT,
-                userMessage = userPrompt,
-                temperature = 0.3,
-                maxTokens = 1000
-            )
+                // 使用chatRaw获取响应和原始JSON以提取token使用量
+                val (responseText, rawResponse) = aiApiClient.chatRaw(
+                    config = config,
+                    systemPrompt = SYSTEM_PROMPT,
+                    userMessage = userPrompt,
+                    temperature = 0.3,
+                    maxTokens = 1000
+                )
 
-            val result = parseAnalysisResult(responseText)
-            Result.success(result)
+                val result = parseAnalysisResult(responseText)
+                
+                // 检查解析结果是否有效
+                if (result.foodName.isNotBlank() && result.calories > 0) {
+                    // 提取token使用量
+                    val usage = aiApiClient.extractOpenAIUsage(rawResponse)
+                    
+                    return@withContext Result.success(result.copy(
+                        promptTokens = usage?.promptTokens ?: 0,
+                        completionTokens = usage?.completionTokens ?: 0
+                    ))
+                } else {
+                    // 解析结果无效，需要重试
+                    lastException = Exception("AI返回数据无效")
+                    if (attempt < maxRetries) {
+                        onRetry?.invoke(attempt + 1, maxRetries + 1)
+                        // 等待一段时间后重试
+                        kotlinx.coroutines.delay(1000L * (attempt + 1))
+                    }
+                }
 
-        } catch (e: AIApiException) {
-            Result.failure(Exception("AI分析失败: ${e.message}"))
-        } catch (e: Exception) {
-            Result.failure(e)
+            } catch (e: AIApiException) {
+                lastException = Exception("AI分析失败: ${e.message}")
+                if (attempt < maxRetries) {
+                    onRetry?.invoke(attempt + 1, maxRetries + 1)
+                    kotlinx.coroutines.delay(1000L * (attempt + 1))
+                }
+            } catch (e: Exception) {
+                lastException = e
+                if (attempt < maxRetries) {
+                    onRetry?.invoke(attempt + 1, maxRetries + 1)
+                    kotlinx.coroutines.delay(1000L * (attempt + 1))
+                }
+            }
         }
+        
+        // 所有重试都失败了
+        Result.failure(lastException ?: Exception("AI分析失败，请稍后重试"))
     }
 
     /**
@@ -76,47 +117,134 @@ class FoodTextAnalysisService @Inject constructor(
     private fun parseAnalysisResult(content: String): TextFoodAnalysisResult {
         val jsonString = extractJsonFromText(content)
         
-        // 清理 JSON 字符串：替换中文标点为英文标点
-        val cleanedJson = jsonString
+        // 清理 JSON 字符串：替换中文标点为英文标点，替换中文字段名为英文字段名
+        var cleanedJson = jsonString
             .replace("，", ",")  // 中文逗号 -> 英文逗号
-            .replace(""", "\"")  // 中文左引号 -> 英文引号
-            .replace(""", "\"")  // 中文右引号 -> 英文引号
             .replace("：", ":")  // 中文冒号 -> 英文冒号
-            .replace("estimated weight", "estimatedWeight")  // 修正字段名
-            .replace("饱和脂肪", "saturatedFat")
-            .replace("反式脂肪", "transFat")
-            .replace("胆固醇", "cholesterol")
-            .replace("钠", "sodium")
-            .replace("钾", "potassium")
-            .replace("钙", "calcium")
-            .replace("铁", "iron")
-            .replace("锌", "zinc")
-            .replace("镁", "magnesium")
-            .replace("维生素A", "vitaminA")
-            .replace("维生素C", "vitaminC")
-            .replace("维生素D", "vitaminD")
-            .replace("维生素E", "vitaminE")
-            .replace("维生素B1", "vitaminB1")
-            .replace("维生素B2", "vitaminB2")
-            .replace("维生素B6", "vitaminB6")
-            .replace("维生素B12", "vitaminB12")
-            .replace("vitamin B2", "vitaminB2")
-            .replace("vitamin B6", "vitaminB6")
+            .replace("estimated weight", "estimatedWeight")
+        
+        // 替换各种中文引号为英文引号（包括全角和半角）
+        cleanedJson = cleanedJson
+            .replace(""", "\"")
+            .replace(""", "\"")
+            .replace("'", "\"")
+            .replace("'", "\"")
+        
+        // 替换中文字段名为英文字段名（按长度从长到短，避免部分替换）
+        val fieldNameMappings = listOf(
+            "estimatedWeight" to listOf("estimated weight", "estimatedWeight", "estimated_weight"),
+            "saturatedFat" to listOf("饱和脂肪", "saturatedFat", "saturated_fat"),
+            "transFat" to listOf("反式脂肪", "transFat", "trans_fat"),
+            "cholesterol" to listOf("胆固醇", "cholesterol"),
+            "sodium" to listOf("钠", "sodium"),
+            "potassium" to listOf("钾", "potassium"),
+            "calcium" to listOf("钙", "calcium"),
+            "iron" to listOf("铁", "iron"),
+            "zinc" to listOf("锌", "zinc"),
+            "magnesium" to listOf("镁", "magnesium"),
+            "vitaminA" to listOf("维生素A", "vitaminA", "vitamin A", "vitamin_A"),
+            "vitaminC" to listOf("维生素C", "vitaminC", "vitamin C", "vitamin_C"),
+            "vitaminD" to listOf("维生素D", "vitaminD", "vitamin D", "vitamin_D"),
+            "vitaminE" to listOf("维生素E", "vitaminE", "vitamin E", "vitamin_E"),
+            "vitaminB1" to listOf("维生素B1", "vitaminB1", "vitamin B1", "vitamin_B1", "thiamine"),
+            "vitaminB2" to listOf("维生素B2", "vitaminB2", "vitamin B2", "vitamin_B2", "riboflavin"),
+            "vitaminB6" to listOf("维生素B6", "vitaminB6", "vitamin B6", "vitamin_B6", "pyridoxine"),
+            "vitaminB12" to listOf("维生素B12", "vitaminB12", "vitamin B12", "vitamin_B12", "cobalamin"),
+            "foodName" to listOf("食物名称", "foodName", "food_name"),
+            "estimatedWeight" to listOf("估计重量", "estimatedWeight"),
+            "calories" to listOf("热量", "卡路里", "calories"),
+            "protein" to listOf("蛋白质", "protein"),
+            "carbs" to listOf("碳水化合物", "碳水", "carbs", "carbohydrates"),
+            "fat" to listOf("脂肪", "fat"),
+            "fiber" to listOf("膳食纤维", "纤维", "fiber"),
+            "sugar" to listOf("糖分", "糖", "sugar")
+        )
+        
+        for ((englishName, chineseNames) in fieldNameMappings) {
+            for (chineseName in chineseNames) {
+                // 替换 "中文字段名": 为 "英文字段名":
+                cleanedJson = cleanedJson.replace("\"$chineseName\":", "\"$englishName\":")
+                // 替换 '中文字段名': 为 "英文字段名":
+                cleanedJson = cleanedJson.replace("'$chineseName':", "\"$englishName\":")
+            }
+        }
+        
+        // 修复AI返回的字符串数字（如 "4" -> 4.0）
+        // 将 "字段名":"数字" 替换为 "字段名":数字
+        val numericFields = listOf(
+            "calories", "protein", "carbs", "fat", "fiber", "sugar",
+            "saturatedFat", "transFat", "cholesterol", "sodium", "potassium",
+            "calcium", "iron", "zinc", "magnesium", "vitaminA", "vitaminC",
+            "vitaminD", "vitaminE", "vitaminB1", "vitaminB2", "vitaminB6", "vitaminB12"
+        )
+        for (field in numericFields) {
+            // 匹配 "字段名":"数字" 或 "字段名":'数字'
+            val regex = Regex("\"$field\"\\s*:\\s*['\"]([^'\"]+)['\"]")
+            cleanedJson = regex.replace(cleanedJson) { matchResult ->
+                val value = matchResult.groupValues[1]
+                // 尝试转换为数字，如果失败则保留原值
+                try {
+                    value.toFloat()
+                    "\"$field\":$value"
+                } catch (e: Exception) {
+                    matchResult.value
+                }
+            }
+        }
+        
+        // 确保JSON以 } 结尾（修复AI可能遗漏的闭合括号）
+        if (!cleanedJson.trimEnd().endsWith("}")) {
+            cleanedJson = cleanedJson.trimEnd() + "}"
+        }
 
         return try {
             gson.fromJson(cleanedJson, TextFoodAnalysisResult::class.java)
                 ?: TextFoodAnalysisResult()
         } catch (e: Exception) {
             e.printStackTrace()
-            TextFoodAnalysisResult(
-                foodName = "未知食物",
-                estimatedWeight = 0,
-                calories = 0,
-                protein = 0f,
-                carbs = 0f,
-                fat = 0f
-            )
+            // 尝试更宽松的解析
+            try {
+                // 手动提取关键字段
+                val foodName = extractField(cleanedJson, "foodName") ?: "未知食物"
+                val calories = extractFloatField(cleanedJson, "calories") ?: 0f
+                val protein = extractFloatField(cleanedJson, "protein") ?: 0f
+                val carbs = extractFloatField(cleanedJson, "carbs") ?: 0f
+                val fat = extractFloatField(cleanedJson, "fat") ?: 0f
+                
+                TextFoodAnalysisResult(
+                    foodName = foodName,
+                    calories = calories,
+                    protein = protein,
+                    carbs = carbs,
+                    fat = fat
+                )
+            } catch (e2: Exception) {
+                TextFoodAnalysisResult(
+                    foodName = "未知食物",
+                    estimatedWeight = 0,
+                    calories = 0f,
+                    protein = 0f,
+                    carbs = 0f,
+                    fat = 0f
+                )
+            }
         }
+    }
+    
+    /**
+     * 从JSON字符串中提取字符串字段
+     */
+    private fun extractField(json: String, fieldName: String): String? {
+        val regex = Regex("\"$fieldName\"\\s*:\\s*\"([^\"]+)\"")
+        return regex.find(json)?.groupValues?.get(1)
+    }
+    
+    /**
+     * 从JSON字符串中提取Float字段
+     */
+    private fun extractFloatField(json: String, fieldName: String): Float? {
+        val regex = Regex("\"$fieldName\"\\s*:\\s*([0-9.]+)")
+        return regex.find(json)?.groupValues?.get(1)?.toFloatOrNull()
     }
 
     /**
@@ -157,8 +285,20 @@ class FoodTextAnalysisService @Inject constructor(
 data class TextFoodAnalysisResult(
     @SerializedName("foodName") val foodName: String = "",
     @SerializedName("estimatedWeight") val estimatedWeight: Int = 0,
-    @SerializedName("calories") val calories: Int = 0,
+    @SerializedName("calories") val calories: Float = 0f,  // 改为Float，因为AI可能返回小数
     @SerializedName("protein") val protein: Float = 0f,
     @SerializedName("carbs") val carbs: Float = 0f,
-    @SerializedName("fat") val fat: Float = 0f
+    @SerializedName("fat") val fat: Float = 0f,
+    @SerializedName("fiber") val fiber: Float = 0f,
+    @SerializedName("sugar") val sugar: Float = 0f,
+    @SerializedName("sodium") val sodium: Float = 0f,
+    @SerializedName("cholesterol") val cholesterol: Float = 0f,
+    @SerializedName("saturatedFat") val saturatedFat: Float = 0f,
+    @SerializedName("calcium") val calcium: Float = 0f,
+    @SerializedName("iron") val iron: Float = 0f,
+    @SerializedName("vitaminC") val vitaminC: Float = 0f,
+    @SerializedName("vitaminA") val vitaminA: Float = 0f,
+    @SerializedName("potassium") val potassium: Float = 0f,
+    val promptTokens: Int = 0,
+    val completionTokens: Int = 0
 )

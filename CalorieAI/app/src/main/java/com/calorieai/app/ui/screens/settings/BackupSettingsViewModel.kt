@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieai.app.service.backup.BackupData
+import com.calorieai.app.service.backup.BackupResult
 import com.calorieai.app.service.backup.BackupService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,10 +39,11 @@ class BackupSettingsViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, resultMessage = null)
             
             backupService.createBackup(uri, _uiState.value.includeAIConfigs)
-                .onSuccess { message ->
+                .onSuccess { result ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        resultMessage = message,
+                        resultMessage = "${result.message}：${result.foodRecordCount}条饮食记录，${result.exerciseRecordCount}条运动记录" +
+                            if (result.weightRecordCount > 0) "，${result.weightRecordCount}条体重记录" else "",
                         isSuccess = true
                     )
                 }
@@ -101,10 +103,11 @@ class BackupSettingsViewModel @Inject constructor(
             )
             
             backupService.restoreBackup(uri)
-                .onSuccess { message ->
+                .onSuccess { result ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        resultMessage = message,
+                        resultMessage = "${result.message}：${result.foodRecordCount}条饮食记录，${result.exerciseRecordCount}条运动记录" +
+                            if (result.weightRecordCount > 0) "，${result.weightRecordCount}条体重记录" else "",
                         isSuccess = true,
                         backupInfo = null,
                         pendingRestoreUri = null

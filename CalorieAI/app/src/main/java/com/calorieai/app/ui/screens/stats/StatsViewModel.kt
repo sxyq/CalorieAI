@@ -98,7 +98,12 @@ class StatsViewModel @Inject constructor(
                     lastMonthSummary = summary,
                     streakDays = streakDays,
                     trendChartData = trendData,
-                    isLoading = false
+                    isLoading = false,
+                    // 更新用户身体数据
+                    userWeight = userWeight ?: 70f,
+                    userGender = settings?.userGender ?: "MALE",
+                    userAge = settings?.userAge ?: 30,
+                    userActivityLevel = settings?.activityLevel ?: "MODERATE"
                 )
             }
         }
@@ -510,6 +515,89 @@ class StatsViewModel @Inject constructor(
         )
         loadStats()
     }
+
+    /**
+     * 设置概览统计日期
+     */
+    fun setOverviewDate(date: LocalDate) {
+        _uiState.value = _uiState.value.copy(selectedOverviewDate = date)
+        refreshOverviewStats()
+    }
+
+    /**
+     * 刷新概览统计数据
+     */
+    private fun refreshOverviewStats() {
+        viewModelScope.launch {
+            val foodRecords = foodRecordRepository.getAllRecordsOnce()
+            val exerciseRecords = exerciseRecordRepository.getAllRecordsOnce()
+            val settings = userSettingsRepository.getSettingsOnce()
+            val targetCalories = settings?.dailyCalorieGoal ?: 2000
+            val selectedDate = _uiState.value.selectedOverviewDate
+
+            // 计算选中日期的统计数据
+            val dayStart = selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val dayEnd = selectedDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
+
+            val dayFoodRecords = foodRecords.filter { it.recordTime in dayStart..dayEnd }
+            val dayExerciseRecords = exerciseRecords.filter {
+                java.time.Instant.ofEpochMilli(it.recordTime)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate() == selectedDate
+            }
+
+            val bmr = if (settings != null) {
+                calculateBMR(
+                    gender = settings.userGender ?: "MALE",
+                    weight = settings.userWeight,
+                    height = settings.userHeight,
+                    age = settings.userAge
+                )
+            } else 0
+            val tdee = if (bmr > 0 && settings != null) {
+                calculateTDEE(bmr, settings.activityLevel)
+            } else 0
+
+            // 手动构建TodayStats
+            val totalCalories = dayFoodRecords.sumOf { it.totalCalories }
+            val todayStats = TodayStats(
+                date = selectedDate,
+                totalCalories = totalCalories,
+                targetCalories = targetCalories,
+                remainingCalories = targetCalories - totalCalories,
+                isTargetMet = totalCalories <= targetCalories,
+                recordCount = dayFoodRecords.size,
+                proteinGrams = dayFoodRecords.sumOf { it.protein.toDouble() }.toFloat(),
+                carbsGrams = dayFoodRecords.sumOf { it.carbs.toDouble() }.toFloat(),
+                fatGrams = dayFoodRecords.sumOf { it.fat.toDouble() }.toFloat(),
+                fiberGrams = dayFoodRecords.sumOf { it.fiber.toDouble() }.toFloat(),
+                sugarGrams = dayFoodRecords.sumOf { it.sugar.toDouble() }.toFloat(),
+                sodiumMg = dayFoodRecords.sumOf { it.sodium.toDouble() }.toFloat(),
+                cholesterolMg = dayFoodRecords.sumOf { it.cholesterol.toDouble() }.toFloat(),
+                saturatedFatGrams = dayFoodRecords.sumOf { it.saturatedFat.toDouble() }.toFloat(),
+                calciumMg = dayFoodRecords.sumOf { it.calcium.toDouble() }.toFloat(),
+                ironMg = dayFoodRecords.sumOf { it.iron.toDouble() }.toFloat(),
+                vitaminCMg = dayFoodRecords.sumOf { it.vitaminC.toDouble() }.toFloat(),
+                vitaminAMcg = dayFoodRecords.sumOf { it.vitaminA.toDouble() }.toFloat(),
+                potassiumMg = dayFoodRecords.sumOf { it.potassium.toDouble() }.toFloat(),
+                exerciseCalories = dayExerciseRecords.sumOf { it.caloriesBurned },
+                exerciseMinutes = dayExerciseRecords.sumOf { it.durationMinutes },
+                exerciseCount = dayExerciseRecords.size,
+                bmr = bmr,
+                tdee = tdee
+            )
+
+            // 计算餐次统计
+            val mealTypeStats = dayFoodRecords
+                .groupBy { it.mealType }
+                .mapValues { (_, records) -> records.sumOf { it.totalCalories } }
+
+            _uiState.value = _uiState.value.copy(
+                todayStats = todayStats,
+                mealTypeStats = mealTypeStats
+            )
+        }
+    }
 }
 
 data class StatsUiState(
@@ -525,5 +613,12 @@ data class StatsUiState(
     val trendEndDate: LocalDate? = null,
     val trendTimeDimension: TimeDimension = TimeDimension.DAY,
     val trendChartData: TrendChartData = TrendChartData(emptyList(), emptyList(), emptyList(), emptyList()),
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    // 概览日期选择
+    val selectedOverviewDate: LocalDate = LocalDate.now(),
+    // 用户身体数据（用于计算营养素参考值）
+    val userWeight: Float = 70f,
+    val userGender: String = "MALE",
+    val userAge: Int = 30,
+    val userActivityLevel: String = "MODERATE"
 )

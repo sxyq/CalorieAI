@@ -1,12 +1,14 @@
 package com.calorieai.app.ui.screens.stats
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -26,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.Brush
+import com.calorieai.app.ui.components.interactiveScale
 import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.ui.components.interactiveScale
 import androidx.compose.ui.unit.dp
@@ -36,6 +39,9 @@ import com.calorieai.app.ui.components.charts.*
 import com.calorieai.app.ui.components.fadingTopEdge
 import com.calorieai.app.utils.*
 import com.calorieai.app.data.model.ExerciseType
+import com.calorieai.app.data.model.NutritionReference
+import com.calorieai.app.data.model.NutritionCalculator
+import com.calorieai.app.data.model.UserBodyProfile
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -112,7 +118,12 @@ fun StatsScreen(
                 label = "StatsContent"
             ) { tab ->
                 when (tab) {
-                    0 -> OverviewStatsContent(uiState)
+                    0 -> OverviewStatsContent(
+                        uiState = uiState,
+                        onDateSelected = { date ->
+                            viewModel.setOverviewDate(date)
+                        }
+                    )
                     1 -> TrendAnalysisContent(
                         uiState = uiState,
                         onDateRangeSelected = { start, end ->
@@ -139,12 +150,23 @@ fun StatsScreen(
  * 概览统计内容
  */
 @Composable
-private fun OverviewStatsContent(uiState: StatsUiState) {
+private fun OverviewStatsContent(
+    uiState: StatsUiState,
+    onDateSelected: (LocalDate) -> Unit
+) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .fadingTopEdge()
     ) {
+        // 日期选择器
+        item {
+            OverviewDateSelector(
+                selectedDate = uiState.selectedOverviewDate,
+                onDateSelected = onDateSelected
+            )
+        }
+
         // 今日统计卡片
         item {
             uiState.todayStats?.let { stats ->
@@ -185,6 +207,137 @@ private fun OverviewStatsContent(uiState: StatsUiState) {
         item {
             AnimatedListItem(index = 4) {
                 StreakCard(streakDays = uiState.streakDays)
+            }
+        }
+
+        // 详细营养素统计表
+        item {
+            uiState.todayStats?.let { stats ->
+                AnimatedListItem(index = 5) {
+                    DetailedNutritionStatsCard(stats = stats)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 概览日期选择器 - 类似首页日历的简化版
+ */
+@Composable
+private fun OverviewDateSelector(
+    selectedDate: LocalDate,
+    onDateSelected: (LocalDate) -> Unit
+) {
+    val today = LocalDate.now()
+    val dates = (-3..3).map { today.plusDays(it.toLong()) }
+    val weekDays = listOf("日", "一", "二", "三", "四", "五", "六")
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp)
+        ) {
+            // 当前选中的日期显示
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${selectedDate.monthValue}月${selectedDate.dayOfMonth}日",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "周${weekDays[selectedDate.dayOfWeek.value % 7]}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 日期选择行
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                dates.forEach { date ->
+                    val isSelected = date == selectedDate
+                    val isToday = date == today
+                    val interactionSource = remember { MutableInteractionSource() }
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .interactiveScale(interactionSource)
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = null,
+                                onClick = { onDateSelected(date) }
+                            )
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        // 星期
+                        Text(
+                            text = weekDays[date.dayOfWeek.value % 7],
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // 日期
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    when {
+                                        isSelected -> MaterialTheme.colorScheme.primary
+                                        isToday -> MaterialTheme.colorScheme.primaryContainer
+                                        else -> Color.Transparent
+                                    }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "${date.dayOfMonth}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
+                                color = when {
+                                    isSelected -> MaterialTheme.colorScheme.onPrimary
+                                    isToday -> MaterialTheme.colorScheme.onPrimaryContainer
+                                    else -> MaterialTheme.colorScheme.onSurface
+                                }
+                            )
+                        }
+
+                        // 今天标记
+                        if (isToday) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(4.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -811,6 +964,265 @@ private fun HistoryStatsCard(stats: HistoryStats?) {
         }
     }
 }
+
+/**
+ * 详细营养素统计卡片 - 展示13种营养素的摄入情况
+ */
+@Composable
+private fun DetailedNutritionStatsCard(
+    stats: TodayStats,
+    viewModel: StatsViewModel = hiltViewModel()
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+
+    // 从ViewModel获取用户身体数据
+    val uiState by viewModel.uiState.collectAsState()
+
+    // 构建用户身体数据
+    val userProfile by remember(uiState.userWeight, uiState.userGender, uiState.userAge, uiState.userActivityLevel) {
+        derivedStateOf {
+            UserBodyProfile(
+                weight = uiState.userWeight,
+                gender = uiState.userGender,
+                age = uiState.userAge,
+                activityLevel = uiState.userActivityLevel
+            )
+        }
+    }
+
+    // 计算个性化营养素参考值
+    val nutritionReferences by remember(userProfile) {
+        derivedStateOf {
+            NutritionCalculator.calculateAll(userProfile)
+        }
+    }
+
+    // 构建营养素数据列表
+    val nutritionItems = listOf(
+        NutritionItemData(
+            reference = nutritionReferences.find { it.id == "protein" }!!,
+            currentValue = stats.proteinGrams,
+            emoji = "💪"
+        ),
+        NutritionItemData(
+            reference = nutritionReferences.find { it.id == "carbs" }!!,
+            currentValue = stats.carbsGrams,
+            emoji = "🍞"
+        ),
+        NutritionItemData(
+            reference = nutritionReferences.find { it.id == "fat" }!!,
+            currentValue = stats.fatGrams,
+            emoji = "🥑"
+        ),
+        NutritionItemData(
+            reference = nutritionReferences.find { it.id == "fiber" }!!,
+            currentValue = stats.fiberGrams,
+            emoji = "🌾"
+        ),
+        NutritionItemData(
+            reference = nutritionReferences.find { it.id == "sugar" }!!,
+            currentValue = stats.sugarGrams,
+            emoji = "🍯"
+        ),
+        NutritionItemData(
+            reference = nutritionReferences.find { it.id == "sodium" }!!,
+            currentValue = stats.sodiumMg,
+            emoji = "🧂"
+        ),
+        NutritionItemData(
+            reference = nutritionReferences.find { it.id == "cholesterol" }!!,
+            currentValue = stats.cholesterolMg,
+            emoji = "🥚"
+        ),
+        NutritionItemData(
+            reference = nutritionReferences.find { it.id == "saturated_fat" }!!,
+            currentValue = stats.saturatedFatGrams,
+            emoji = "🧈"
+        ),
+        NutritionItemData(
+            reference = nutritionReferences.find { it.id == "calcium" }!!,
+            currentValue = stats.calciumMg,
+            emoji = "🥛"
+        ),
+        NutritionItemData(
+            reference = nutritionReferences.find { it.id == "iron" }!!,
+            currentValue = stats.ironMg,
+            emoji = "🥩"
+        ),
+        NutritionItemData(
+            reference = nutritionReferences.find { it.id == "vitamin_c" }!!,
+            currentValue = stats.vitaminCMg,
+            emoji = "🍊"
+        ),
+        NutritionItemData(
+            reference = nutritionReferences.find { it.id == "vitamin_a" }!!,
+            currentValue = stats.vitaminAMcg,
+            emoji = "🥕"
+        ),
+        NutritionItemData(
+            reference = nutritionReferences.find { it.id == "potassium" }!!,
+            currentValue = stats.potassiumMg,
+            emoji = "🍌"
+        )
+    )
+
+    // 基础营养素（始终显示）
+    val basicNutritionItems = nutritionItems.take(3)
+    // 扩展营养素（可展开）
+    val extendedNutritionItems = nutritionItems.drop(3)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            // 标题行
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "🥗",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "营养素摄入",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // 展开/收起按钮
+                IconButton(onClick = { isExpanded = !isExpanded }) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (isExpanded) "收起" else "展开",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 基础营养素（始终显示）
+            basicNutritionItems.forEach { item ->
+                NutritionProgressRow(item = item)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // 扩展营养素（可展开）
+            AnimatedVisibility(visible = isExpanded) {
+                Column {
+                    extendedNutritionItems.forEach { item ->
+                        NutritionProgressRow(item = item)
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+            }
+
+            // 提示文字
+            if (!isExpanded) {
+                Text(
+                    text = "点击展开查看全部13种营养素",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 营养素进度行
+ */
+@Composable
+private fun NutritionProgressRow(item: NutritionItemData) {
+    val progress = (item.currentValue / item.reference.dailyRecommended).coerceIn(0f, 1f)
+    val percentage = (progress * 100).toInt()
+    val statusColor = when {
+        progress < 0.3f -> MaterialTheme.colorScheme.error
+        progress < 0.7f -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.primary
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = item.emoji,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = item.reference.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "${item.currentValue.toInt()}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = statusColor
+                )
+                Text(
+                    text = "/${item.reference.dailyRecommended.toInt()}${item.reference.unit}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // 进度条
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp)),
+            color = statusColor,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+
+        // 百分比提示
+        Text(
+            text = "$percentage%",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            modifier = Modifier.align(Alignment.End)
+        )
+    }
+}
+
+/**
+ * 营养素数据项
+ */
+private data class NutritionItemData(
+    val reference: NutritionReference,
+    val currentValue: Float,
+    val emoji: String
+)
 
 /**
  * 连续记录卡片
@@ -1494,7 +1906,7 @@ private fun DateRangePickerDialog(
 }
 
 /**
- * 上月总结内容
+ * 上月总结内容 - 优化版，添加多种图表
  */
 @Composable
 private fun MonthlySummaryContent(
@@ -1516,11 +1928,30 @@ private fun MonthlySummaryContent(
             onMonthChange = onMonthChange
         )
 
-        // 顶部大图卡片
-        SummaryHeaderCard(summary)
+        // 顶部大图卡片 - 总热量环形图
+        SummaryHeaderCardWithChart(summary)
 
-        // 统计指标网格
-        SummaryMetricsGrid(summary)
+        // 关键指标卡片
+        SummaryKeyMetricsCard(summary)
+
+        // 餐次分布饼图
+        MealTypeDistributionChart(summary)
+
+        // 达标/超标天数对比图
+        TargetAchievementChart(summary)
+
+        // 运动统计卡片（如果有）
+        if ((summary?.totalExerciseCalories ?: 0) > 0) {
+            ExerciseSummaryCard(summary)
+        }
+
+        // 体重变化卡片（如果有）
+        if ((summary?.weightChange ?: 0f) != 0f) {
+            WeightChangeCard(summary)
+        }
+
+        // 详细数据表格
+        SummaryDetailTable(summary)
     }
 }
 
@@ -1844,6 +2275,576 @@ private fun SummaryMetricItem(
             text = unit,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * 带图表的总结头部卡片 - 环形进度图
+ */
+@Composable
+private fun SummaryHeaderCardWithChart(summary: MonthSummary?) {
+    val totalCalories = summary?.totalCalories ?: 0
+    val avgDaily = summary?.avgDailyCalories ?: 0
+    val targetCalories = 2000 // 假设目标2000千卡/天
+    val daysInMonth = summary?.let { java.time.YearMonth.of(it.year, it.month).lengthOfMonth() } ?: 30
+    val monthlyTarget = targetCalories * daysInMonth
+    val progress = (totalCalories.toFloat() / monthlyTarget).coerceIn(0f, 1f)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "${summary?.year ?: "2026"}年${summary?.month ?: 1}月",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 环形进度图
+            Box(
+                modifier = Modifier.size(140.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // 背景圆环
+                CircularProgressIndicator(
+                    progress = { 1f },
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f),
+                    strokeWidth = 12.dp
+                )
+                // 进度圆环
+                CircularProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxSize(),
+                    color = if (progress > 1f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimaryContainer,
+                    strokeWidth = 12.dp
+                )
+                // 中心文字
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "$totalCalories",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = "千卡",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 日均摄入
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.TrendingUp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                )
+                Text(
+                    text = "日均 $avgDaily 千卡",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 关键指标卡片
+ */
+@Composable
+private fun SummaryKeyMetricsCard(summary: MonthSummary?) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Text(
+                text = "📊 关键指标",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                // 记录天数
+                KeyMetricWithIcon(
+                    icon = "📝",
+                    value = "${summary?.totalRecords ?: 0}",
+                    label = "记录天数"
+                )
+
+                // 最高日摄入
+                KeyMetricWithIcon(
+                    icon = "🔥",
+                    value = "${summary?.maxDailyCalories ?: 0}",
+                    label = "最高日摄入"
+                )
+
+                // 达标率
+                val totalDays = (summary?.targetMetDays ?: 0) + (summary?.overTargetDays ?: 0)
+                val successRate = if (totalDays > 0) {
+                    (summary?.targetMetDays ?: 0) * 100 / totalDays
+                } else 0
+                KeyMetricWithIcon(
+                    icon = "🎯",
+                    value = "$successRate%",
+                    label = "达标率"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun KeyMetricWithIcon(icon: String, value: String, label: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = icon,
+            style = MaterialTheme.typography.headlineMedium
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * 餐次分布横向条形图
+ */
+@Composable
+private fun MealTypeDistributionChart(summary: MonthSummary?) {
+    val meals = listOf(
+        Triple("早餐", summary?.breakfastTotal ?: 0, MaterialTheme.colorScheme.primary),
+        Triple("午餐", summary?.lunchTotal ?: 0, MaterialTheme.colorScheme.secondary),
+        Triple("晚餐", summary?.dinnerTotal ?: 0, MaterialTheme.colorScheme.tertiary),
+        Triple("加餐", summary?.snackTotal ?: 0, MaterialTheme.colorScheme.outline)
+    )
+    val maxValue = meals.maxOfOrNull { it.second }?.coerceAtLeast(1) ?: 1
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Text(
+                text = "🍽️ 餐次分布",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            meals.forEach { (name, value, color) ->
+                val percentage = value.toFloat() / maxValue
+                MealBarItem(name = name, value = value, percentage = percentage, color = color)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun MealBarItem(name: String, value: Int, percentage: Float, color: androidx.compose.ui.graphics.Color) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = name,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.width(50.dp)
+        )
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(24.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(percentage.coerceIn(0f, 1f))
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(color)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Text(
+            text = "$value",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.width(50.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.End
+        )
+    }
+}
+
+/**
+ * 达标/超标天数对比图
+ */
+@Composable
+private fun TargetAchievementChart(summary: MonthSummary?) {
+    val targetMet = summary?.targetMetDays ?: 0
+    val overTarget = summary?.overTargetDays ?: 0
+    val total = (targetMet + overTarget).coerceAtLeast(1)
+    val metPercentage = targetMet.toFloat() / total
+    val overPercentage = overTarget.toFloat() / total
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Text(
+                text = "🎯 目标达成",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            // 堆叠条形图
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(32.dp)
+                    .clip(RoundedCornerShape(16.dp))
+            ) {
+                Row(modifier = Modifier.fillMaxSize()) {
+                    // 达标部分
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .weight(metPercentage.coerceAtLeast(0.01f))
+                            .background(MaterialTheme.colorScheme.tertiary)
+                    )
+                    // 超标部分
+                    if (overPercentage > 0) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .weight(overPercentage)
+                                .background(MaterialTheme.colorScheme.error)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 图例
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                LegendItem(
+                    color = MaterialTheme.colorScheme.tertiary,
+                    label = "达标",
+                    value = "$targetMet 天"
+                )
+                LegendItem(
+                    color = MaterialTheme.colorScheme.error,
+                    label = "超标",
+                    value = "$overTarget 天"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LegendItem(color: androidx.compose.ui.graphics.Color, label: String, value: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .clip(CircleShape)
+                .background(color)
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+/**
+ * 运动总结卡片
+ */
+@Composable
+private fun ExerciseSummaryCard(summary: MonthSummary?) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Text(
+                text = "💪 运动统计",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                ExerciseMetric(
+                    icon = "🔥",
+                    value = "${summary?.totalExerciseCalories ?: 0}",
+                    label = "消耗千卡"
+                )
+                ExerciseMetric(
+                    icon = "⏱️",
+                    value = "${summary?.totalExerciseMinutes ?: 0}",
+                    label = "运动分钟"
+                )
+                ExerciseMetric(
+                    icon = "📅",
+                    value = "${summary?.exerciseDays ?: 0}",
+                    label = "运动天数"
+                )
+            }
+
+            // 最活跃运动类型
+            summary?.mostActiveExerciseType?.let { exerciseType ->
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "最活跃：${exerciseType.emoji} ${exerciseType.displayName} (${summary.mostActiveExerciseCalories}千卡)",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f),
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExerciseMetric(icon: String, value: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = icon,
+            style = MaterialTheme.typography.headlineSmall
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onTertiaryContainer
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+        )
+    }
+}
+
+/**
+ * 体重变化卡片
+ */
+@Composable
+private fun WeightChangeCard(summary: MonthSummary?) {
+    val weightChange = summary?.weightChange ?: 0f
+    val isLoss = weightChange < 0
+    val changeText = if (isLoss) "减重 ${String.format("%.1f", -weightChange)}" else "增重 ${String.format("%.1f", weightChange)}"
+    val changeColor = if (isLoss) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isLoss) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "⚖️ 体重变化",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (isLoss) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onErrorContainer
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = changeText,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = changeColor
+            )
+
+            Text(
+                text = "kg",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (isLoss) MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "基于运动消耗估算",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isLoss) MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.6f)
+            )
+        }
+    }
+}
+
+/**
+ * 详细数据表格
+ */
+@Composable
+private fun SummaryDetailTable(summary: MonthSummary?) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Text(
+                text = "📋 详细数据",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            // 表格行
+            DetailTableRow("总摄入热量", "${summary?.totalCalories ?: 0} 千卡")
+            DetailTableRow("日均摄入", "${summary?.avgDailyCalories ?: 0} 千卡")
+            DetailTableRow("最高日摄入", "${summary?.maxDailyCalories ?: 0} 千卡")
+            DetailTableRow("记录天数", "${summary?.totalRecords ?: 0} 天")
+            DetailTableRow("达标天数", "${summary?.targetMetDays ?: 0} 天")
+            DetailTableRow("超标天数", "${summary?.overTargetDays ?: 0} 天")
+
+            if ((summary?.totalExerciseCalories ?: 0) > 0) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                DetailTableRow("运动消耗", "${summary?.totalExerciseCalories ?: 0} 千卡")
+                DetailTableRow("运动时长", "${summary?.totalExerciseMinutes ?: 0} 分钟")
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailTableRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold
         )
     }
 }

@@ -46,5 +46,11 @@ data class UserSettings(
     val lastBackupTime: String? = null,
     val enableCloudSync: Boolean = false,
     // AI助手设置
-    val showAIWidget: Boolean = true  // 是否显示AI助手悬浮按钮
+    val showAIWidget: Boolean = true,  // 是否显示AI助手悬浮按钮
+    // 壁纸设置
+    val wallpaperType: String = "GRADIENT",  // GRADIENT, SOLID, IMAGE
+    val wallpaperColor: String? = null,  // 纯色壁纸颜色
+    val wallpaperGradientStart: String? = null,  // 渐变起始颜色
+    val wallpaperGradientEnd: String? = null,  // 渐变结束颜色
+    val wallpaperImageUri: String? = null  // 图片壁纸URI
 )

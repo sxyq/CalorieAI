@@ -23,7 +23,7 @@ object StatsUtils {
     }
 
     /**
-     * 计算今日统计数据（包含运动数据）
+     * 计算今日统计数据（包含运动数据和详细营养素）
      */
     fun computeTodayStats(
         foodRecords: List<FoodRecord>,
@@ -38,16 +38,28 @@ object StatsUtils {
         val proteinGrams = todayFoodRecords.sumOf { it.protein.toDouble() }.toFloat()
         val carbsGrams = todayFoodRecords.sumOf { it.carbs.toDouble() }.toFloat()
         val fatGrams = todayFoodRecords.sumOf { it.fat.toDouble() }.toFloat()
-        
+
+        // 计算扩展营养素
+        val fiberGrams = todayFoodRecords.sumOf { it.fiber.toDouble() }.toFloat()
+        val sugarGrams = todayFoodRecords.sumOf { it.sugar.toDouble() }.toFloat()
+        val sodiumMg = todayFoodRecords.sumOf { it.sodium.toDouble() }.toFloat()
+        val cholesterolMg = todayFoodRecords.sumOf { it.cholesterol.toDouble() }.toFloat()
+        val saturatedFatGrams = todayFoodRecords.sumOf { it.saturatedFat.toDouble() }.toFloat()
+        val calciumMg = todayFoodRecords.sumOf { it.calcium.toDouble() }.toFloat()
+        val ironMg = todayFoodRecords.sumOf { it.iron.toDouble() }.toFloat()
+        val vitaminCMg = todayFoodRecords.sumOf { it.vitaminC.toDouble() }.toFloat()
+        val vitaminAMcg = todayFoodRecords.sumOf { it.vitaminA.toDouble() }.toFloat()
+        val potassiumMg = todayFoodRecords.sumOf { it.potassium.toDouble() }.toFloat()
+
         // 计算今日运动数据
-        val todayExerciseRecords = exerciseRecords.filter { 
+        val todayExerciseRecords = exerciseRecords.filter {
             java.time.Instant.ofEpochMilli(it.recordTime)
                 .atZone(ZoneId.systemDefault())
-                .toLocalDate() == today 
+                .toLocalDate() == today
         }
         val exerciseCalories = todayExerciseRecords.sumOf { it.caloriesBurned }
         val exerciseMinutes = todayExerciseRecords.sumOf { it.durationMinutes }
-        
+
         return TodayStats(
             date = today,
             totalCalories = totalCalories,
@@ -58,6 +70,16 @@ object StatsUtils {
             proteinGrams = proteinGrams,
             carbsGrams = carbsGrams,
             fatGrams = fatGrams,
+            fiberGrams = fiberGrams,
+            sugarGrams = sugarGrams,
+            sodiumMg = sodiumMg,
+            cholesterolMg = cholesterolMg,
+            saturatedFatGrams = saturatedFatGrams,
+            calciumMg = calciumMg,
+            ironMg = ironMg,
+            vitaminCMg = vitaminCMg,
+            vitaminAMcg = vitaminAMcg,
+            potassiumMg = potassiumMg,
             exerciseCalories = exerciseCalories,
             exerciseMinutes = exerciseMinutes,
             exerciseCount = todayExerciseRecords.size,
@@ -338,9 +360,22 @@ data class TodayStats(
     val remainingCalories: Int,
     val isTargetMet: Boolean,
     val recordCount: Int,
+    // 基础营养素
     val proteinGrams: Float = 0f,
     val carbsGrams: Float = 0f,
     val fatGrams: Float = 0f,
+    // 扩展营养素
+    val fiberGrams: Float = 0f,
+    val sugarGrams: Float = 0f,
+    val sodiumMg: Float = 0f,
+    val cholesterolMg: Float = 0f,
+    val saturatedFatGrams: Float = 0f,
+    val calciumMg: Float = 0f,
+    val ironMg: Float = 0f,
+    val vitaminCMg: Float = 0f,
+    val vitaminAMcg: Float = 0f,
+    val potassiumMg: Float = 0f,
+    // 运动数据
     val exerciseCalories: Int = 0,
     val exerciseMinutes: Int = 0,
     val exerciseCount: Int = 0,

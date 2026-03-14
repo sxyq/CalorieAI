@@ -1,15 +1,17 @@
-# CalorieAI 技术开发文档
+# CalorieAI v1.0 技术开发文档
 
 ## 文档说明
 
-本文档用于记录 CalorieAI 应用开发过程中的技术细节，包括：
+本文档用于记录 CalorieAI v1.0 应用开发过程中的技术细节，包括：
 - 变量命名与定义
 - 函数/方法签名
 - 类之间的关系
 - 实现描述
 - 功能描述
 
-**维护规则**：每开发一个功能后必须更新本文档
+**版本**: v1.0  
+**最后更新**: 2026-03-15  
+**维护规则**: 每开发一个功能后必须更新本文档
 
 ---
 
@@ -163,14 +165,60 @@ data class FoodRecord(
     val foodName: String,           // 食物名称
     val userInput: String,          // 用户原始输入
     val totalCalories: Int,         // 总热量（千卡）
+    // 基础营养素
     val protein: Float,             // 蛋白质（克）
     val carbs: Float,               // 碳水化合物（克）
     val fat: Float,                 // 脂肪（克）
+    // 扩展营养素（v3.2.0新增）
+    val fiber: Float = 0f,          // 膳食纤维（克）
+    val sugar: Float = 0f,          // 糖分（克）
+    val sodium: Float = 0f,         // 钠（毫克）
+    val cholesterol: Float = 0f,    // 胆固醇（毫克）
+    val saturatedFat: Float = 0f,   // 饱和脂肪（克）
+    val calcium: Float = 0f,        // 钙（毫克）
+    val iron: Float = 0f,           // 铁（毫克）
+    val vitaminC: Float = 0f,       // 维生素C（毫克）
+    val vitaminA: Float = 0f,       // 维生素A（微克）
+    val potassium: Float = 0f,      // 钾（毫克）
     val mealType: MealType,         // 餐次类型
     val recordTime: Long,           // 记录时间戳
     val isStarred: Boolean = false, // 是否收藏
     val notes: String? = null       // 备注
 )
+```
+
+### NutritionReference（营养素参考值）
+```kotlin
+/**
+ * 营养素参考值数据类（v3.2.0新增）
+ * 基于中国居民膳食指南（2022）的推荐摄入量
+ */
+data class NutritionReference(
+    val id: String,                 // 营养素ID
+    val name: String,               // 营养素名称
+    val unit: String,               // 单位（g/mg/μg）
+    val dailyRecommended: Float,    // 每日推荐摄入量
+    val dailyMax: Float? = null,    // 每日最大摄入量（可选）
+    val icon: String,               // Emoji图标
+    val color: Color                // 显示颜色
+)
+
+// 13种营养素常量定义
+object NutritionReferences {
+    val PROTEIN = NutritionReference("protein", "蛋白质", "g", 60f, null, "💪", Color(0xFF4CAF50))
+    val CARBS = NutritionReference("carbs", "碳水化合物", "g", 300f, null, "🍞", Color(0xFFFF9800))
+    val FAT = NutritionReference("fat", "脂肪", "g", 60f, null, "🥑", Color(0xFFFFC107))
+    val FIBER = NutritionReference("fiber", "膳食纤维", "g", 25f, null, "🌾", Color(0xFF8BC34A))
+    val SUGAR = NutritionReference("sugar", "糖分", "g", 50f, 50f, "🍯", Color(0xFFE91E63))
+    val SODIUM = NutritionReference("sodium", "钠", "mg", 2000f, 2000f, "🧂", Color(0xFF9E9E9E))
+    val CHOLESTEROL = NutritionReference("cholesterol", "胆固醇", "mg", 300f, 300f, "🥚", Color(0xFFFF5722))
+    val SATURATED_FAT = NutritionReference("saturated_fat", "饱和脂肪", "g", 20f, 20f, "🧈", Color(0xFFFF9800))
+    val CALCIUM = NutritionReference("calcium", "钙", "mg", 800f, null, "🥛", Color(0xFF2196F3))
+    val IRON = NutritionReference("iron", "铁", "mg", 12f, null, "🥩", Color(0xFF795548))
+    val VITAMIN_C = NutritionReference("vitamin_c", "维生素C", "mg", 100f, null, "🍊", Color(0xFFFF9800))
+    val VITAMIN_A = NutritionReference("vitamin_a", "维生素A", "μg", 700f, null, "🥕", Color(0xFFFFA726))
+    val POTASSIUM = NutritionReference("potassium", "钾", "mg", 2000f, null, "🍌", Color(0xFF4CAF50))
+}
 ```
 
 ### MealType（餐次类型）
@@ -309,8 +357,23 @@ data class UserSettingsBackup(
     val enableGoalReminder: Boolean,
     val enableStreakReminder: Boolean,
     val enableAutoBackup: Boolean,
-    val enableCloudSync: Boolean
+    val enableCloudSync: Boolean,
+    // 壁纸设置（v3.2.0新增）
+    val wallpaperType: String = "GRADIENT",
+    val wallpaperColor: String? = null,
+    val wallpaperGradientStart: String? = null,
+    val wallpaperGradientEnd: String? = null,
+    val wallpaperImageUri: String? = null
 )
+```
+
+### WallpaperType（壁纸类型）
+```kotlin
+enum class WallpaperType {
+    GRADIENT,   // 渐变壁纸
+    SOLID,      // 纯色壁纸
+    IMAGE       // 图片壁纸
+}
 ```
 
 ### AIConfig（AI配置）
@@ -670,6 +733,76 @@ private fun QuickSelectButtons(
 )
 ```
 
+### 7. DetailedNutritionStatsCard（详细营养素统计卡片）
+
+**位置**: `ui/screens/stats/StatsScreen.kt`
+
+**功能描述**（v3.2.0新增）:
+- 展示13种营养素的摄入进度条
+- 支持展开/收起查看全部营养素
+- 进度条颜色根据完成度变化（红色<30%，黄色<70%，绿色≥70%）
+- 使用emoji图标区分不同营养素
+
+**变量**:
+```kotlin
+// 营养素数据项
+private data class NutritionItemData(
+    val reference: NutritionReference,
+    val currentValue: Float,
+    val emoji: String
+)
+```
+
+**函数**:
+```kotlin
+@Composable
+private fun DetailedNutritionStatsCard(stats: TodayStats)
+
+@Composable
+private fun NutritionProgressRow(item: NutritionItemData)
+```
+
+### 8. WallpaperBackground（壁纸背景组件）
+
+**位置**: `ui/components/WallpaperBackground.kt`
+
+**功能描述**（v3.2.0新增）:
+- 根据用户设置显示不同的背景（渐变、纯色、图片）
+- 支持动态主题切换
+
+**函数**:
+```kotlin
+@Composable
+fun WallpaperBackground(
+    viewModel: AppearanceSettingsViewModel = hiltViewModel(),
+    content: @Composable () -> Unit
+)
+
+@Composable
+fun getWallpaperBackgroundModifier(
+    viewModel: AppearanceSettingsViewModel = hiltViewModel()
+): Modifier
+```
+
+### 9. OverviewDateSelector（概览日期选择器）
+
+**位置**: `ui/screens/stats/StatsScreen.kt`
+
+**功能描述**（v3.2.0新增）:
+- 类似首页日历的简化版日期选择器
+- 显示前后7天日期
+- 支持点击切换日期
+- 今天有特殊标记
+
+**函数**:
+```kotlin
+@Composable
+private fun OverviewDateSelector(
+    selectedDate: LocalDate,
+    onDateSelected: (LocalDate) -> Unit
+)
+```
+
 ---
 
 ## ViewModel
@@ -754,31 +887,49 @@ suspend fun deleteRecord(record: ExerciseRecord)
 suspend fun clearAllRecords()
 ```
 
-### BackupService（备份服务）
+### BackupService（备份服务）- v3.2.0
 
 **位置**: `service/backup/BackupService.kt`
 
 **功能描述**:
-- 创建JSON格式备份文件
-- 从备份文件恢复数据
+- 创建JSON格式备份文件（版本3）
+- 从备份文件恢复数据（支持版本兼容性检查）
 - 备份数据验证
-- 支持饮食记录、运动记录、用户设置
+- 支持饮食记录（含13种营养素）、运动记录、体重记录、用户设置（含壁纸设置）、AI配置
+
+**备份数据模型**:
+```kotlin
+@Serializable
+data class BackupData(
+    val version: Int = 3,                    // 备份版本号
+    val backupDate: String,                  // 备份时间
+    val appVersion: String = "3.2.0",        // 应用版本
+    val foodRecords: List<FoodRecordBackup>, // 饮食记录（含扩展营养素）
+    val exerciseRecords: List<ExerciseRecordBackup>,
+    val userSettings: UserSettingsBackup?,   // 含壁纸设置
+    val aiConfigs: List<AIConfigBackup> = emptyList(),
+    val weightRecords: List<WeightRecordBackup> = emptyList(), // 体重记录
+    val includeAIConfigs: Boolean = true
+)
+```
 
 **函数**:
 ```kotlin
 /**
  * 创建备份
  * @param uri 备份文件保存URI
- * @return Result<String> 成功返回备份信息，失败返回错误
+ * @param includeAIConfigs 是否包含AI配置
+ * @return Result<BackupResult> 成功返回详细备份结果
  */
-suspend fun createBackup(uri: Uri): Result<String>
+suspend fun createBackup(uri: Uri, includeAIConfigs: Boolean = true): Result<BackupResult>
 
 /**
  * 恢复备份
  * @param uri 备份文件URI
- * @return Result<String> 成功返回恢复信息，失败返回错误
+ * @return Result<BackupResult> 成功返回详细恢复结果
+ * @throws Exception 版本不兼容时抛出异常
  */
-suspend fun restoreBackup(uri: Uri): Result<String>
+suspend fun restoreBackup(uri: Uri): Result<BackupResult>
 
 /**
  * 获取备份信息（不恢复）
@@ -786,13 +937,17 @@ suspend fun restoreBackup(uri: Uri): Result<String>
  * @return Result<BackupData> 备份数据信息
  */
 suspend fun getBackupInfo(uri: Uri): Result<BackupData>
+```
 
-/**
- * 验证备份文件
- * @param uri 备份文件URI
- * @return Boolean 是否有效
- */
-suspend fun validateBackup(uri: Uri): Boolean
+**备份结果数据类**:
+```kotlin
+data class BackupResult(
+    val foodRecordCount: Int,      // 饮食记录数量
+    val exerciseRecordCount: Int,  // 运动记录数量
+    val weightRecordCount: Int,    // 体重记录数量
+    val aiConfigCount: Int,        // AI配置数量
+    val message: String            // 结果消息
+)
 ```
 
 ### BackupSettingsViewModel（备份设置ViewModel）
@@ -1198,6 +1353,7 @@ Modifier
 
 | 日期 | 版本 | 更新内容 | 更新人 |
 |------|------|----------|--------|
+| 2026-03-15 | v3.2.0 | 性能优化与功能增强：13种营养素、壁纸设置、概览日期切换、AI导入优化、备份功能重构 | AI Assistant |
 | 2026-03-13 | v3.1.2 | 界面结构调整：添加方式选择页面重构、个人信息页面调整、趋势分析优化 | AI Assistant |
 | 2026-03-13 | v3.1.1 | 编译修复与优化：修复clickable导入、ExerciseType枚举、添加getAllRecordsOnce方法 | AI Assistant |
 | 2026-03-13 | v3.1 | 运动与统计增强：统一趋势图表、运动数据统计、体重变化估算 | AI Assistant |
@@ -1207,11 +1363,12 @@ Modifier
 | 2026-03-12 | v1.1-v1.7 | 阶段三开发完成 | AI Assistant |
 | 2026-03-13 | v2.0 | 阶段五高级功能完成 | AI Assistant |
 | 2026-03-13 | v3.1 | 运动与统计增强 | AI Assistant |
+| 2026-03-15 | v3.2.0 | 阶段九性能优化与功能增强完成 | AI Assistant |
 
 ---
 
 **文档维护**: 每开发一个功能后必须更新本文档
-**最后更新**: 2026-03-13
+**最后更新**: 2026-03-15
 
 ---
 

@@ -3,7 +3,8 @@ package com.calorieai.app.ui.screens.add
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.rotate
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.model.getMealTypeName
@@ -150,10 +152,36 @@ fun AddFoodScreen(
                 // 快捷输入示例 - 软玻璃卡片
                 SoftExampleCard()
                 
+                // 重试提示
+                if (uiState.retryMessage != null) {
+                    RetryMessageCard(
+                        message = uiState.retryMessage!!,
+                        attempt = uiState.retryAttempt,
+                        maxAttempts = uiState.maxRetries + 1
+                    )
+                }
+                
+                // 错误提示
+                if (uiState.errorMessage != null) {
+                    ErrorMessageCard(
+                        message = uiState.errorMessage!!,
+                        onDismiss = { viewModel.clearError() }
+                    )
+                }
+                
                 // 保存按钮 - 软玻璃主按钮
                 SoftSaveButton(
-                    onClick = { viewModel.saveFoodRecord(onNavigateToResult) },
+                    onClick = { 
+                        viewModel.saveFoodRecord(
+                            onSuccess = onNavigateToResult,
+                            onError = { error ->
+                                // 错误已在UI状态中显示
+                            }
+                        )
+                    },
                     isLoading = uiState.isLoading,
+                    retryAttempt = uiState.retryAttempt,
+                    maxRetries = uiState.maxRetries,
                     enabled = uiState.foodDescription.isNotBlank() && !uiState.isLoading
                 )
                 
@@ -493,12 +521,14 @@ private fun SoftExampleItem(text: String) {
 }
 
 /**
- * 软玻璃保存按钮
+ * 软玻璃保存按钮 - 带加载动画和重试状态
  */
 @Composable
 private fun SoftSaveButton(
     onClick: () -> Unit,
     isLoading: Boolean,
+    retryAttempt: Int = 0,
+    maxRetries: Int = 2,
     enabled: Boolean
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -527,29 +557,199 @@ private fun SoftSaveButton(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                enabled = enabled,
+                enabled = enabled && !isLoading,
                 onClick = onClick
             ),
         contentAlignment = Alignment.Center
     ) {
-        if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                strokeWidth = 2.dp
-            )
-        } else {
-            Text(
-                text = "保存记录",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.SemiBold
-                ),
-                color = if (enabled) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+        AnimatedContent(
+            targetState = isLoading,
+            transitionSpec = {
+                fadeIn(animationSpec = tween(300)) togetherWith
+                fadeOut(animationSpec = tween(300))
+            },
+            label = "loading"
+        ) { loading ->
+            if (loading) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // 进度指示器动画
+                    val infiniteTransition = rememberInfiniteTransition(label = "progress")
+                    val progress by infiniteTransition.animateFloat(
+                        initialValue = 0f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1500, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "progress"
+                    )
+                    
+                    Box(
+                        modifier = Modifier.size(28.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f),
+                            strokeWidth = 3.dp,
+                            progress = { 1f }
+                        )
+                        CircularProgressIndicator(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            strokeWidth = 3.dp,
+                            progress = { progress }
+                        )
+                    }
+                    
+                    Column {
+                        Text(
+                            text = if (retryAttempt > 0) "AI分析中 (重试${retryAttempt}/${maxRetries})..." else "AI分析中...",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        if (retryAttempt > 0) {
+                            Text(
+                                text = "正在重新尝试...",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
                 }
+            } else {
+                Text(
+                    text = "保存记录",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = if (enabled) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 错误提示卡片
+ */
+@Composable
+private fun ErrorMessageCard(message: String, onDismiss: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Error,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "关闭",
+                    tint = MaterialTheme.colorScheme.onErrorContainer
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 重试提示卡片
+ */
+@Composable
+private fun RetryMessageCard(
+    message: String,
+    attempt: Int,
+    maxAttempts: Int
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 旋转的加载图标
+            val infiniteTransition = rememberInfiniteTransition(label = "retry")
+            val rotation by infiniteTransition.animateFloat(
+                initialValue = 0f,
+                targetValue = 360f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "rotation"
             )
+            
+            Box(
+                modifier = Modifier.size(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.rotate(rotation)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    text = "尝试 $attempt / $maxAttempts",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                )
+            }
         }
     }
 }

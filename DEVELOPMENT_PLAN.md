@@ -1,12 +1,13 @@
-# CalorieAI - 全程开发规划
+# CalorieAI v1.0 - 全程开发规划
 
 ## 项目概述
 
-**项目名称**: CalorieAI  
+**项目名称**: CalorieAI v1.0  
 **类型**: Android原生应用 (Kotlin + Jetpack Compose)  
 **参考风格**: Deadliner (Material3 Expressive)  
 **数据存储**: 本地Room数据库  
-**核心功能**: AI食物热量记录
+**核心功能**: AI食物热量记录  
+**当前版本**: v1.0 (2026-03-15)
 
 ---
 
@@ -70,13 +71,23 @@
 ├── 7.3 测试与Bug修复 ✅
 └── 7.4 打包发布 ✅
 
-阶段八：Liquid Glass 视觉重构与动效升级 (进行中) ⏳
+阶段八：Liquid Glass 视觉重构与动效升级 (已完成) ✅
 ├── 8.1 建立 Liquid Glass 基础设计系统 (Modifiers/Components) ✅
 ├── 8.2 基础设置页面重构 (外观/通知/备份等) ✅
 ├── 8.3 核心功能页面重构 (AI对话/拍照分析/记录页面) ✅
-├── 8.4 结果展示页面重构 (ResultScreen) ⏳
-├── 8.5 首页与导航重构 (HomeScreen) ⏳
-└── 8.6 统计分析页面重构 (StatsScreen) ⏳
+├── 8.4 结果展示页面重构 (ResultScreen) ✅
+├── 8.5 首页与导航重构 (HomeScreen) ✅
+└── 8.6 统计分析页面重构 (StatsScreen) ✅
+
+阶段九：性能优化与功能增强 (已完成) ✅
+├── 9.1 数据库性能优化 (索引/查询优化) ✅
+├── 9.2 Compose渲染性能优化 ✅
+├── 9.3 启动速度优化 ✅
+├── 9.4 扩展营养素支持 (13种营养素) ✅
+├── 9.5 AI导入功能增强 (错误提示/加载动画) ✅
+├── 9.6 上月总结UI优化 (多种图表) ✅
+├── 9.7 壁纸设置功能 ✅
+└── 9.8 概览统计日期切换 ✅
 ```
 
 ---
@@ -1140,7 +1151,9 @@ StatsScreen (Scaffold)
 | M4: 数据统计完成 | 第5周末 | 图表与统计功能 | ✅ |
 | M5: 高级功能完成 | 第6周末 | AI助手、运动、小组件 | ✅ |
 | M6: 图表可视化完成 | 第7周末 | MPAndroidChart集成 | ✅ |
-| M7: 应用发布 | 第8周末 | 可发布的APK/AAB | ⏳ |
+| M7: 应用发布 | 第8周末 | 可发布的APK/AAB | ✅ |
+| M8: 性能优化完成 | 第9周末 | 数据库/Compose/启动优化 | ✅ |
+| M9: 功能增强完成 | 第9周末 | 13种营养素/壁纸/日期切换 | ✅ |
 
 ---
 
@@ -1321,6 +1334,58 @@ StatsScreen (Scaffold)
 ---
 
 ## 更新日志
+
+### v3.2.0 (2026-03-15) - 性能优化与功能增强
+- ✅ 数据库性能优化
+  - 添加数据库索引（recordTime、mealType、isStarred）
+  - 优化Converters（复用Gson实例）
+  - 新增getRecentRecords限制返回数量
+- ✅ Compose渲染性能优化
+  - 使用derivedStateOf优化鼓励标语计算
+  - 优化列表key参数
+- ✅ 启动速度优化
+  - AI配置延迟初始化（延迟2秒）
+  - 使用SharedPreferences快速读取主题设置
+- ✅ 扩展营养素支持（13种）
+  - 新增NutritionReference.kt（13种营养素参考值）
+  - 蛋白质、碳水、脂肪、膳食纤维、糖、钠、胆固醇、饱和脂肪
+  - 钙、铁、维生素C、维生素A、钾
+  - StatsScreen添加DetailedNutritionStatsCard组件
+  - ResultScreen支持13种营养素输入
+- ✅ AI导入功能增强
+  - 修复AI导入token统计问题
+  - 添加AI分析错误提示（ErrorMessageCard）
+  - 添加加载过渡动画（AnimatedContent）
+  - 支持更多营养素字段返回
+- ✅ 上月总结UI优化
+  - 添加环形进度图（SummaryHeaderCardWithChart）
+  - 添加关键指标卡片（SummaryKeyMetricsCard）
+  - 添加餐次分布横向条形图（MealTypeDistributionChart）
+  - 添加达标/超标天数对比图（TargetAchievementChart）
+  - 添加运动统计卡片（ExerciseSummaryCard）
+  - 添加体重变化卡片（WeightChangeCard）
+  - 添加详细数据表格（SummaryDetailTable）
+- ✅ 壁纸设置功能
+  - 新增WallpaperType枚举（GRADIENT/SOLID/IMAGE）
+  - AppearanceSettingsScreen添加壁纸选择器
+  - 支持6种渐变配色预设
+  - 支持8种纯色预设
+  - 新增WallpaperBackground组件
+- ✅ 概览统计日期切换
+  - 添加OverviewDateSelector组件
+  - 支持前后7天日期选择
+  - 切换日期后自动刷新统计数据
+- ✅ 数据库版本升级
+  - 版本号从11升级到12
+  - FoodRecord添加扩展营养素字段
+  - UserSettings添加壁纸相关字段
+- ✅ 备份功能重构
+  - 备份版本升级到v3
+  - 支持体重记录备份/恢复
+  - 支持扩展营养素字段备份
+  - 支持壁纸设置备份
+  - 添加版本兼容性检查
+  - 新增BackupResult数据类
 
 ### v3.1.2 (2026-03-13) - 界面结构调整
 - ✅ 添加方式选择页面重构

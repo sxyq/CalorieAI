@@ -23,6 +23,15 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("calorieai-release.keystore")
+            storePassword = "calorieai123"
+            keyAlias = "calorieai"
+            keyPassword = "calorieai123"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -30,7 +39,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
             isMinifyEnabled = false

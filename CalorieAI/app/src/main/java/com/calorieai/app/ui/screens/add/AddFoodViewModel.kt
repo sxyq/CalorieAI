@@ -5,12 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.repository.FoodRecordRepository
-import com.calorieai.app.service.ai.TextFoodAnalysisResult
 import com.calorieai.app.service.ai.FoodTextAnalysisService
+import com.calorieai.app.service.ai.TextFoodAnalysisResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import javax.inject.Inject
@@ -18,7 +19,9 @@ import javax.inject.Inject
 @HiltViewModel
 class AddFoodViewModel @Inject constructor(
     private val foodRecordRepository: FoodRecordRepository,
-    private val foodTextAnalysisService: FoodTextAnalysisService
+    private val foodTextAnalysisService: FoodTextAnalysisService,
+    private val aiTokenUsageRepository: com.calorieai.app.data.repository.AITokenUsageRepository,
+    private val aiConfigRepository: com.calorieai.app.data.repository.AIConfigRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddFoodUiState())
@@ -32,45 +35,115 @@ class AddFoodViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(selectedMealType = mealType)
     }
 
-    fun saveFoodRecord(onSuccess: (String) -> Unit) {
-        val description = _uiState.value.foodDescription
-        if (description.isBlank()) return
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(errorMessage = null, retryMessage = null)
+    }
+    
+    fun clearRetryMessage() {
+        _uiState.value = _uiState.value.copy(retryMessage = null)
+    }
 
-        _uiState.value = _uiState.value.copy(isLoading = true)
+    fun saveFoodRecord(
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val description = _uiState.value.foodDescription
+        if (description.isBlank()) {
+            onError("请输入食物描述")
+            return
+        }
+
+        _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null, retryMessage = null, retryAttempt = 0)
 
         viewModelScope.launch {
             try {
-                // 调用AI服务分析食物
-                val analysisResult = foodTextAnalysisService.analyzeFoodText(description)
+                // 调用AI服务分析食物，带重试机制
+                val analysisResult = foodTextAnalysisService.analyzeFoodText(
+                    foodDescription = description,
+                    maxRetries = 2,
+                    onRetry = { attempt, maxAttempts ->
+                        _uiState.value = _uiState.value.copy(
+                            retryMessage = "AI分析失败，正在进行第${attempt}次重试...",
+                            retryAttempt = attempt
+                        )
+                    }
+                )
 
-                val (foodName, calories, protein, carbs, fat) = if (analysisResult.isSuccess) {
-                    val result = analysisResult.getOrNull()!!
-                    // 使用AI分析结果
-                    Quadruple(
-                        result.foodName.takeIf { it.isNotBlank() } ?: extractFoodName(description),
-                        result.calories,
-                        result.protein,
-                        result.carbs,
-                        result.fat
+                if (analysisResult.isFailure) {
+                    val error = analysisResult.exceptionOrNull()
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = error?.message ?: "AI分析失败，请检查网络连接或AI配置",
+                        retryMessage = null
                     )
-                } else {
-                    // AI分析失败，使用默认值
-                    Quadruple(
-                        extractFoodName(description),
-                        0,
-                        0f,
-                        0f,
-                        0f
+                    onError(error?.message ?: "AI分析失败")
+                    return@launch
+                }
+
+                val result = analysisResult.getOrNull()
+                if (result == null) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "AI返回数据为空",
+                        retryMessage = null
                     )
+                    onError("AI返回数据为空")
+                    return@launch
+                }
+
+                // 检查AI返回的结果是否有效
+                if (result.foodName.isBlank() && result.calories <= 0) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "无法识别食物，请尝试更详细的描述",
+                        retryMessage = null
+                    )
+                    onError("无法识别食物")
+                    return@launch
+                }
+                
+                val foodName = result.foodName.takeIf { it.isNotBlank() } ?: extractFoodName(description)
+                val promptTokens = result.promptTokens
+                val completionTokens = result.completionTokens
+
+                // 记录Token使用情况（在单独的协程中，避免阻塞主流程）
+                if (promptTokens > 0 || completionTokens > 0) {
+                    viewModelScope.launch {
+                        try {
+                            aiConfigRepository.getDefaultConfig().firstOrNull()?.let { config ->
+                                // 估算成本（简化计算，实际应根据模型价格）
+                                val cost = (promptTokens + completionTokens) * 0.000002 // 假设每1000 tokens $0.002
+                                aiTokenUsageRepository.recordTokenUsage(
+                                    configId = config.id,
+                                    configName = config.name,
+                                    promptTokens = promptTokens,
+                                    completionTokens = completionTokens,
+                                    cost = cost
+                                )
+                            }
+                        } catch (e: Exception) {
+                            // 记录token失败不影响主流程
+                        }
+                    }
                 }
 
                 val record = FoodRecord(
                     foodName = foodName,
                     userInput = description,
-                    totalCalories = calories,
-                    protein = protein,
-                    carbs = carbs,
-                    fat = fat,
+                    totalCalories = result.calories.toInt(),
+                    protein = result.protein,
+                    carbs = result.carbs,
+                    fat = result.fat,
+                    fiber = result.fiber,
+                    sugar = result.sugar,
+                    sodium = result.sodium,
+                    cholesterol = result.cholesterol,
+                    saturatedFat = result.saturatedFat,
+                    calcium = result.calcium,
+                    iron = result.iron,
+                    vitaminC = result.vitaminC,
+                    vitaminA = result.vitaminA,
+                    potassium = result.potassium,
                     mealType = _uiState.value.selectedMealType,
                     recordTime = System.currentTimeMillis()
                 )
@@ -79,32 +152,16 @@ class AddFoodViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(isLoading = false)
                 onSuccess(record.id)
             } catch (e: Exception) {
-                // 发生异常时创建默认记录
-                val record = FoodRecord(
-                    foodName = extractFoodName(description),
-                    userInput = description,
-                    totalCalories = 0,
-                    protein = 0f,
-                    carbs = 0f,
-                    fat = 0f,
-                    mealType = _uiState.value.selectedMealType,
-                    recordTime = System.currentTimeMillis()
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "发生错误: ${e.message}"
                 )
-                foodRecordRepository.addRecord(record)
-                _uiState.value = _uiState.value.copy(isLoading = false)
-                onSuccess(record.id)
+                onError(e.message ?: "未知错误")
             }
         }
     }
 
-    // 辅助数据类用于返回多个值
-    private data class Quadruple<A, B, C, D, E>(
-        val first: A,
-        val second: B,
-        val third: C,
-        val fourth: D,
-        val fifth: E
-    )
+
 
     private fun extractFoodName(description: String): String {
         // 尝试从描述中提取食物名称
@@ -142,5 +199,10 @@ class AddFoodViewModel @Inject constructor(
 data class AddFoodUiState(
     val foodDescription: String = "",
     val selectedMealType: MealType = MealType.LUNCH,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val analysisResult: TextFoodAnalysisResult? = null,
+    val retryMessage: String? = null,  // 重试提示信息
+    val retryAttempt: Int = 0,  // 当前重试次数
+    val maxRetries: Int = 2  // 最大重试次数
 )

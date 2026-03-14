@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,7 +34,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.model.NutritionReference
-import com.calorieai.app.data.model.NutritionReferences
+import com.calorieai.app.data.model.NutritionCalculator
+import com.calorieai.app.data.model.UserBodyProfile
 import com.calorieai.app.data.model.getMealTypeName
 import com.calorieai.app.ui.components.interactiveScale
 import com.calorieai.app.ui.components.liquidGlass
@@ -50,6 +52,13 @@ fun ManualAddScreen(
     viewModel: ManualAddViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // 获取营养素参考值（使用默认用户数据）
+    val nutritionReferences by remember {
+        derivedStateOf {
+            NutritionCalculator.getDefaultReferences().associateBy { it.id }
+        }
+    }
 
     // 渐变背景
     Box(
@@ -135,19 +144,19 @@ fun ManualAddScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             NutritionInputCard(
-                                reference = NutritionReferences.PROTEIN,
+                                reference = nutritionReferences["protein"]!!,
                                 value = uiState.protein,
                                 onValueChange = viewModel::updateProtein,
                                 modifier = Modifier.weight(1f)
                             )
                             NutritionInputCard(
-                                reference = NutritionReferences.CARBS,
+                                reference = nutritionReferences["carbs"]!!,
                                 value = uiState.carbs,
                                 onValueChange = viewModel::updateCarbs,
                                 modifier = Modifier.weight(1f)
                             )
                             NutritionInputCard(
-                                reference = NutritionReferences.FAT,
+                                reference = nutritionReferences["fat"]!!,
                                 value = uiState.fat,
                                 onValueChange = viewModel::updateFat,
                                 modifier = Modifier.weight(1f)
@@ -173,13 +182,13 @@ fun ManualAddScreen(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     NutritionInputCard(
-                                        reference = NutritionReferences.FIBER,
+                                        reference = nutritionReferences["fiber"]!!,
                                         value = uiState.fiber,
                                         onValueChange = viewModel::updateFiber,
                                         modifier = Modifier.weight(1f)
                                     )
                                     NutritionInputCard(
-                                        reference = NutritionReferences.SUGAR,
+                                        reference = nutritionReferences["sugar"]!!,
                                         value = uiState.sugar,
                                         onValueChange = viewModel::updateSugar,
                                         modifier = Modifier.weight(1f)
@@ -192,13 +201,13 @@ fun ManualAddScreen(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     NutritionInputCard(
-                                        reference = NutritionReferences.SODIUM,
+                                        reference = nutritionReferences["sodium"]!!,
                                         value = uiState.sodium,
                                         onValueChange = viewModel::updateSodium,
                                         modifier = Modifier.weight(1f)
                                     )
                                     NutritionInputCard(
-                                        reference = NutritionReferences.CHOLESTEROL,
+                                        reference = nutritionReferences["cholesterol"]!!,
                                         value = uiState.cholesterol,
                                         onValueChange = viewModel::updateCholesterol,
                                         modifier = Modifier.weight(1f)
@@ -211,13 +220,13 @@ fun ManualAddScreen(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     NutritionInputCard(
-                                        reference = NutritionReferences.SATURATED_FAT,
+                                        reference = nutritionReferences["saturated_fat"]!!,
                                         value = uiState.saturatedFat,
                                         onValueChange = viewModel::updateSaturatedFat,
                                         modifier = Modifier.weight(1f)
                                     )
                                     NutritionInputCard(
-                                        reference = NutritionReferences.CALCIUM,
+                                        reference = nutritionReferences["calcium"]!!,
                                         value = uiState.calcium,
                                         onValueChange = viewModel::updateCalcium,
                                         modifier = Modifier.weight(1f)
@@ -230,13 +239,13 @@ fun ManualAddScreen(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     NutritionInputCard(
-                                        reference = NutritionReferences.IRON,
+                                        reference = nutritionReferences["iron"]!!,
                                         value = uiState.iron,
                                         onValueChange = viewModel::updateIron,
                                         modifier = Modifier.weight(1f)
                                     )
                                     NutritionInputCard(
-                                        reference = NutritionReferences.VITAMIN_C,
+                                        reference = nutritionReferences["vitamin_c"]!!,
                                         value = uiState.vitaminC,
                                         onValueChange = viewModel::updateVitaminC,
                                         modifier = Modifier.weight(1f)
