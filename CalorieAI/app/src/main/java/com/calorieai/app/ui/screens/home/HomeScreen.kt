@@ -317,8 +317,10 @@ fun TodayOverviewCard(
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            // 鼓励标语
-            val encouragement = remember { com.calorieai.app.utils.getRandomEncouragement() }
+            // 鼓励标语 - 使用remember避免每次重组都重新计算
+            val encouragement by remember(totalCalories, dailyGoal) {
+                derivedStateOf { com.calorieai.app.utils.getRandomEncouragement() }
+            }
             Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),

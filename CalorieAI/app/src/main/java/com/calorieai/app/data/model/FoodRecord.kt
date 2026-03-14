@@ -1,6 +1,7 @@
 package com.calorieai.app.data.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
 
@@ -121,15 +122,19 @@ enum class ConfidenceLevel {
 }
 
 class Converters {
+    companion object {
+        private val gson = com.google.gson.Gson()
+        private val ingredientType = object : com.google.gson.reflect.TypeToken<List<Ingredient>>() {}.type
+    }
+
     @androidx.room.TypeConverter
     fun fromIngredientsList(value: List<Ingredient>): String {
-        return com.google.gson.Gson().toJson(value)
+        return gson.toJson(value)
     }
 
     @androidx.room.TypeConverter
     fun toIngredientsList(value: String): List<Ingredient> {
-        val type = object : com.google.gson.reflect.TypeToken<List<Ingredient>>() {}.type
-        return com.google.gson.Gson().fromJson(value, type)
+        return gson.fromJson(value, ingredientType)
     }
 
     @androidx.room.TypeConverter
