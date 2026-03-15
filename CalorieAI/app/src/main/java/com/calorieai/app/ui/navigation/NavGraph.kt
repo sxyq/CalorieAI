@@ -29,7 +29,15 @@ sealed class Screen(val route: String) {
     object Home : Screen("home")
     object AddMethodSelector : Screen("add_method_selector")
     object ManualAdd : Screen("manual_add")
-    object AddFood : Screen("add_food")
+    object AddFood : Screen("add_food?date={date}") {
+        fun createRoute(date: String? = null): String {
+            return if (date != null) {
+                "add_food?date=$date"
+            } else {
+                "add_food"
+            }
+        }
+    }
     object Camera : Screen("camera")
     object PhotoAnalysis : Screen("photo_analysis/{photoUri}") {
         fun createRoute(photoUri: String) = "photo_analysis/$photoUri"
@@ -68,7 +76,7 @@ fun NavGraph(navController: NavHostController) {
     ) {
         composable(Screen.Home.route) {
             HomeScreen(
-                onNavigateToAdd = {
+                onNavigateToAdd = { selectedDate ->
                     navController.navigate(Screen.AddMethodSelector.route)
                 },
                 onNavigateToStats = {
@@ -120,8 +128,19 @@ fun NavGraph(navController: NavHostController) {
             )
         }
 
-        composable(Screen.AddFood.route) {
+        composable(
+            route = Screen.AddFood.route,
+            arguments = listOf(
+                androidx.navigation.navArgument("date") {
+                    type = androidx.navigation.NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val date = backStackEntry.arguments?.getString("date")
             AddFoodScreen(
+                selectedDate = date,
                 onNavigateBack = {
                     navController.popBackStack()
                 },

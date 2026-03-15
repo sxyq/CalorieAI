@@ -30,7 +30,8 @@ enum class AIProtocol {
     GLM,        // Zhipu GLM
     QWEN,       // Alibaba Qwen
     DEEPSEEK,   // DeepSeek
-    GEMINI      // Google Gemini
+    GEMINI,     // Google Gemini
+    LONGCAT     // LongCat (美团)
 }
 
 enum class IconType {
@@ -51,6 +52,7 @@ object AIProviderIcons {
     const val QWEN = "ic_qwen"
     const val DEEPSEEK = "ic_deepseek"
     const val GEMINI = "ic_gemini"
+    const val LONGCAT = "ic_longcat"
     const val CUSTOM = "ic_custom_ai"
 }
 
@@ -59,8 +61,25 @@ object AIProviderIcons {
  * 提供常用配置的快速选择
  */
 object AIConfigPresets {
+    // 预设配置ID常量
+    const val ID_OPENAI_GPT5 = "openai_gpt5"
+    const val ID_OPENAI_GPT4O = "openai_gpt4o"
+    const val ID_CLAUDE_4_6_OPUS = "claude_4_6_opus"
+    const val ID_CLAUDE_3_5_SONNET = "claude_3_5_sonnet"
+    const val ID_KIMI_K2_5 = "kimi_k2_5"
+    const val ID_GLM_4_PLUS = "glm_4_plus"
+    const val ID_QWEN_2_5_MAX = "qwen_2_5_max"
+    const val ID_DEEPSEEK_V3 = "deepseek_v3"
+    const val ID_DEEPSEEK_R1 = "deepseek_r1"
+    const val ID_GEMINI_2_0_PRO = "gemini_2_0_pro"
+    const val ID_LONGCAT_FLASH_OMNI = "longcat_flash_omni"
+    const val ID_LONGCAT_FLASH_CHAT = "longcat_flash_chat"
+    const val ID_LONGCAT_FLASH_THINKING = "longcat_flash_thinking"
+    const val ID_LONGCAT_FLASH_LITE = "longcat_flash_lite"
+
     // OpenAI 预设
     val OPENAI_GPT5 = AIConfig(
+        id = ID_OPENAI_GPT5,
         name = "OpenAI GPT-5",
         icon = AIProviderIcons.OPENAI,
         iconType = IconType.RESOURCE,
@@ -73,6 +92,7 @@ object AIConfigPresets {
     )
 
     val OPENAI_GPT4O = AIConfig(
+        id = ID_OPENAI_GPT4O,
         name = "OpenAI GPT-4o",
         icon = AIProviderIcons.OPENAI,
         iconType = IconType.RESOURCE,
@@ -86,6 +106,7 @@ object AIConfigPresets {
 
     // Claude 预设
     val CLAUDE_4_6_OPUS = AIConfig(
+        id = ID_CLAUDE_4_6_OPUS,
         name = "Claude 4.6 Opus",
         icon = AIProviderIcons.CLAUDE,
         iconType = IconType.RESOURCE,
@@ -98,6 +119,7 @@ object AIConfigPresets {
     )
 
     val CLAUDE_3_5_SONNET = AIConfig(
+        id = ID_CLAUDE_3_5_SONNET,
         name = "Claude 3.5 Sonnet",
         icon = AIProviderIcons.CLAUDE,
         iconType = IconType.RESOURCE,
@@ -111,6 +133,7 @@ object AIConfigPresets {
 
     // Kimi 预设
     val KIMI_K2_5 = AIConfig(
+        id = ID_KIMI_K2_5,
         name = "Kimi K2.5",
         icon = AIProviderIcons.KIMI,
         iconType = IconType.RESOURCE,
@@ -124,6 +147,7 @@ object AIConfigPresets {
 
     // GLM 预设
     val GLM_4_PLUS = AIConfig(
+        id = ID_GLM_4_PLUS,
         name = "GLM-4 Plus",
         icon = AIProviderIcons.GLM,
         iconType = IconType.RESOURCE,
@@ -137,6 +161,7 @@ object AIConfigPresets {
 
     // Qwen 预设
     val QWEN_2_5_MAX = AIConfig(
+        id = ID_QWEN_2_5_MAX,
         name = "Qwen 2.5 Max",
         icon = AIProviderIcons.QWEN,
         iconType = IconType.RESOURCE,
@@ -150,6 +175,7 @@ object AIConfigPresets {
 
     // DeepSeek 预设
     val DEEPSEEK_V3 = AIConfig(
+        id = ID_DEEPSEEK_V3,
         name = "DeepSeek V3",
         icon = AIProviderIcons.DEEPSEEK,
         iconType = IconType.RESOURCE,
@@ -162,6 +188,7 @@ object AIConfigPresets {
     )
 
     val DEEPSEEK_R1 = AIConfig(
+        id = ID_DEEPSEEK_R1,
         name = "DeepSeek R1",
         icon = AIProviderIcons.DEEPSEEK,
         iconType = IconType.RESOURCE,
@@ -175,6 +202,7 @@ object AIConfigPresets {
 
     // Gemini 预设
     val GEMINI_2_0_PRO = AIConfig(
+        id = ID_GEMINI_2_0_PRO,
         name = "Gemini 2.0 Pro",
         icon = AIProviderIcons.GEMINI,
         iconType = IconType.RESOURCE,
@@ -183,6 +211,59 @@ object AIConfigPresets {
         apiKey = "",
         modelId = "gemini-2.0-pro-exp",
         isImageUnderstanding = true,
+        isPreset = true
+    )
+
+    // LongCat (美团) 预设
+    val LONGCAT_FLASH_OMNI = AIConfig(
+        id = ID_LONGCAT_FLASH_OMNI,
+        name = "LongCat-Flash-Omni-2603",
+        icon = AIProviderIcons.LONGCAT,
+        iconType = IconType.EMOJI,
+        protocol = AIProtocol.LONGCAT,
+        apiUrl = "https://api.longcat.chat/openai/v1/chat/completions",
+        apiKey = "",
+        modelId = "LongCat-Flash-Omni-2603",
+        isImageUnderstanding = true,
+        isPreset = true
+    )
+
+    val LONGCAT_FLASH_CHAT = AIConfig(
+        id = ID_LONGCAT_FLASH_CHAT,
+        name = "LongCat-Flash-Chat",
+        icon = AIProviderIcons.LONGCAT,
+        iconType = IconType.EMOJI,
+        protocol = AIProtocol.LONGCAT,
+        apiUrl = "https://api.longcat.chat/openai/v1/chat/completions",
+        apiKey = "",
+        modelId = "LongCat-Flash-Chat",
+        isImageUnderstanding = false,
+        isPreset = true
+    )
+
+    val LONGCAT_FLASH_THINKING = AIConfig(
+        id = ID_LONGCAT_FLASH_THINKING,
+        name = "LongCat-Flash-Thinking-2601",
+        icon = AIProviderIcons.LONGCAT,
+        iconType = IconType.EMOJI,
+        protocol = AIProtocol.LONGCAT,
+        apiUrl = "https://api.longcat.chat/openai/v1/chat/completions",
+        apiKey = "",
+        modelId = "LongCat-Flash-Thinking-2601",
+        isImageUnderstanding = false,
+        isPreset = true
+    )
+
+    val LONGCAT_FLASH_LITE = AIConfig(
+        id = ID_LONGCAT_FLASH_LITE,
+        name = "LongCat-Flash-Lite",
+        icon = AIProviderIcons.LONGCAT,
+        iconType = IconType.EMOJI,
+        protocol = AIProtocol.LONGCAT,
+        apiUrl = "https://api.longcat.chat/openai/v1/chat/completions",
+        apiKey = "",
+        modelId = "LongCat-Flash-Lite",
+        isImageUnderstanding = false,
         isPreset = true
     )
 
@@ -197,7 +278,11 @@ object AIConfigPresets {
         QWEN_2_5_MAX,
         DEEPSEEK_V3,
         DEEPSEEK_R1,
-        GEMINI_2_0_PRO
+        GEMINI_2_0_PRO,
+        LONGCAT_FLASH_OMNI,
+        LONGCAT_FLASH_CHAT,
+        LONGCAT_FLASH_THINKING,
+        LONGCAT_FLASH_LITE
     )
 
     // 图标选项（用于自定义图标选择）

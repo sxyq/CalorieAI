@@ -84,6 +84,11 @@ fun ResultScreen(
                         viewModel.updateRecord(updatedRecord)
                         onNavigateBack()
                     },
+                    onRegenerate = { userInput ->
+                        // 删除当前记录并返回首页重新分析
+                        viewModel.deleteRecord(uiState.record!!.id)
+                        onNavigateBack()
+                    },
                     modifier = Modifier.padding(paddingValues)
                 )
             }
@@ -95,6 +100,7 @@ fun ResultScreen(
 fun ResultContent(
     record: FoodRecord,
     onSave: (FoodRecord) -> Unit,
+    onRegenerate: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // 基础营养素状态
@@ -190,6 +196,16 @@ fun ResultContent(
                     potassium = potassium.toFloatOrNull() ?: 0f
                 )
                 onSave(updatedRecord)
+            }
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 重新生成数据按钮
+        RegenerateButton(
+            onClick = {
+                // 使用原始输入重新调用AI分析
+                onRegenerate(record.userInput)
             }
         )
 
@@ -718,6 +734,47 @@ private fun SaveButton(onClick: () -> Unit) {
                     fontWeight = FontWeight.SemiBold
                 ),
                 color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
+    }
+}
+
+/**
+ * 重新生成数据按钮
+ */
+@Composable
+private fun RegenerateButton(onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
+            .interactiveScale(interactionSource, pressedScale = 0.97f)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "重新生成数据",
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Medium
+                ),
+                color = MaterialTheme.colorScheme.onSecondaryContainer
             )
         }
     }

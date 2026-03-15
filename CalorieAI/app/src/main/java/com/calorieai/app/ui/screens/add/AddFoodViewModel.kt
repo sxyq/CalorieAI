@@ -43,6 +43,27 @@ class AddFoodViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(retryMessage = null)
     }
 
+    fun setSelectedDate(dateStr: String) {
+        try {
+            // 解析日期字符串 (格式: yyyy-MM-dd)
+            val parts = dateStr.split("-")
+            if (parts.size == 3) {
+                val year = parts[0].toInt()
+                val month = parts[1].toInt() - 1 // Calendar月份从0开始
+                val day = parts[2].toInt()
+                
+                val calendar = Calendar.getInstance()
+                calendar.set(year, month, day, 12, 0, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                
+                _uiState.value = _uiState.value.copy(selectedDate = calendar.timeInMillis)
+            }
+        } catch (e: Exception) {
+            // 解析失败，使用当前时间
+            _uiState.value = _uiState.value.copy(selectedDate = System.currentTimeMillis())
+        }
+    }
+
     fun saveFoodRecord(
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit
@@ -145,7 +166,7 @@ class AddFoodViewModel @Inject constructor(
                     vitaminA = result.vitaminA,
                     potassium = result.potassium,
                     mealType = _uiState.value.selectedMealType,
-                    recordTime = System.currentTimeMillis()
+                    recordTime = _uiState.value.selectedDate
                 )
 
                 foodRecordRepository.addRecord(record)
@@ -204,5 +225,6 @@ data class AddFoodUiState(
     val analysisResult: TextFoodAnalysisResult? = null,
     val retryMessage: String? = null,  // 重试提示信息
     val retryAttempt: Int = 0,  // 当前重试次数
-    val maxRetries: Int = 2  // 最大重试次数
+    val maxRetries: Int = 2,  // 最大重试次数
+    val selectedDate: Long = System.currentTimeMillis()  // 选中的日期
 )

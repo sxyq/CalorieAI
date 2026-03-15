@@ -33,14 +33,23 @@ class PhotoAnalysisViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             isAnalyzing = true,
             error = null,
-            analysisResult = null
+            analysisResult = null,
+            retryMessage = null,
+            retryAttempt = 0
         )
 
         viewModelScope.launch {
             val result = foodImageAnalysisService.analyzeFoodImage(
                 imageUri = photoUri,
                 context = context,
-                userHint = _uiState.value.userHint
+                userHint = _uiState.value.userHint,
+                maxRetries = 2,
+                onRetry = { attempt, maxAttempts, reason ->
+                    _uiState.value = _uiState.value.copy(
+                        retryMessage = "第 $attempt/$maxAttempts 次重试: $reason",
+                        retryAttempt = attempt
+                    )
+                }
             )
 
             result.fold(
@@ -48,13 +57,15 @@ class PhotoAnalysisViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         isAnalyzing = false,
                         analysisResult = analysisResult,
-                        editedResult = analysisResult
+                        editedResult = analysisResult,
+                        retryMessage = null
                     )
                 },
                 onFailure = { error ->
                     _uiState.value = _uiState.value.copy(
                         isAnalyzing = false,
-                        error = error.message ?: "分析失败"
+                        error = error.message ?: "分析失败",
+                        retryMessage = null
                     )
                 }
             )
@@ -116,5 +127,7 @@ data class PhotoAnalysisUiState(
     val analysisResult: FoodAnalysisResult? = null,
     val editedResult: FoodAnalysisResult? = null,
     val userHint: String = "",
-    val isEditMode: Boolean = false
+    val isEditMode: Boolean = false,
+    val retryMessage: String? = null,
+    val retryAttempt: Int = 0
 )

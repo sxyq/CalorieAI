@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.BackHandler
 import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.ui.components.interactiveScale
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -44,16 +45,34 @@ fun AddMethodSelectorScreen(
     onNavigateToExercise: () -> Unit = {}
 ) {
     var visible by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
+    
+    // 使用DisposableEffect处理返回逻辑
+    DisposableEffect(Unit) {
         visible = true
+        onDispose {
+            visible = false
+        }
+    }
+    
+    // 处理返回键
+    BackHandler {
+        if (visible) {
+            visible = false
+            onNavigateBack()
+        }
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
-            .clickable { onNavigateBack() }
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { 
+                visible = false
+                onNavigateBack() 
+            }
     ) {
         AnimatedVisibility(
             visible = visible,
@@ -184,7 +203,7 @@ private fun SmallMethodCard(
     val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
-            .height(100.dp)
+            .height(120.dp)
             .clip(RoundedCornerShape(16.dp))
             .interactiveScale(interactionSource)
             .liquidGlass(
@@ -200,28 +219,32 @@ private fun SmallMethodCard(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(horizontal = 8.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(36.dp),
                 tint = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = title,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
                 fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
         }
     }

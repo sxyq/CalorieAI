@@ -112,6 +112,8 @@ class HomeViewModel @Inject constructor(
                     exerciseCalories = totalExerciseCalories,
                     totalExerciseMinutes = totalExerciseMinutes,
                     tdee = _uiState.value.tdee,
+                    currentWeight = _uiState.value.currentWeight,
+                    showAIWidget = _uiState.value.showAIWidget,
                     isLoading = false
                 )
             }.collect { state ->

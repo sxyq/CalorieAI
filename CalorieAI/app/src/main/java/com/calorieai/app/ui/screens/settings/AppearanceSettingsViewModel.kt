@@ -35,7 +35,8 @@ class AppearanceSettingsViewModel @Inject constructor(
                         wallpaperColor = it.wallpaperColor,
                         wallpaperGradientStart = it.wallpaperGradientStart,
                         wallpaperGradientEnd = it.wallpaperGradientEnd,
-                        wallpaperImageUri = it.wallpaperImageUri
+                        wallpaperImageUri = it.wallpaperImageUri,
+                        showAIWidget = it.showAIWidget
                     )
                 }
             }
@@ -85,7 +86,7 @@ class AppearanceSettingsViewModel @Inject constructor(
                 fontSize = currentState.fontSize.name,
                 enableAnimations = currentState.enableAnimations,
                 enableCloudSync = currentSettings?.enableCloudSync ?: false,
-                showAIWidget = currentSettings?.showAIWidget ?: true,
+                showAIWidget = currentState.showAIWidget,
                 wallpaperType = currentState.wallpaperType.name,
                 wallpaperColor = currentState.wallpaperColor,
                 wallpaperGradientStart = currentState.wallpaperGradientStart,
@@ -118,6 +119,11 @@ class AppearanceSettingsViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(wallpaperImageUri = uri)
         saveSettings()
     }
+
+    fun updateShowAIWidget(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showAIWidget = show)
+        saveSettings()
+    }
 }
 
 data class AppearanceSettingsUiState(
@@ -126,12 +132,12 @@ data class AppearanceSettingsUiState(
     val hideDividers: Boolean = false,
     val fontSize: FontSize = FontSize.MEDIUM,
     val enableAnimations: Boolean = true,
-    // 壁纸设置
     val wallpaperType: WallpaperType = WallpaperType.GRADIENT,
     val wallpaperColor: String? = null,
     val wallpaperGradientStart: String? = null,
     val wallpaperGradientEnd: String? = null,
-    val wallpaperImageUri: String? = null
+    val wallpaperImageUri: String? = null,
+    val showAIWidget: Boolean = true
 )
 
 enum class WallpaperType {

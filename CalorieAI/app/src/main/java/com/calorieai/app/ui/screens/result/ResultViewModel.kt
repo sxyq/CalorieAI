@@ -35,6 +35,12 @@ class ResultViewModel @Inject constructor(
             foodRecordRepository.updateRecord(updatedRecord)
         }
     }
+
+    fun deleteRecord(recordId: String) {
+        viewModelScope.launch {
+            foodRecordRepository.deleteRecordById(recordId)
+        }
+    }
 }
 
 data class ResultUiState(

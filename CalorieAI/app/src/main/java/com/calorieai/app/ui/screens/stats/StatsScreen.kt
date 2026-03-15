@@ -2,6 +2,7 @@ package com.calorieai.app.ui.screens.stats
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,12 +12,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -25,23 +27,24 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.graphics.Brush
-import com.calorieai.app.ui.components.interactiveScale
-import com.calorieai.app.ui.components.liquidGlass
-import com.calorieai.app.ui.components.interactiveScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.calorieai.app.data.model.ExerciseType
+import com.calorieai.app.data.model.NutritionCalculator
+import com.calorieai.app.data.model.NutritionReference
+import com.calorieai.app.data.model.UserBodyProfile
 import com.calorieai.app.ui.components.AnimatedListItem
 import com.calorieai.app.ui.components.charts.*
 import com.calorieai.app.ui.components.fadingTopEdge
+import com.calorieai.app.ui.components.interactiveScale
+import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.utils.*
-import com.calorieai.app.data.model.ExerciseType
-import com.calorieai.app.data.model.NutritionReference
-import com.calorieai.app.data.model.NutritionCalculator
-import com.calorieai.app.data.model.UserBodyProfile
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -159,9 +162,9 @@ private fun OverviewStatsContent(
             .fillMaxSize()
             .fadingTopEdge()
     ) {
-        // 日期选择器
+        // 日期选择器 - 使用新的滑动日期选择器
         item {
-            OverviewDateSelector(
+            ElegantDateSelector(
                 selectedDate = uiState.selectedOverviewDate,
                 onDateSelected = onDateSelected
             )
@@ -215,128 +218,6 @@ private fun OverviewStatsContent(
             uiState.todayStats?.let { stats ->
                 AnimatedListItem(index = 5) {
                     DetailedNutritionStatsCard(stats = stats)
-                }
-            }
-        }
-    }
-}
-
-/**
- * 概览日期选择器 - 类似首页日历的简化版
- */
-@Composable
-private fun OverviewDateSelector(
-    selectedDate: LocalDate,
-    onDateSelected: (LocalDate) -> Unit
-) {
-    val today = LocalDate.now()
-    val dates = (-3..3).map { today.plusDays(it.toLong()) }
-    val weekDays = listOf("日", "一", "二", "三", "四", "五", "六")
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp)
-        ) {
-            // 当前选中的日期显示
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "${selectedDate.monthValue}月${selectedDate.dayOfMonth}日",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "周${weekDays[selectedDate.dayOfWeek.value % 7]}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // 日期选择行
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                dates.forEach { date ->
-                    val isSelected = date == selectedDate
-                    val isToday = date == today
-                    val interactionSource = remember { MutableInteractionSource() }
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .interactiveScale(interactionSource)
-                            .clickable(
-                                interactionSource = interactionSource,
-                                indication = null,
-                                onClick = { onDateSelected(date) }
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        // 星期
-                        Text(
-                            text = weekDays[date.dayOfWeek.value % 7],
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isSelected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // 日期
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    when {
-                                        isSelected -> MaterialTheme.colorScheme.primary
-                                        isToday -> MaterialTheme.colorScheme.primaryContainer
-                                        else -> Color.Transparent
-                                    }
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "${date.dayOfMonth}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
-                                color = when {
-                                    isSelected -> MaterialTheme.colorScheme.onPrimary
-                                    isToday -> MaterialTheme.colorScheme.onPrimaryContainer
-                                    else -> MaterialTheme.colorScheme.onSurface
-                                }
-                            )
-                        }
-
-                        // 今天标记
-                        if (isToday) {
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Box(
-                                modifier = Modifier
-                                    .size(4.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary)
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -2846,5 +2727,279 @@ private fun DetailTableRow(label: String, value: String) {
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold
         )
+    }
+}
+
+/**
+ * 优雅的日期选择器
+ * 横向滑动选择日期，带有动画效果
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ElegantDateSelector(
+    selectedDate: LocalDate,
+    onDateSelected: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val today = LocalDate.now()
+    val dateFormatter = DateTimeFormatter.ofPattern("MM-dd")
+    val weekDayFormatter = DateTimeFormatter.ofPattern("EEE")
+    
+    // 生成日期范围：前30天到今天
+    val dates = remember {
+        (-30..0).map { today.plusDays(it.toLong()) }
+    }
+    
+    // 找到选中日期的索引
+    val selectedIndex = dates.indexOf(selectedDate).takeIf { it >= 0 } ?: dates.size - 1
+    
+    // 懒加载列表状态
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = maxOf(0, selectedIndex - 2))
+    
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        // 标题行
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "选择日期",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // 显示完整日期
+            Text(
+                text = selectedDate.format(DateTimeFormatter.ofPattern("yyyy年MM月dd日")),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 日期选择卡片 - 可滑动
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
+            )
+        ) {
+            val coroutineScope = rememberCoroutineScope()
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 左箭头
+                IconButton(
+                    onClick = {
+                        // 向前滚动5天
+                        val targetIndex = maxOf(0, listState.firstVisibleItemIndex - 5)
+                        coroutineScope.launch {
+                            listState.animateScrollToItem(targetIndex)
+                        }
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowLeft,
+                        contentDescription = "向前",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // 可滑动的日期列表
+                LazyRow(
+                    state = listState,
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
+                ) {
+                    items(dates.size) { index ->
+                        val date = dates[index]
+                        val isSelected = date == selectedDate
+                        val isToday = date == today
+
+                        DateItem(
+                            date = date,
+                            isSelected = isSelected,
+                            isToday = isToday,
+                            onClick = { onDateSelected(date) },
+                            dateFormatter = dateFormatter,
+                            weekDayFormatter = weekDayFormatter
+                        )
+                    }
+                }
+
+                // 右箭头
+                IconButton(
+                    onClick = {
+                        // 向后滚动5天
+                        val targetIndex = minOf(dates.size - 1, listState.firstVisibleItemIndex + 5)
+                        coroutineScope.launch {
+                            listState.animateScrollToItem(targetIndex)
+                        }
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowRight,
+                        contentDescription = "向后",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // 更多日期按钮
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            var showDatePicker by remember { mutableStateOf(false) }
+
+            TextButton(
+                onClick = { showDatePicker = true },
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CalendarMonth,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "选择其他日期",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            if (showDatePicker) {
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = { showDatePicker = false }) {
+                            Text("确定")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDatePicker = false }) {
+                            Text("取消")
+                        }
+                    }
+                ) {
+                    val datePickerState = rememberDatePickerState(
+                        initialSelectedDateMillis = selectedDate
+                            .atStartOfDay(java.time.ZoneId.systemDefault())
+                            .toInstant()
+                            .toEpochMilli()
+                    )
+
+                    DatePicker(state = datePickerState)
+
+                    // 监听日期变化
+                    LaunchedEffect(datePickerState.selectedDateMillis) {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val selected = java.time.Instant.ofEpochMilli(millis)
+                                .atZone(java.time.ZoneId.systemDefault())
+                                .toLocalDate()
+                            onDateSelected(selected)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 单个日期项
+ */
+@Composable
+private fun DateItem(
+    date: LocalDate,
+    isSelected: Boolean,
+    isToday: Boolean,
+    onClick: () -> Unit,
+    dateFormatter: DateTimeFormatter,
+    weekDayFormatter: DateTimeFormatter
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+
+    val backgroundColor by animateColorAsState(
+        targetValue = when {
+            isSelected -> MaterialTheme.colorScheme.primary
+            isToday -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            else -> Color.Transparent
+        },
+        animationSpec = tween(300),
+        label = "background"
+    )
+
+    val contentColor by animateColorAsState(
+        targetValue = when {
+            isSelected -> MaterialTheme.colorScheme.onPrimary
+            else -> MaterialTheme.colorScheme.onSurface
+        },
+        animationSpec = tween(300),
+        label = "content"
+    )
+
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(backgroundColor)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // 星期
+        Text(
+            text = date.format(weekDayFormatter),
+            style = MaterialTheme.typography.bodySmall,
+            color = contentColor.copy(alpha = 0.8f)
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // 日期
+        Text(
+            text = date.format(dateFormatter),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            color = contentColor
+        )
+
+        // 今天标记
+        if (isToday) {
+            Spacer(modifier = Modifier.height(2.dp))
+            Box(
+                modifier = Modifier
+                    .size(4.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isSelected) MaterialTheme.colorScheme.onPrimary
+                        else MaterialTheme.colorScheme.primary
+                    )
+            )
+        }
     }
 }

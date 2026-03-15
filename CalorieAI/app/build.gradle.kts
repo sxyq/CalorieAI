@@ -21,6 +21,9 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        
+        // 构建时间
+        buildConfigField("long", "BUILD_TIME", "${System.currentTimeMillis()}L")
     }
 
     buildTypes {
@@ -55,6 +58,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.8"

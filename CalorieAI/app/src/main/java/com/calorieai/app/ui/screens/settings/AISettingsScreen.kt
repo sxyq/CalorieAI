@@ -258,6 +258,7 @@ fun AIConfigItem(
                             AIProtocol.QWEN -> "Qwen"
                             AIProtocol.DEEPSEEK -> "DeepSeek"
                             AIProtocol.GEMINI -> "Gemini"
+                            AIProtocol.LONGCAT -> "LongCat"
                         },
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

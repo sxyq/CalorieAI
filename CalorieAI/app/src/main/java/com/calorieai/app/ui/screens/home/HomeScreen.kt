@@ -43,7 +43,7 @@ import com.calorieai.app.ui.components.interactiveScale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateToAdd: () -> Unit,
+    onNavigateToAdd: (String) -> Unit,
     onNavigateToStats: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToProfile: () -> Unit,
@@ -108,7 +108,11 @@ fun HomeScreen(
 
                 // 添加按钮
                 FloatingActionButton(
-                    onClick = onNavigateToAdd,
+                    onClick = { 
+                        // 传递选中的日期
+                        val dateStr = selectedDate.toString()
+                        onNavigateToAdd(dateStr)
+                    },
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "添加")

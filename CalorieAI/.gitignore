@@ -28,15 +28,13 @@ app/build/
 # Google Services (e.g. APIs or Firebase)
 google-services.json
 
-# VS Code
-.vscode/
-
-# Claude
-.claude/
-
 # OS-specific files
 .DS_Store
 Thumbs.db
+
+# IDE and editor settings
+.vscode/
+.claude/
 
 # Log files
 *.log

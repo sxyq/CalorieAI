@@ -104,16 +104,6 @@ fun InteractionSettingsScreen(
                 )
             }
 
-            // AI助手设置
-            SettingsSection(title = "AI助手") {
-                SettingsSwitchItem(
-                    title = "显示AI助手",
-                    subtitle = "在首页显示AI助手悬浮按钮",
-                    checked = uiState.showAIWidget,
-                    onCheckedChange = viewModel::updateShowAIWidget
-                )
-            }
-
             Spacer(modifier = Modifier.height(32.dp))
         }
     }

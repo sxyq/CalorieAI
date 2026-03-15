@@ -67,7 +67,7 @@ fun VoiceInputDialog(
                     is VoiceState.Idle -> "准备录音..."
                     is VoiceState.Listening -> "正在聆听..."
                     is VoiceState.Processing -> "处理中..."
-                    is VoiceState.Partial -> voiceState.text
+                    is VoiceState.Partial -> "识别中..."
                     is VoiceState.Success -> "识别成功"
                     is VoiceState.Error -> voiceState.message
                 }
@@ -83,6 +83,26 @@ fun VoiceInputDialog(
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
+
+                // 实时识别结果显示
+                val displayText = when (voiceState) {
+                    is VoiceState.Partial -> voiceState.text
+                    is VoiceState.Success -> voiceState.text
+                    else -> ""
+                }
+                
+                if (displayText.isNotEmpty()) {
+                    Text(
+                        text = displayText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
                 // 提示文字
                 Text(

@@ -1,5 +1,8 @@
 package com.calorieai.app.ui.screens.settings
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -12,7 +15,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.ui.components.interactiveScale
 
@@ -57,7 +63,7 @@ fun AppearanceSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState(), enabled = true)
         ) {
             // 主题模式选择
             SettingsSection(title = "主题") {
@@ -79,10 +85,22 @@ fun AppearanceSettingsScreen(
             SettingsSection(title = "壁纸") {
                 WallpaperSelector(
                     selectedType = uiState.wallpaperType,
+                    wallpaperColor = uiState.wallpaperColor,
                     gradientStart = uiState.wallpaperGradientStart,
                     gradientEnd = uiState.wallpaperGradientEnd,
+                    imageUri = uiState.wallpaperImageUri,
                     onTypeSelected = viewModel::updateWallpaperType,
-                    onGradientSelected = viewModel::updateWallpaperGradient
+                    onColorSelected = viewModel::updateWallpaperColor,
+                    onGradientSelected = viewModel::updateWallpaperGradient,
+                    onImageSelected = viewModel::updateWallpaperImage
+                )
+            }
+
+            // AI助手设置
+            SettingsSection(title = "AI助手") {
+                AIWidgetToggle(
+                    checked = uiState.showAIWidget,
+                    onCheckedChange = viewModel::updateShowAIWidget
                 )
             }
 
@@ -220,10 +238,14 @@ enum class FontSize {
 @Composable
 private fun WallpaperSelector(
     selectedType: WallpaperType,
+    wallpaperColor: String?,
     gradientStart: String?,
     gradientEnd: String?,
+    imageUri: String?,
     onTypeSelected: (WallpaperType) -> Unit,
-    onGradientSelected: (String?, String?) -> Unit
+    onColorSelected: (String?) -> Unit,
+    onGradientSelected: (String?, String?) -> Unit,
+    onImageSelected: (String?) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -272,12 +294,15 @@ private fun WallpaperSelector(
             }
             WallpaperType.SOLID -> {
                 SolidColorSelector(
-                    selectedColor = gradientStart,
-                    onColorSelected = { onGradientSelected(it, null) }
+                    selectedColor = wallpaperColor,
+                    onColorSelected = onColorSelected
                 )
             }
             WallpaperType.IMAGE -> {
-                ImageWallpaperPlaceholder()
+                ImageWallpaperSelector(
+                    imageUri = imageUri,
+                    onImageSelected = onImageSelected
+                )
             }
         }
     }
@@ -346,19 +371,31 @@ private fun GradientColorSelector(
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
-        FlowRow(
+        // 使用Row换行排列渐变色
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            presets.forEach { (start, end) ->
-                val isSelected = startColor == start && endColor == end
-                GradientColorPreset(
-                    startColor = start,
-                    endColor = end,
-                    isSelected = isSelected,
-                    onClick = { onColorsSelected(start, end) }
-                )
+            presets.chunked(3).forEach { rowColors ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    rowColors.forEach { (start, end) ->
+                        val isSelected = startColor == start && endColor == end
+                        GradientColorPreset(
+                            startColor = start,
+                            endColor = end,
+                            isSelected = isSelected,
+                            onClick = { onColorsSelected(start, end) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    // 填充剩余空间
+                    repeat(3 - rowColors.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
             }
         }
     }
@@ -369,14 +406,15 @@ private fun GradientColorPreset(
     startColor: String,
     endColor: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val start = Color(android.graphics.Color.parseColor(startColor))
     val end = Color(android.graphics.Color.parseColor(endColor))
 
     Box(
-        modifier = Modifier
-            .size(64.dp, 48.dp)
+        modifier = modifier
+            .height(48.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(Brush.horizontalGradient(listOf(start, end)))
             .clickable(onClick = onClick),
@@ -417,18 +455,30 @@ private fun SolidColorSelector(
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
-        FlowRow(
+        // 使用Row换行排列颜色
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            presets.forEach { color ->
-                val isSelected = selectedColor == color
-                SolidColorPreset(
-                    color = color,
-                    isSelected = isSelected,
-                    onClick = { onColorSelected(color) }
-                )
+            presets.chunked(4).forEach { rowColors ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    rowColors.forEach { color ->
+                        val isSelected = selectedColor == color
+                        SolidColorPreset(
+                            color = color,
+                            isSelected = isSelected,
+                            onClick = { onColorSelected(color) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    // 填充剩余空间
+                    repeat(4 - rowColors.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
             }
         }
     }
@@ -438,13 +488,14 @@ private fun SolidColorSelector(
 private fun SolidColorPreset(
     color: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colorValue = Color(android.graphics.Color.parseColor(color))
 
     Box(
-        modifier = Modifier
-            .size(48.dp)
+        modifier = modifier
+            .aspectRatio(1f)
             .clip(RoundedCornerShape(12.dp))
             .background(colorValue)
             .clickable(onClick = onClick),
@@ -462,35 +513,87 @@ private fun SolidColorPreset(
 }
 
 @Composable
-private fun ImageWallpaperPlaceholder() {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(120.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+private fun ImageWallpaperSelector(
+    imageUri: String?,
+    onImageSelected: (String?) -> Unit
+) {
+    // 图片选择器
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { onImageSelected(it.toString()) }
+    }
+
+    Column {
+        Text(
+            text = "选择图片壁纸",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 12.dp)
         )
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+
+        if (imageUri != null) {
+            // 显示已选择的图片
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Image,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                Box(modifier = Modifier.fillMaxSize()) {
+                    AsyncImage(
+                        model = imageUri,
+                        contentDescription = "壁纸预览",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    // 删除按钮
+                    IconButton(
+                        onClick = { onImageSelected(null) },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "删除",
+                            tint = Color.White
+                        )
+                    }
+                }
+            }
+        } else {
+            // 选择图片按钮
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .clickable { imagePicker.launch("image/*") },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "图片壁纸功能即将上线",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AddPhotoAlternate,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "点击选择图片",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             }
         }
     }
@@ -511,5 +614,38 @@ private fun FlowRow(
         verticalArrangement = verticalArrangement
     ) {
         content()
+    }
+}
+
+/**
+ * AI助手开关
+ */
+@Composable
+private fun AIWidgetToggle(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                text = "显示AI助手",
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = "在首页显示AI助手悬浮按钮",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
     }
 }
