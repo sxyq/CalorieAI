@@ -9,6 +9,7 @@ import com.calorieai.app.data.local.AppDatabase
 import com.calorieai.app.data.local.ExerciseRecordDao
 import com.calorieai.app.data.local.FoodRecordDao
 import com.calorieai.app.data.local.UserSettingsDao
+import com.calorieai.app.data.local.dao.WaterRecordDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -28,6 +29,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "calorieai_database"
         )
+            .addMigrations(AppDatabase.MIGRATION_12_13, AppDatabase.MIGRATION_13_14)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -65,5 +67,10 @@ object DatabaseModule {
     @Provides
     fun provideAIChatHistoryDao(database: AppDatabase): AIChatHistoryDao {
         return database.aiChatHistoryDao()
+    }
+
+    @Provides
+    fun provideWaterRecordDao(database: AppDatabase): WaterRecordDao {
+        return database.waterRecordDao()
     }
 }

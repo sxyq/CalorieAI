@@ -10,17 +10,14 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface WeightRecordDao {
     
-    @Insert
-    suspend fun insert(record: WeightRecord): Long
-    
-    @Update
-    suspend fun update(record: WeightRecord)
-    
-    @Delete
-    suspend fun delete(record: WeightRecord)
-    
     @Query("SELECT * FROM weight_records ORDER BY recordDate DESC")
     fun getAllRecords(): Flow<List<WeightRecord>>
+    
+    @Query("SELECT * FROM weight_records ORDER BY recordDate DESC")
+    suspend fun getAllRecordsOnce(): List<WeightRecord>
+    
+    @Query("SELECT * FROM weight_records ORDER BY recordDate ASC")
+    fun getAllRecordsByDateAsc(): Flow<List<WeightRecord>>
     
     @Query("SELECT * FROM weight_records WHERE recordDate BETWEEN :startDate AND :endDate ORDER BY recordDate DESC")
     fun getRecordsBetween(startDate: Long, endDate: Long): Flow<List<WeightRecord>>
@@ -31,8 +28,14 @@ interface WeightRecordDao {
     @Query("SELECT * FROM weight_records ORDER BY recordDate DESC LIMIT 1")
     suspend fun getLatestRecordOnce(): WeightRecord?
     
-    @Query("SELECT * FROM weight_records ORDER BY recordDate ASC")
-    fun getAllRecordsByDateAsc(): Flow<List<WeightRecord>>
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(record: WeightRecord): Long
+    
+    @Update
+    suspend fun update(record: WeightRecord)
+    
+    @Delete
+    suspend fun delete(record: WeightRecord)
     
     @Query("DELETE FROM weight_records")
     suspend fun deleteAll()

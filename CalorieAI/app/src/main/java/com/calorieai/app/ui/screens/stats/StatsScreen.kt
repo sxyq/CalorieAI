@@ -190,9 +190,20 @@ private fun OverviewStatsContent(
             }
         }
 
-        // 餐次统计
+        // 今日饮水统计卡片
         item {
             AnimatedListItem(index = 2) {
+                WaterStatsCard(
+                    todayAmount = uiState.todayWaterAmount,
+                    targetAmount = uiState.waterTargetAmount,
+                    weeklyAverage = uiState.weeklyWaterAverage
+                )
+            }
+        }
+
+        // 餐次统计
+        item {
+            AnimatedListItem(index = 3) {
                 MealTypeStatsCard(stats = uiState.mealTypeStats)
             }
         }
@@ -200,7 +211,7 @@ private fun OverviewStatsContent(
         // 历史统计
         item {
             uiState.historyStats?.let { stats ->
-                AnimatedListItem(index = 3) {
+                AnimatedListItem(index = 4) {
                     HistoryStatsCard(stats = stats)
                 }
             }
@@ -208,7 +219,7 @@ private fun OverviewStatsContent(
 
         // 连续记录
         item {
-            AnimatedListItem(index = 4) {
+            AnimatedListItem(index = 5) {
                 StreakCard(streakDays = uiState.streakDays)
             }
         }
@@ -216,7 +227,7 @@ private fun OverviewStatsContent(
         // 详细营养素统计表
         item {
             uiState.todayStats?.let { stats ->
-                AnimatedListItem(index = 5) {
+                AnimatedListItem(index = 6) {
                     DetailedNutritionStatsCard(stats = stats)
                 }
             }
@@ -457,6 +468,130 @@ private fun ExerciseStatsCard(stats: TodayStats) {
                         MaterialTheme.colorScheme.primary 
                     else 
                         MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 今日饮水统计卡片
+ */
+@Composable
+private fun WaterStatsCard(
+    todayAmount: Int,
+    targetAmount: Int,
+    weeklyAverage: Float
+) {
+    val progress = (todayAmount.toFloat() / targetAmount).coerceIn(0f, 1f)
+    val remaining = (targetAmount - todayAmount).coerceAtLeast(0)
+    val isGoalMet = todayAmount >= targetAmount
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(20.dp),
+                tint = androidx.compose.ui.graphics.Color(0xFF26C6DA).copy(alpha = 0.15f)
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            // 标题行
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.WaterDrop,
+                        contentDescription = null,
+                        tint = androidx.compose.ui.graphics.Color(0xFF26C6DA),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = "今日饮水",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                if (isGoalMet) {
+                    Text(
+                        text = "✓ 已达标",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = androidx.compose.ui.graphics.Color(0xFF4CAF50),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 进度条
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = androidx.compose.ui.graphics.Color(0xFF26C6DA),
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 统计数据
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                StatItem(
+                    label = "已饮水",
+                    value = todayAmount.toString(),
+                    unit = "ml",
+                    color = androidx.compose.ui.graphics.Color(0xFF26C6DA)
+                )
+                StatItem(
+                    label = "目标",
+                    value = targetAmount.toString(),
+                    unit = "ml",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                StatItem(
+                    label = "还需",
+                    value = remaining.toString(),
+                    unit = "ml",
+                    color = if (remaining > 0) MaterialTheme.colorScheme.primary 
+                           else androidx.compose.ui.graphics.Color(0xFF4CAF50)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 周平均
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "7日平均: ",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "${String.format("%.0f", weeklyAverage)} ml",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = androidx.compose.ui.graphics.Color(0xFF26C6DA)
                 )
             }
         }
@@ -1190,6 +1325,12 @@ private fun TrendAnalysisContent(
             timeDimension = uiState.trendTimeDimension,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
+
+        // 饮水趋势图表
+        WaterTrendChart(
+            waterData = uiState.waterTrendData,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
     }
 }
 
@@ -1720,6 +1861,286 @@ private fun WeightTrendChart(
 }
 
 /**
+ * 饮水趋势图表
+ */
+@Composable
+private fun WaterTrendChart(
+    waterData: List<WaterTrendData>,
+    modifier: Modifier = Modifier
+) {
+    val totalWater = waterData.sumOf { it.amount }
+    val avgWater = if (waterData.isNotEmpty()) totalWater / waterData.size else 0
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(
+                                color = Color(0xFF26C6DA),
+                                shape = RoundedCornerShape(2.dp)
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "饮水趋势",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Text(
+                    text = "日均: ${avgWater}ml",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (waterData.isNotEmpty() && waterData.any { it.amount > 0 }) {
+                val chartData = waterData.map { data ->
+                    data.date.format(DateTimeFormatter.ofPattern("MM/dd")) to data.amount.toFloat()
+                }
+
+                LineChartView(
+                    data = chartData,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    lineColor = android.graphics.Color.parseColor("#26C6DA")
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    WaterTrendStat(
+                        label = "总饮水",
+                        value = "${totalWater}ml",
+                        icon = "💧"
+                    )
+                    WaterTrendStat(
+                        label = "日均",
+                        value = "${avgWater}ml",
+                        icon = "📊"
+                    )
+                    val goalDays = waterData.count { it.amount >= 2000 }
+                    WaterTrendStat(
+                        label = "达标天数",
+                        value = "${goalDays}天",
+                        icon = "🎯"
+                    )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.WaterDrop,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = Color(0xFF26C6DA).copy(alpha = 0.5f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "暂无饮水数据",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "开始记录您的饮水习惯吧",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WaterTrendStat(
+    label: String,
+    value: String,
+    icon: String
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = icon,
+            style = MaterialTheme.typography.titleMedium
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF26C6DA)
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * 饮水月度总结卡片 - 用于上月总结页面
+ */
+@Composable
+private fun WaterMonthlySummaryCard(
+    monthlyTotal: Int,
+    weeklyAverage: Float,
+    targetAmount: Int
+) {
+    val daysInMonth = 30 // 简化处理
+    val dailyAverage = if (daysInMonth > 0) monthlyTotal / daysInMonth else 0
+    val goalAchievementRate = if (targetAmount > 0) (dailyAverage * 100 / targetAmount).coerceAtMost(100) else 0
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF26C6DA).copy(alpha = 0.08f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            // 标题
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "💧",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "饮水统计",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 主要数据
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                WaterMonthlyStat(
+                    icon = "📊",
+                    value = String.format("%,d", monthlyTotal),
+                    label = "总饮水(ml)"
+                )
+                WaterMonthlyStat(
+                    icon = "📈",
+                    value = "${dailyAverage}",
+                    label = "日均(ml)"
+                )
+                WaterMonthlyStat(
+                    icon = "🎯",
+                    value = "${goalAchievementRate}%",
+                    label = "达标率"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 进度条显示达标率
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "目标达成度",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "${goalAchievementRate}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF26C6DA)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                LinearProgressIndicator(
+                    progress = { goalAchievementRate / 100f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = Color(0xFF26C6DA),
+                    trackColor = Color(0xFF26C6DA).copy(alpha = 0.2f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WaterMonthlyStat(
+    icon: String,
+    value: String,
+    label: String
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = icon,
+            style = MaterialTheme.typography.headlineSmall
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF26C6DA)
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
  * 日期范围选择器对话框
  */
 @Composable
@@ -1830,6 +2251,13 @@ private fun MonthlySummaryContent(
         if ((summary?.weightChange ?: 0f) != 0f) {
             WeightChangeCard(summary)
         }
+
+        // 饮水统计卡片
+        WaterMonthlySummaryCard(
+            monthlyTotal = uiState.monthlyWaterTotal,
+            weeklyAverage = uiState.weeklyWaterAverage,
+            targetAmount = uiState.waterTargetAmount
+        )
 
         // 详细数据表格
         SummaryDetailTable(summary)

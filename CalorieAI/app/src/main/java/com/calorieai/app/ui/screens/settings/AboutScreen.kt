@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,28 +18,28 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.calorieai.app.BuildConfig
-import com.calorieai.app.ui.components.liquidGlass
+import com.calorieai.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
-/**
- * 关于页面
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val isDark = isSystemInDarkTheme()
     var showLicensesDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
+    var showUsageDocDialog by remember { mutableStateOf(false) }
+    var showFaqDialog by remember { mutableStateOf(false) }
 
-    // 获取版本信息
     val versionName = remember {
         try {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0.0"
@@ -47,12 +48,12 @@ fun AboutScreen(
         }
     }
 
-    // 获取构建时间
     val buildTime = remember {
         SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(BuildConfig.BUILD_TIME))
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("关于") },
@@ -60,7 +61,10 @@ fun AboutScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                )
             )
         }
     ) { paddingValues ->
@@ -70,10 +74,8 @@ fun AboutScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
-            // 顶部应用信息卡片
-            AppInfoCard()
+            AppInfoCard(isDark)
 
-            // 版本信息
             SettingsSection(title = "版本") {
                 AboutItem(
                     title = "版本号",
@@ -88,19 +90,8 @@ fun AboutScreen(
                     icon = Icons.Default.Update,
                     showArrow = false
                 )
-                SettingsSectionDivider()
-                AboutItem(
-                    title = "检查更新",
-                    subtitle = "前往GitHub查看最新版本",
-                    icon = Icons.Default.SystemUpdate,
-                    showArrow = true,
-                    onClick = {
-                        openUrl(context, "https://github.com/your-repo/calorieai/releases")
-                    }
-                )
             }
 
-            // 法律信息
             SettingsSection(title = "法律信息") {
                 AboutItem(
                     title = "开源许可证",
@@ -119,7 +110,24 @@ fun AboutScreen(
                 )
             }
 
-            // 更多
+            SettingsSection(title = "帮助") {
+                AboutItem(
+                    title = "使用文档",
+                    subtitle = "查看使用指南",
+                    icon = Icons.Default.MenuBook,
+                    showArrow = true,
+                    onClick = { showUsageDocDialog = true }
+                )
+                SettingsSectionDivider()
+                AboutItem(
+                    title = "常见问题",
+                    subtitle = "FAQ",
+                    icon = Icons.Default.Help,
+                    showArrow = true,
+                    onClick = { showFaqDialog = true }
+                )
+            }
+
             SettingsSection(title = "更多") {
                 AboutItem(
                     title = "项目主页",
@@ -127,7 +135,7 @@ fun AboutScreen(
                     icon = Icons.Default.Code,
                     showArrow = true,
                     onClick = {
-                        openUrl(context, "https://github.com/your-repo/calorieai")
+                        openUrl(context, "https://github.com/NightFuryPro/CalorieAI")
                     }
                 )
                 SettingsSectionDivider()
@@ -137,7 +145,7 @@ fun AboutScreen(
                     icon = Icons.Default.BugReport,
                     showArrow = true,
                     onClick = {
-                        openUrl(context, "https://github.com/your-repo/calorieai/issues")
+                        openUrl(context, "https://github.com/NightFuryPro/CalorieAI/issues")
                     }
                 )
                 SettingsSectionDivider()
@@ -147,7 +155,7 @@ fun AboutScreen(
                     icon = Icons.Default.Lightbulb,
                     showArrow = true,
                     onClick = {
-                        openUrl(context, "https://github.com/your-repo/calorieai/discussions")
+                        openUrl(context, "https://github.com/NightFuryPro/CalorieAI/discussions")
                     }
                 )
                 SettingsSectionDivider()
@@ -157,35 +165,11 @@ fun AboutScreen(
                     icon = Icons.Default.Star,
                     showArrow = true,
                     onClick = {
-                        openUrl(context, "https://github.com/your-repo/calorieai")
+                        openUrl(context, "https://github.com/NightFuryPro/CalorieAI")
                     }
                 )
             }
 
-            // 技术支持
-            SettingsSection(title = "技术支持") {
-                AboutItem(
-                    title = "使用文档",
-                    subtitle = "查看使用指南",
-                    icon = Icons.Default.MenuBook,
-                    showArrow = true,
-                    onClick = {
-                        openUrl(context, "https://github.com/your-repo/calorieai/wiki")
-                    }
-                )
-                SettingsSectionDivider()
-                AboutItem(
-                    title = "常见问题",
-                    subtitle = "FAQ",
-                    icon = Icons.Default.Help,
-                    showArrow = true,
-                    onClick = {
-                        openUrl(context, "https://github.com/your-repo/calorieai/wiki/FAQ")
-                    }
-                )
-            }
-
-            // 底部版权信息
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -202,24 +186,23 @@ fun AboutScreen(
         }
     }
 
-    // 开源许可证对话框
     if (showLicensesDialog) {
-        LicensesDialog(
-            onDismiss = { showLicensesDialog = false }
-        )
+        LicensesDialog(onDismiss = { showLicensesDialog = false })
     }
 
-    // 隐私政策对话框
     if (showPrivacyDialog) {
-        PrivacyDialog(
-            onDismiss = { showPrivacyDialog = false }
-        )
+        PrivacyDialog(onDismiss = { showPrivacyDialog = false })
+    }
+
+    if (showUsageDocDialog) {
+        UsageDocDialog(onDismiss = { showUsageDocDialog = false })
+    }
+
+    if (showFaqDialog) {
+        FaqDialog(onDismiss = { showFaqDialog = false })
     }
 }
 
-/**
- * 打开URL
- */
 private fun openUrl(context: Context, url: String) {
     try {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
@@ -229,19 +212,13 @@ private fun openUrl(context: Context, url: String) {
     }
 }
 
-/**
- * 应用信息卡片
- */
 @Composable
-private fun AppInfoCard() {
+private fun AppInfoCard(isDark: Boolean) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp)
-            .liquidGlass(
-                shape = RoundedCornerShape(24.dp),
-                tint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-            )
+            .glassCardThemed(isDark = isDark, cornerRadius = 24.dp)
     ) {
         Box(
             modifier = Modifier
@@ -252,7 +229,6 @@ private fun AppInfoCard() {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // 应用图标
                 Box(
                     modifier = Modifier
                         .size(80.dp)
@@ -268,27 +244,21 @@ private fun AppInfoCard() {
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                // 应用名称
                 Text(
                     text = "CalorieAI",
                     style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    fontWeight = FontWeight.Bold
                 )
-                // 应用标语
                 Text(
                     text = "智能热量记录助手",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     }
 }
 
-/**
- * 关于页面项
- */
 @Composable
 private fun AboutItem(
     title: String,
@@ -341,13 +311,8 @@ private fun AboutItem(
     }
 }
 
-/**
- * 开源许可证对话框
- */
 @Composable
-private fun LicensesDialog(
-    onDismiss: () -> Unit
-) {
+private fun LicensesDialog(onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
@@ -389,10 +354,7 @@ private fun LicensesDialog(
                                 .padding(vertical = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(
-                                text = name,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+                            Text(text = name, style = MaterialTheme.typography.bodyMedium)
                             Text(
                                 text = license,
                                 style = MaterialTheme.typography.bodySmall,
@@ -415,13 +377,8 @@ private fun LicensesDialog(
     }
 }
 
-/**
- * 隐私政策对话框
- */
 @Composable
-private fun PrivacyDialog(
-    onDismiss: () -> Unit
-) {
+private fun PrivacyDialog(onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
@@ -484,6 +441,195 @@ private fun PrivacyDialog(
                             
                             8. 联系我们
                             • 如有隐私相关问题，请通过GitHub Issues联系我们
+                        """.trimIndent(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("关闭")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UsageDocDialog(onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Text(
+                    text = "使用文档",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(400.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = """
+                            CalorieAI 使用指南
+                            
+                            📱 首页
+                            • 查看今日饮食记录和热量摄入
+                            • 点击日期选择器查看历史记录
+                            • 使用悬浮AI助手快速添加食物
+                            
+                            📊 概览
+                            • 查看本月活跃度热力图
+                            • 查看月度数据总结
+                            • 快捷入口访问详细统计
+                            
+                            👤 我的
+                            • 管理身体档案
+                            • 设置健康目标
+                            • 配置应用偏好
+                            
+                            🍽️ 添加食物
+                            1. 点击首页的添加按钮
+                            2. 选择添加方式：
+                               • AI识别：描述食物让AI分析
+                               • 手动输入：直接输入营养数据
+                               • 拍照识别：拍摄食物照片
+                            
+                            ⚖️ 体重记录
+                            • 定期记录体重变化
+                            • 查看体重趋势图表
+                            • 设置目标体重
+                            
+                            💧 饮水记录
+                            • 记录每日饮水量
+                            • 设置饮水提醒
+                            • 查看饮水统计
+                            
+                            🏃 运动记录
+                            • 记录运动消耗
+                            • 选择运动类型
+                            • 查看运动统计
+                            
+                            ⚙️ 设置
+                            • 外观：主题、深色模式
+                            • AI配置：设置API密钥
+                            • 数据备份：导出/导入数据
+                            
+                            💡 小贴士
+                            • 坚持每天记录，数据更准确
+                            • 使用AI功能快速添加食物
+                            • 定期查看统计了解健康趋势
+                        """.trimIndent(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("关闭")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FaqDialog(onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Text(
+                    text = "常见问题",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(400.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = """
+                            ❓ 如何使用AI添加食物？
+                            
+                            1. 确保已在设置中配置AI API密钥
+                            2. 点击首页添加按钮
+                            3. 选择"AI识别"
+                            4. 描述您吃的食物，例如：
+                               "一碗米饭，一份红烧肉，一杯牛奶"
+                            5. AI会自动分析并计算营养数据
+                            
+                            ❓ 如何更改每日热量目标？
+                            
+                            1. 进入"我的"页面
+                            2. 点击"身体档案"
+                            3. 编辑每日热量目标
+                            
+                            ❓ 数据会同步到云端吗？
+                            
+                            不会。所有数据仅存储在您的设备本地，
+                            除非您主动使用AI功能，数据不会离开
+                            您的设备。您可以随时导出数据备份。
+                            
+                            ❓ 如何导出数据？
+                            
+                            1. 进入"我的"页面
+                            2. 点击"数据导出"
+                            3. 选择导出位置保存JSON文件
+                            
+                            ❓ 深色模式如何切换？
+                            
+                            1. 进入"我的"页面
+                            2. 点击"设置"
+                            3. 点击"界面外观"
+                            4. 选择主题模式：浅色/深色/跟随系统
+                            
+                            ❓ AI功能无法使用？
+                            
+                            请检查：
+                            1. 是否已配置AI API密钥
+                            2. 网络连接是否正常
+                            3. API密钥是否有效
+                            
+                            ❓ 如何删除记录？
+                            
+                            在记录详情页面向左滑动即可删除。
+                            
+                            ❓ 还有其他问题？
+                            
+                            请在GitHub上提交Issue：
+                            github.com/NightFuryPro/CalorieAI/issues
                         """.trimIndent(),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

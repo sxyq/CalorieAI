@@ -20,838 +20,342 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.Brush
-import com.calorieai.app.ui.components.liquidGlass
-import com.calorieai.app.ui.components.interactiveScale
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.calorieai.app.ui.theme.DeadlinerColors
+import com.calorieai.app.ui.components.liquidGlass
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-/**
- * AI助手全屏页面（重构版）
- * 支持历史对话记录管理
- */
+/** 全屏AI聊天界面 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AIChatScreen(
-    onNavigateBack: () -> Unit,
-    viewModel: AIChatViewModel = hiltViewModel()
-) {
+fun AIChatScreen(onNavigateBack: () -> Unit, viewModel: AIChatViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    
-    var showHistoryDialog by remember { mutableStateOf(false) }
-    var showNewChatConfirm by remember { mutableStateOf(false) }
+    var showHistory by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(DeadlinerColors.accentBlue),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.SmartToy,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "AI助手",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            if (uiState.currentSessionTitle.isNotBlank()) {
-                                Text(
-                                    text = uiState.currentSessionTitle,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
+                title = { HeaderTitle(uiState.currentSessionTitle) },
+                navigationIcon = { IconButton(onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回") } },
                 actions = {
-                    // 新对话按钮
-                    IconButton(onClick = { showNewChatConfirm = true }) {
-                        Icon(Icons.Default.AddComment, contentDescription = "新对话")
-                    }
-                    // 历史记录按钮
-                    IconButton(onClick = { showHistoryDialog = true }) {
-                        Icon(Icons.Default.History, contentDescription = "历史记录")
-                    }
-                    // 更多选项
-                    var showMenu by remember { mutableStateOf(false) }
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "更多")
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("清空当前对话") },
-                            leadingIcon = {
-                                Icon(Icons.Default.DeleteSweep, null)
-                            },
-                            onClick = {
-                                viewModel.clearCurrentChat()
-                                showMenu = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("删除当前对话") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
-                            },
-                            onClick = {
-                                viewModel.deleteCurrentSession()
-                                showMenu = false
-                            }
-                        )
-                    }
+                    IconButton({ viewModel.startNewSession() }) { Icon(Icons.Default.AddComment, "新对话") }
+                    IconButton({ showHistory = true }) { Icon(Icons.Default.History, "历史") }
+                    OverflowMenu(viewModel)
                 }
             )
         }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // 快捷功能区域
-            QuickActionsRow(
-                onCalorieAssessment = { viewModel.startCalorieAssessment() },
-                onMealPlanning = { viewModel.startMealPlanning() },
-                onHealthConsult = { viewModel.startHealthConsult() }
-            )
-            
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            // 快捷功能
+            QuickActionsRow(viewModel)
             HorizontalDivider()
-            
-            // 聊天消息列表
-            Box(
-                modifier = Modifier.weight(1f)
-            ) {
+
+            // 消息列表
+            Box(Modifier.weight(1f)) {
                 if (uiState.messages.isEmpty()) {
-                    // 空状态提示
-                    EmptyChatState(
-                        onQuickStart = { viewModel.startHealthConsult() }
-                    )
+                    EmptyState { viewModel.startHealthConsult() }
                 } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(uiState.messages) { message ->
-                            ChatMessageItem(message = message)
-                        }
-                        
-                        // 正在输入指示器
-                        if (uiState.isTyping) {
-                            item {
-                                TypingIndicator()
-                            }
-                        }
-                    }
-                }
-                
-                // 自动滚动到底部
-                LaunchedEffect(uiState.messages.size, uiState.isTyping) {
-                    if (uiState.messages.isNotEmpty()) {
-                        scope.launch {
-                            listState.animateScrollToItem(uiState.messages.size - 1)
-                        }
-                    }
+                    MessageList(uiState.messages, uiState.isTyping, listState)
                 }
             }
-            
-            // 输入区域
-            ChatInputArea(
-                value = uiState.inputText,
-                onValueChange = viewModel::onInputChange,
-                onSend = {
-                    viewModel.sendMessage()
-                },
-                isLoading = uiState.isLoading,
-                remainingCalls = uiState.remainingCalls,
-                dailyLimit = uiState.dailyLimit
-            )
+
+            // 输入区
+            ChatInput(uiState.inputText, viewModel::onInputChange, viewModel::sendMessage, uiState.isLoading, uiState.remainingCalls)
         }
     }
 
-    // 历史记录对话框
-    if (showHistoryDialog) {
-        ChatHistoryDialog(
-            sessions = uiState.chatSessions,
-            currentSessionId = uiState.currentSessionId,
-            onDismiss = { showHistoryDialog = false },
-            onSessionSelected = { sessionId ->
-                viewModel.loadSession(sessionId)
-                showHistoryDialog = false
-            },
-            onSessionDeleted = { sessionId ->
-                viewModel.deleteSession(sessionId)
-            },
-            onSessionPinned = { sessionId ->
-                viewModel.togglePinSession(sessionId)
-            }
-        )
+    if (showHistory) {
+        HistoryDialog(uiState.chatSessions, uiState.currentSessionId, { showHistory = false }, viewModel)
     }
-
-    // 新对话确认对话框
-    if (showNewChatConfirm) {
-        AlertDialog(
-            onDismissRequest = { showNewChatConfirm = false },
-            title = { Text("开始新对话") },
-            text = { Text("当前对话将被保存到历史记录，确定要开始新对话吗？") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.startNewSession()
-                        showNewChatConfirm = false
-                    }
-                ) {
-                    Text("确定")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showNewChatConfirm = false }) {
-                    Text("取消")
-                }
-            }
-        )
-    }
-
 }
 
-/**
- * 空聊天状态
- */
+/** 标题 */
 @Composable
-private fun EmptyChatState(
-    onQuickStart: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.SmartToy,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-        )
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        Text(
-            text = "AI助手",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Text(
-            text = "你的专属营养健康顾问",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        Text(
-            text = "我可以帮你：",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            FeatureItem(icon = Icons.Default.Assessment, text = "评估今日热量消耗是否合理")
-            FeatureItem(icon = Icons.Default.RestaurantMenu, text = "规划健康菜谱")
-            FeatureItem(icon = Icons.Default.HealthAndSafety, text = "解答营养健康问题")
-        }
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        Button(
-            onClick = onQuickStart,
-            modifier = Modifier.fillMaxWidth(0.7f)
-        ) {
-            Text("开始对话")
-        }
-    }
-}
-
-/**
- * 功能项
- */
-@Composable
-private fun FeatureItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    text: String
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-/**
- * 历史记录对话框
- */
-@Composable
-private fun ChatHistoryDialog(
-    sessions: List<ChatSessionInfo>,
-    currentSessionId: String,
-    onDismiss: () -> Unit,
-    onSessionSelected: (String) -> Unit,
-    onSessionDeleted: (String) -> Unit,
-    onSessionPinned: (String) -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("历史对话")
-                Text(
-                    text = "${sessions.size} 个对话",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        text = {
-            if (sessions.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.History,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "暂无历史对话",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(sessions) { session ->
-                        SessionItem(
-                            session = session,
-                            isCurrent = session.sessionId == currentSessionId,
-                            onClick = { onSessionSelected(session.sessionId) },
-                            onDelete = { onSessionDeleted(session.sessionId) },
-                            onPin = { onSessionPinned(session.sessionId) }
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("关闭")
-            }
-        }
-    )
-}
-
-/**
- * 会话项
- */
-@Composable
-private fun SessionItem(
-    session: ChatSessionInfo,
-    isCurrent: Boolean,
-    onClick: () -> Unit,
-    onDelete: () -> Unit,
-    onPin: () -> Unit
-) {
-    var showMenu by remember { mutableStateOf(false) }
-    val interactionSource = remember { MutableInteractionSource() }
-    
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .interactiveScale(interactionSource)
-            .liquidGlass(
-                shape = RoundedCornerShape(16.dp),
-                tint = if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f) 
-                       else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = androidx.compose.foundation.LocalIndication.current,
-                onClick = onClick
-            )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 置顶标记
-            if (session.isPinned) {
-                Icon(
-                    imageVector = Icons.Default.PushPin,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-            
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = session.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = session.lastMessage,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = "${session.messageCount} 条消息 · ${formatTime(session.updatedAt)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
-            }
-            
-            // 更多操作
-            Box {
-                IconButton(
-                    onClick = { showMenu = true },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "更多",
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(if (session.isPinned) "取消置顶" else "置顶") },
-                        leadingIcon = {
-                            Icon(
-                                if (session.isPinned) Icons.Default.PushPin else Icons.Default.PushPin,
-                                null
-                            )
-                        },
-                        onClick = {
-                            onPin()
-                            showMenu = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("删除") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
-                        },
-                        onClick = {
-                            onDelete()
-                            showMenu = false
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * 格式化时间
- */
-private fun formatTime(timestamp: Long): String {
-    val now = System.currentTimeMillis()
-    val diff = now - timestamp
-    
-    return when {
-        diff < 60 * 1000 -> "刚刚"
-        diff < 60 * 60 * 1000 -> "${diff / (60 * 1000)}分钟前"
-        diff < 24 * 60 * 60 * 1000 -> "${diff / (60 * 60 * 1000)}小时前"
-        diff < 7 * 24 * 60 * 60 * 1000 -> "${diff / (24 * 60 * 60 * 1000)}天前"
-        else -> {
-            val sdf = SimpleDateFormat("MM/dd", Locale.getDefault())
-            sdf.format(Date(timestamp))
-        }
-    }
-}
-
-/**
- * 快捷功能行
- */
-@Composable
-private fun QuickActionsRow(
-    onCalorieAssessment: () -> Unit,
-    onMealPlanning: () -> Unit,
-    onHealthConsult: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
-        QuickActionChip(
-            icon = Icons.Default.Assessment,
-            label = "热量评估",
-            onClick = onCalorieAssessment
-        )
-        QuickActionChip(
-            icon = Icons.Default.RestaurantMenu,
-            label = "菜谱规划",
-            onClick = onMealPlanning
-        )
-        QuickActionChip(
-            icon = Icons.Default.HealthAndSafety,
-            label = "健康咨询",
-            onClick = onHealthConsult
-        )
-    }
-}
-
-/**
- * 快捷功能芯片
- */
-@Composable
-private fun QuickActionChip(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    onClick: () -> Unit
-) {
-    AssistChip(
-        onClick = onClick,
-        label = { Text(label) },
-        leadingIcon = {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-        }
-    )
-}
-
-/**
- * 聊天消息项
- */
-@Composable
-private fun ChatMessageItem(message: ChatMessage) {
-    val isUser = message.isFromUser
-    
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
-    ) {
-        if (!isUser) {
-            // AI头像
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(DeadlinerColors.accentBlue),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SmartToy,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-        }
-        
-        Column(
-            horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
-            modifier = Modifier.weight(1f, fill = false)
-        ) {
-            Box(
-                modifier = Modifier.liquidGlass(
-                    shape = RoundedCornerShape(
-                        topStart = 16.dp,
-                        topEnd = 16.dp,
-                        bottomStart = if (isUser) 16.dp else 4.dp,
-                        bottomEnd = if (isUser) 4.dp else 16.dp
-                    ),
-                    tint = if (isUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                           else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    blurRadius = 30f
-                )
-            ) {
-                Text(
-                    text = message.content,
-                    modifier = Modifier.padding(12.dp),
-                    color = if (isUser) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                )
-            }
-            
-            Text(
-                text = formatMessageTime(message.timestamp),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                modifier = Modifier.padding(top = 4.dp, start = 4.dp, end = 4.dp)
-            )
-        }
-        
-        if (isUser) {
-            Spacer(modifier = Modifier.width(8.dp))
-            // 用户头像
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-    }
-}
-
-/**
- * 格式化消息时间
- */
-private fun formatMessageTime(timestamp: Long): String {
-    val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-    return sdf.format(Date(timestamp))
-}
-
-/**
- * 正在输入指示器
- */
-@Composable
-private fun TypingIndicator() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Start
-    ) {
+private fun HeaderTitle(sessionTitle: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
-            modifier = Modifier
-                .size(32.dp)
-                .clip(CircleShape)
-                .background(DeadlinerColors.accentBlue),
+            Modifier.size(36.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.SmartToy,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(18.dp)
-            )
+            Icon(Icons.Default.SmartToy, null, tint = Color.White, modifier = Modifier.size(20.dp))
         }
-        Spacer(modifier = Modifier.width(8.dp))
-        
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            tonalElevation = 2.dp
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                repeat(3) { index ->
-                    val infiniteTransition = rememberInfiniteTransition(label = "")
-                    val scale by infiniteTransition.animateFloat(
-                        initialValue = 0.5f,
-                        targetValue = 1f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(600, delayMillis = index * 100),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = ""
-                    )
-                    
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .scale(scale)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
-                    )
-                }
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text("AI助手", style = MaterialTheme.typography.titleMedium)
+            if (sessionTitle.isNotBlank()) {
+                Text(sessionTitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
 }
 
-/**
- * 聊天输入区域
- */
+/** 更多菜单 */
 @Composable
-private fun ChatInputArea(
-    value: String,
-    onValueChange: (String) -> Unit,
-    onSend: () -> Unit,
-    isLoading: Boolean,
-    remainingCalls: Int,
-    dailyLimit: Int
-) {
-    Column {
-        // 剩余调用次数提示
-        if (remainingCalls <= 3) {
-            Surface(
-                color = if (remainingCalls == 0) {
-                    MaterialTheme.colorScheme.errorContainer
-                } else {
-                    MaterialTheme.colorScheme.tertiaryContainer
-                },
-                modifier = Modifier.fillMaxWidth()
+private fun OverflowMenu(viewModel: AIChatViewModel) {
+    var showMenu by remember { mutableStateOf(false) }
+    Box {
+        IconButton({ showMenu = true }) { Icon(Icons.Default.MoreVert, "更多") }
+        DropdownMenu(showMenu, { showMenu = false }) {
+            DropdownMenuItem(
+                text = { Text("清空对话") },
+                leadingIcon = { Icon(Icons.Default.DeleteSweep, null) },
+                onClick = { viewModel.clearCurrentChat(); showMenu = false }
+            )
+            DropdownMenuItem(
+                text = { Text("删除对话") },
+                leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                onClick = { viewModel.deleteCurrentSession(); showMenu = false }
+            )
+        }
+    }
+}
+
+/** 快捷功能行 */
+@Composable
+private fun QuickActionsRow(viewModel: AIChatViewModel) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+        QuickChip(Icons.Default.Assessment, "热量评估") { viewModel.startCalorieAssessment() }
+        QuickChip(Icons.Default.RestaurantMenu, "菜谱规划") { viewModel.startMealPlanning() }
+        QuickChip(Icons.Default.HealthAndSafety, "健康咨询") { viewModel.startHealthConsult() }
+    }
+}
+
+/** 快捷功能芯片 */
+@Composable
+private fun QuickChip(icon: ImageVector, label: String, onClick: () -> Unit) {
+    AssistChip(onClick, { Text(label) }, leadingIcon = { Icon(icon, null, Modifier.size(18.dp)) })
+}
+
+/** 空状态 */
+@Composable
+private fun EmptyState(onStart: () -> Unit) {
+    Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Icon(Icons.Default.SmartToy, null, Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary.copy(0.5f))
+        Spacer(Modifier.height(24.dp))
+        Text("AI助手", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Text("你的专属营养健康顾问", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(32.dp))
+        Button(onStart, Modifier.fillMaxWidth(0.7f)) { Text("开始对话") }
+    }
+}
+
+/** 消息列表 */
+@Composable
+private fun MessageList(messages: List<ChatMessage>, isTyping: Boolean, listState: androidx.compose.foundation.lazy.LazyListState) {
+    val scope = rememberCoroutineScope()
+
+    LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        items(messages, key = { it.id }) { msg ->
+            MessageItem(msg)
+        }
+        if (isTyping) {
+            item { TypingIndicator() }
+        }
+    }
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) scope.launch { listState.animateScrollToItem(messages.size - 1) }
+    }
+}
+
+/** 消息项 */
+@Composable
+private fun MessageItem(msg: ChatMessage) {
+    val isUser = msg.isFromUser
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start) {
+        if (!isUser) {
+            Box(Modifier.size(32.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.SmartToy, null, tint = Color.White, modifier = Modifier.size(18.dp))
+            }
+            Spacer(Modifier.width(8.dp))
+        }
+
+        Column(horizontalAlignment = if (isUser) Alignment.End else Alignment.Start, modifier = Modifier.weight(1f, fill = false)) {
+            Box(
+                Modifier
+                    .liquidGlass(
+                        RoundedCornerShape(16.dp),
+                        if (isUser) MaterialTheme.colorScheme.primary.copy(0.6f) else MaterialTheme.colorScheme.surfaceVariant.copy(0.5f),
+                        30f
+                    )
+                    .padding(12.dp)
             ) {
+                Text(msg.content, color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(formatTime(msg.timestamp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f), modifier = Modifier.padding(top = 4.dp))
+        }
+
+        if (isUser) {
+            Spacer(Modifier.width(8.dp))
+            Box(Modifier.size(32.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Person, null, tint = Color.White, modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+}
+
+/** 输入区域 */
+@Composable
+private fun ChatInput(value: String, onValueChange: (String) -> Unit, onSend: () -> Unit, isLoading: Boolean, remaining: Int) {
+    Column {
+        // 剩余次数提示
+        if (remaining <= 3) {
+            Surface(color = if (remaining == 0) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.tertiaryContainer, modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = if (remainingCalls == 0) {
-                        "今日API调用次数已用完，请明天再试"
-                    } else {
-                        "今日剩余 $remainingCalls 次调用"
-                    },
+                    if (remaining == 0) "今日API调用次数已用完" else "今日剩余 $remaining 次调用",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (remainingCalls == 0) {
-                        MaterialTheme.colorScheme.onErrorContainer
-                    } else {
-                        MaterialTheme.colorScheme.onTertiaryContainer
-                    },
+                    color = if (remaining == 0) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
         }
-        
-        Surface(
-            tonalElevation = 2.dp,
-            color = MaterialTheme.colorScheme.surface
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+
+        Surface(tonalElevation = 2.dp, color = MaterialTheme.colorScheme.surface) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = value,
                     onValueChange = onValueChange,
-                    placeholder = { Text("输入问题或需求...") },
+                    placeholder = { Text("输入问题...") },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(24.dp),
                     maxLines = 4,
-                    enabled = remainingCalls > 0 && !isLoading
+                    enabled = remaining > 0 && !isLoading
                 )
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
-                FloatingActionButton(
-                    onClick = onSend,
-                    modifier = Modifier.size(48.dp),
-                    containerColor = if (isLoading || value.isBlank() || remainingCalls == 0) {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.primary
-                    },
-                    contentColor = if (isLoading || value.isBlank() || remainingCalls == 0) {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    } else {
-                        MaterialTheme.colorScheme.onPrimary
-                    }
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Send,
-                            contentDescription = "发送"
-                        )
-                    }
+                Spacer(Modifier.width(8.dp))
+                SendButton(isLoading, value.isBlank() || remaining == 0, onSend)
+            }
+        }
+    }
+}
+
+/** 发送按钮 */
+@Composable
+private fun SendButton(isLoading: Boolean, disabled: Boolean, onSend: () -> Unit) {
+    val scale by animateFloatAsState(if (disabled) 0.85f else 1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow))
+    FloatingActionButton(
+        onSend,
+        Modifier.size(48.dp).scale(scale),
+        containerColor = if (disabled) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary,
+        contentColor = if (disabled) MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f) else MaterialTheme.colorScheme.onPrimary
+    ) {
+        if (isLoading) {
+            CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+        } else {
+            Icon(Icons.Default.Send, "发送")
+        }
+    }
+}
+
+/** 打字指示器 */
+@Composable
+private fun TypingIndicator() {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+        Box(Modifier.size(32.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.SmartToy, null, tint = Color.White, modifier = Modifier.size(18.dp))
+        }
+        Spacer(Modifier.width(8.dp))
+        Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceVariant, tonalElevation = 2.dp) {
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                repeat(3) { index ->
+                    val scale by rememberInfiniteTransition("typing$index").animateFloat(0.5f, 1f, infiniteRepeatable(tween(600, delayMillis = index * 100), RepeatMode.Reverse))
+                    Box(Modifier.size(8.dp).scale(scale).clip(CircleShape).background(MaterialTheme.colorScheme.primary.copy(0.6f)))
                 }
             }
         }
     }
 }
 
-/**
- * 聊天消息数据类
- */
+/** 历史对话框 */
+@Composable
+private fun HistoryDialog(sessions: List<ChatSessionInfo>, currentId: String, onDismiss: () -> Unit, viewModel: AIChatViewModel) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("历史对话"); Text("${sessions.size}个", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
+        text = {
+            if (sessions.isEmpty()) {
+                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.History, null, Modifier.size(48.dp), MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f))
+                        Spacer(Modifier.height(8.dp))
+                        Text("暂无历史对话", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            } else {
+                LazyColumn(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    items(sessions) { session ->
+                        SessionItem(session, session.sessionId == currentId, viewModel, onDismiss)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onDismiss) { Text("关闭") } }
+    )
+}
+
+/** 会话项 */
+@Composable
+private fun SessionItem(session: ChatSessionInfo, isCurrent: Boolean, viewModel: AIChatViewModel, onSelect: () -> Unit) {
+    var showMenu by remember { mutableStateOf(false) }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(0.6f) else MaterialTheme.colorScheme.surface.copy(0.5f))
+            .clickable { viewModel.loadSession(session.sessionId); onSelect() }
+            .padding(12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (session.isPinned) {
+                Icon(Icons.Default.PushPin, null, Modifier.size(16.dp), MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+            }
+            Column(Modifier.weight(1f)) {
+                Text(session.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
+                Text(session.lastMessage, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${session.messageCount}条 · ${formatTime(session.updatedAt)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f))
+            }
+            Box {
+                IconButton({ showMenu = true }, Modifier.size(32.dp)) { Icon(Icons.Default.MoreVert, null, Modifier.size(20.dp)) }
+                DropdownMenu(showMenu, { showMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text(if (session.isPinned) "取消置顶" else "置顶") },
+                        leadingIcon = { Icon(Icons.Default.PushPin, null) },
+                        onClick = { viewModel.togglePinSession(session.sessionId); showMenu = false }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("删除") },
+                        leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                        onClick = { viewModel.deleteSession(session.sessionId); showMenu = false }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 格式化时间 */
+private fun formatTime(timestamp: Long): String {
+    val diff = System.currentTimeMillis() - timestamp
+    return when {
+        diff < 60_000 -> "刚刚"
+        diff < 3_600_000 -> "${diff / 60_000}分钟前"
+        diff < 86_400_000 -> "${diff / 3_600_000}小时前"
+        diff < 604_800_000 -> "${diff / 86_400_000}天前"
+        else -> SimpleDateFormat("MM/dd", Locale.getDefault()).format(Date(timestamp))
+    }
+}
+
+/** 数据类 */
 data class ChatMessage(
     val id: String = UUID.randomUUID().toString(),
     val content: String,
@@ -859,9 +363,6 @@ data class ChatMessage(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-/**
- * 会话信息数据类
- */
 data class ChatSessionInfo(
     val sessionId: String,
     val title: String,

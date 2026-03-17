@@ -43,7 +43,7 @@ import com.calorieai.app.ui.components.interactiveScale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateToAdd: (String) -> Unit,
+    onNavigateToAdd: () -> Unit,
     onNavigateToStats: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToProfile: () -> Unit,
@@ -71,6 +71,9 @@ fun HomeScreen(
         }
     }
     
+    // AI小助手状态
+    var aiWidgetState by remember { mutableStateOf(com.calorieai.app.ui.components.AIWidgetState.FLOATING) }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
@@ -95,32 +98,16 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+            FloatingActionButton(
+                onClick = onNavigateToAdd,
+                containerColor = MaterialTheme.colorScheme.primaryContainer
             ) {
-                // AI聊天小窗口按钮（根据设置显示/隐藏）
-                if (uiState.showAIWidget) {
-                    AIChatWidget(
-                        onExpandToFullScreen = onNavigateToAIChat
-                    )
-                }
-
-                // 添加按钮
-                FloatingActionButton(
-                    onClick = { 
-                        // 传递选中的日期
-                        val dateStr = selectedDate.toString()
-                        onNavigateToAdd(dateStr)
-                    },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "添加")
-                }
+                Icon(Icons.Default.Add, contentDescription = "添加")
             }
         }
     ) { paddingValues ->
-        Column(
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
@@ -212,17 +199,48 @@ fun HomeScreen(
                 }
             }
         }
+        
+        // AI聊天小窗口（根据设置显示/隐藏）- 固定在右下角
+        // 注意：FAB 高度约为 56dp + 16dp margin = 72dp，所以底部 padding 设置为 88dp 避免重叠
+        if (uiState.showAIWidget) {
+            // 遮罩层 - 迷你窗口状态时显示（点击可关闭）
+            if (aiWidgetState == com.calorieai.app.ui.components.AIWidgetState.MINI) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.3f))
+                        .clickable { aiWidgetState = com.calorieai.app.ui.components.AIWidgetState.FLOATING }
+                )
+            }
+
+            // AI Widget 容器 - 固定在右下角，避开 FAB
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.BottomEnd
+            ) {
+                AIChatWidget(
+                    onExpandToFullScreen = onNavigateToAIChat,
+                    widgetState = aiWidgetState,
+                    onWidgetStateChange = { aiWidgetState = it },
+                    modifier = Modifier
+                        .padding(end = 16.dp, bottom = 88.dp) // 88dp 避开 FAB
+                )
+            }
+        }
     }
 
-    // 运动消耗对话框
-    ExerciseDialog(
-        isVisible = showExerciseDialog,
-        onDismiss = { showExerciseDialog = false },
-        onAddExercise = { exerciseType, calories, notes, durationMinutes ->
-            viewModel.addExercise(exerciseType, calories, notes, durationMinutes)
-            showExerciseDialog = false
-        }
-    )
+        // 运动消耗对话框
+        ExerciseDialog(
+            isVisible = showExerciseDialog,
+            onDismiss = { showExerciseDialog = false },
+            onAddExercise = { exerciseType, calories, notes, durationMinutes ->
+                viewModel.addExercise(exerciseType, calories, notes, durationMinutes)
+                showExerciseDialog = false
+            }
+        )
+    }
 }
 
 @Composable
@@ -557,7 +575,8 @@ fun FoodRecordItem(
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = "已收藏",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.clickable { onStarClick() }
                         )
                     }
                 }

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Scale
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,7 +43,8 @@ fun AddMethodSelectorScreen(
     onNavigateToManual: () -> Unit,
     onNavigateToAI: () -> Unit,
     onNavigateToWeight: () -> Unit = {},
-    onNavigateToExercise: () -> Unit = {}
+    onNavigateToExercise: () -> Unit = {},
+    onNavigateToWaterHistory: () -> Unit = {}
 ) {
     var visible by remember { mutableStateOf(false) }
     
@@ -168,6 +170,26 @@ fun AddMethodSelectorScreen(
                         onClick = onNavigateToExercise,
                         modifier = Modifier.weight(1f)
                     )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 饮水记录（单独一行）
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    SmallMethodCard(
+                        icon = androidx.compose.material.icons.Icons.Default.WaterDrop,
+                        title = "饮水记录",
+                        subtitle = "记录每日饮水量",
+                        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
+                        onClick = onNavigateToWaterHistory,
+                        modifier = Modifier.weight(1f)
+                    )
+                    
+                    // 占位，保持布局对称
+                    Spacer(modifier = Modifier.weight(1f))
                 }
 
                 Spacer(modifier = Modifier.height(48.dp))
