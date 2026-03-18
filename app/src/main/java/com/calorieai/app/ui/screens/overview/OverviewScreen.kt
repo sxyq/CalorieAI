@@ -105,8 +105,13 @@ private fun HeatmapCard(
     isDark: Boolean,
     uiState: StatsUiState
 ) {
-    // 直接使用 ViewModel 中计算好的热力图数据
-    val activityData = uiState.heatmapData
+    // 使用真实的每日餐次记录数据生成热力图
+    val dailyMealRecords = uiState.dailyMealRecords
+    
+    // 计算活跃度数据（基于真实每日餐次记录）
+    val activityData = remember(dailyMealRecords) {
+        generateActivityDataFromDailyRecords(dailyMealRecords)
+    }
     
     val activeDays = uiState.streakDays
     val todayStats = uiState.todayStats
@@ -168,6 +173,37 @@ private fun HeatmapCard(
             }
         }
     }
+}
+
+// 从真实的每日餐次记录数据生成活跃度数据
+// level: 0=无记录, 1=1个餐次, 2=2个餐次, 3=3个餐次, 4=4个及以上餐次
+// 返回的矩阵是 [dayIndex][weekIndex] 格式，即每行是一周中的同一天（如所有周一），每列是一周
+private fun generateActivityDataFromDailyRecords(
+    dailyMealRecords: List<com.calorieai.app.ui.screens.stats.DailyMealRecord>
+): List<List<Int>> {
+    val weeks = 20
+    val daysPerWeek = 7
+    // 数据存储为每行代表星期几（0=周日, 1=周一...），每列代表第几周
+    val data = MutableList(daysPerWeek) { MutableList(weeks) { 0 } }
+
+    if (dailyMealRecords.isEmpty()) {
+        return data
+    }
+
+    // dailyMealRecords 已经按日期顺序排列，从 startDate 到 startDate + 139
+    // 直接遍历并填充数据
+    dailyMealRecords.forEachIndexed { index, record ->
+        if (index < 140) {
+            val weekIndex = index / 7
+            val dayIndex = index % 7
+            
+            if (weekIndex < weeks && dayIndex < daysPerWeek) {
+                data[dayIndex][weekIndex] = record.level
+            }
+        }
+    }
+
+    return data
 }
 
 @Composable

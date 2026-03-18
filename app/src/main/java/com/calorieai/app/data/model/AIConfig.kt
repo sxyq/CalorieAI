@@ -52,15 +52,13 @@ private data class PresetTemplate(
 
 object AIConfigPresets {
     const val ID_OPENAI_GPT4O = "openai_gpt4o"
-    const val ID_OPENAI_GPT4O_MINI = "openai_gpt4o_mini"
     const val ID_CLAUDE_3_5_SONNET = "claude_3_5_sonnet"
-    const val ID_CLAUDE_3_OPUS = "claude_3_opus"
-    const val ID_KIMI_K1 = "kimi_k1"
+    const val ID_KIMI_K2_5 = "kimi_k2_5"
     const val ID_GLM_4_PLUS = "glm_4_plus"
     const val ID_QWEN_2_5_MAX = "qwen_2_5_max"
     const val ID_DEEPSEEK_V3 = "deepseek_v3"
     const val ID_DEEPSEEK_R1 = "deepseek_r1"
-    const val ID_GEMINI_2_0_FLASH = "gemini_2_0_flash"
+    const val ID_GEMINI_2_0_PRO = "gemini_2_0_pro"
     const val ID_LONGCAT_FLASH_OMNI = "longcat_flash_omni"
     const val ID_LONGCAT_FLASH_CHAT = "longcat_flash_chat"
     const val ID_LONGCAT_FLASH_THINKING = "longcat_flash_thinking"
@@ -68,15 +66,13 @@ object AIConfigPresets {
 
     private val templates = listOf(
         PresetTemplate(ID_OPENAI_GPT4O, "OpenAI GPT-4o", AIProviderIcons.OPENAI, IconType.RESOURCE, AIProtocol.OPENAI, "https://api.openai.com/v1/chat/completions", "gpt-4o", true),
-        PresetTemplate(ID_OPENAI_GPT4O_MINI, "OpenAI GPT-4o Mini", AIProviderIcons.OPENAI, IconType.RESOURCE, AIProtocol.OPENAI, "https://api.openai.com/v1/chat/completions", "gpt-4o-mini", true),
         PresetTemplate(ID_CLAUDE_3_5_SONNET, "Claude 3.5 Sonnet", AIProviderIcons.CLAUDE, IconType.RESOURCE, AIProtocol.CLAUDE, "https://api.anthropic.com/v1/messages", "claude-3-5-sonnet-20241022", true),
-        PresetTemplate(ID_CLAUDE_3_OPUS, "Claude 3 Opus", AIProviderIcons.CLAUDE, IconType.RESOURCE, AIProtocol.CLAUDE, "https://api.anthropic.com/v1/messages", "claude-3-opus-20240229", true),
-        PresetTemplate(ID_KIMI_K1, "Kimi K1", AIProviderIcons.KIMI, IconType.RESOURCE, AIProtocol.KIMI, "https://api.moonshot.cn/v1/chat/completions", "kimi-k1-8k", true),
+        PresetTemplate(ID_KIMI_K2_5, "Kimi K2.5", AIProviderIcons.KIMI, IconType.RESOURCE, AIProtocol.KIMI, "https://api.moonshot.cn/v1/chat/completions", "kimi-k2-5", true),
         PresetTemplate(ID_GLM_4_PLUS, "GLM-4 Plus", AIProviderIcons.GLM, IconType.RESOURCE, AIProtocol.GLM, "https://open.bigmodel.cn/api/paas/v4/chat/completions", "glm-4-plus", true),
         PresetTemplate(ID_QWEN_2_5_MAX, "Qwen 2.5 Max", AIProviderIcons.QWEN, IconType.RESOURCE, AIProtocol.QWEN, "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", "qwen2.5-max", true),
         PresetTemplate(ID_DEEPSEEK_V3, "DeepSeek V3", AIProviderIcons.DEEPSEEK, IconType.RESOURCE, AIProtocol.DEEPSEEK, "https://api.deepseek.com/v1/chat/completions", "deepseek-chat", false),
         PresetTemplate(ID_DEEPSEEK_R1, "DeepSeek R1", AIProviderIcons.DEEPSEEK, IconType.RESOURCE, AIProtocol.DEEPSEEK, "https://api.deepseek.com/v1/chat/completions", "deepseek-reasoner", false),
-        PresetTemplate(ID_GEMINI_2_0_FLASH, "Gemini 2.0 Flash", AIProviderIcons.GEMINI, IconType.RESOURCE, AIProtocol.GEMINI, "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", "gemini-2.0-flash", true),
+        PresetTemplate(ID_GEMINI_2_0_PRO, "Gemini 2.0 Pro", AIProviderIcons.GEMINI, IconType.RESOURCE, AIProtocol.GEMINI, "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro-exp:generateContent", "gemini-2.0-pro-exp", true),
         PresetTemplate(ID_LONGCAT_FLASH_OMNI, "LongCat-Flash-Omni-2603", AIProviderIcons.LONGCAT, IconType.EMOJI, AIProtocol.LONGCAT, "https://api.longcat.chat/openai/v1/chat/completions", "LongCat-Flash-Omni-2603", true),
         PresetTemplate(ID_LONGCAT_FLASH_CHAT, "LongCat-Flash-Chat", AIProviderIcons.LONGCAT, IconType.EMOJI, AIProtocol.LONGCAT, "https://api.longcat.chat/openai/v1/chat/completions", "LongCat-Flash-Chat", false),
         PresetTemplate(ID_LONGCAT_FLASH_THINKING, "LongCat-Flash-Thinking-2601", AIProviderIcons.LONGCAT, IconType.EMOJI, AIProtocol.LONGCAT, "https://api.longcat.chat/openai/v1/chat/completions", "LongCat-Flash-Thinking-2601", false),
@@ -107,15 +103,13 @@ object AIConfigPresets {
     fun getByProtocol(protocol: AIProtocol): List<AIConfig> = ALL_PRESETS.filter { it.protocol == protocol }
 
     val OPENAI_GPT4O: AIConfig get() = getById(ID_OPENAI_GPT4O)!!
-    val OPENAI_GPT4O_MINI: AIConfig get() = getById(ID_OPENAI_GPT4O_MINI)!!
     val CLAUDE_3_5_SONNET: AIConfig get() = getById(ID_CLAUDE_3_5_SONNET)!!
-    val CLAUDE_3_OPUS: AIConfig get() = getById(ID_CLAUDE_3_OPUS)!!
-    val KIMI_K1: AIConfig get() = getById(ID_KIMI_K1)!!
+    val KIMI_K2_5: AIConfig get() = getById(ID_KIMI_K2_5)!!
     val GLM_4_PLUS: AIConfig get() = getById(ID_GLM_4_PLUS)!!
     val QWEN_2_5_MAX: AIConfig get() = getById(ID_QWEN_2_5_MAX)!!
     val DEEPSEEK_V3: AIConfig get() = getById(ID_DEEPSEEK_V3)!!
     val DEEPSEEK_R1: AIConfig get() = getById(ID_DEEPSEEK_R1)!!
-    val GEMINI_2_0_FLASH: AIConfig get() = getById(ID_GEMINI_2_0_FLASH)!!
+    val GEMINI_2_0_PRO: AIConfig get() = getById(ID_GEMINI_2_0_PRO)!!
     val LONGCAT_FLASH_OMNI: AIConfig get() = getById(ID_LONGCAT_FLASH_OMNI)!!
     val LONGCAT_FLASH_CHAT: AIConfig get() = getById(ID_LONGCAT_FLASH_CHAT)!!
     val LONGCAT_FLASH_THINKING: AIConfig get() = getById(ID_LONGCAT_FLASH_THINKING)!!

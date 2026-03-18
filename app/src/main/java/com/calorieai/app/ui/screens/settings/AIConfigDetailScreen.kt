@@ -712,16 +712,10 @@ fun PresetSelectorDialog(
                 // OpenAI 预设
                 PresetCategory(title = "OpenAI")
                 PresetItem(
-                    icon = "🤖",
+                    icon = "🅞",
                     name = AIConfigPresets.OPENAI_GPT4O.name,
-                    description = "多模态旗舰模型",
+                    description = "多模态模型",
                     onClick = { onPresetSelected(AIConfigPresets.OPENAI_GPT4O) }
-                )
-                PresetItem(
-                    icon = "🤖",
-                    name = AIConfigPresets.OPENAI_GPT4O_MINI.name,
-                    description = "轻量多模态模型",
-                    onClick = { onPresetSelected(AIConfigPresets.OPENAI_GPT4O_MINI) }
                 )
 
                 // Claude 预设
@@ -732,20 +726,14 @@ fun PresetSelectorDialog(
                     description = "均衡性能",
                     onClick = { onPresetSelected(AIConfigPresets.CLAUDE_3_5_SONNET) }
                 )
-                PresetItem(
-                    icon = "🅒",
-                    name = AIConfigPresets.CLAUDE_3_OPUS.name,
-                    description = "最强推理能力",
-                    onClick = { onPresetSelected(AIConfigPresets.CLAUDE_3_OPUS) }
-                )
 
                 // 国产模型
                 PresetCategory(title = "国产模型")
                 PresetItem(
                     icon = "🅚",
-                    name = AIConfigPresets.KIMI_K1.name,
+                    name = AIConfigPresets.KIMI_K2_5.name,
                     description = "Moonshot",
-                    onClick = { onPresetSelected(AIConfigPresets.KIMI_K1) }
+                    onClick = { onPresetSelected(AIConfigPresets.KIMI_K2_5) }
                 )
                 PresetItem(
                     icon = "🅖",
@@ -776,9 +764,9 @@ fun PresetSelectorDialog(
                 PresetCategory(title = "Google")
                 PresetItem(
                     icon = "🅖",
-                    name = AIConfigPresets.GEMINI_2_0_FLASH.name,
+                    name = AIConfigPresets.GEMINI_2_0_PRO.name,
                     description = "多模态模型",
-                    onClick = { onPresetSelected(AIConfigPresets.GEMINI_2_0_FLASH) }
+                    onClick = { onPresetSelected(AIConfigPresets.GEMINI_2_0_PRO) }
                 )
             }
         },
