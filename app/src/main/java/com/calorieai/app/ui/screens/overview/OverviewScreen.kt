@@ -190,11 +190,14 @@ private fun generateActivityDataFromDailyRecords(
         return data
     }
 
-    // 将记录按日期映射，    val recordsMap = dailyMealRecords.associateBy { it.date }
+    val recordsMap = dailyMealRecords.associateBy { it.date }
     val today = java.time.LocalDate.now()
 
-    // 计算起始日期：从今天往前推 139 天，这样今天就是最后一个格子
-    val startDate = today.minusDays(139)
+    // 计算起始日期：从今天往前推 139 天，然后对齐到周日（一周的开始）
+    // 这样可以确保热力图的第一列是完整的一周
+    val rawStartDate = today.minusDays(139)
+    val dayOfWeek = rawStartDate.dayOfWeek.value % 7 // 转换为 0=周日, 1=周一...6=周六
+    val startDate = rawStartDate.minusDays(dayOfWeek.toLong())
 
     // 填充数据
     // 热力图显示：第0列是最早的一周，第19列是最新的一周
@@ -205,12 +208,14 @@ private fun generateActivityDataFromDailyRecords(
         if (!date.isBefore(startDate) && !date.isAfter(today)) {
             // 计算从起始日期开始的天数偏移
             val daysFromStart = java.time.temporal.ChronoUnit.DAYS.between(startDate, date).toInt()
-            if (daysFromStart in 0 until 140) {
-                // 计算周索引和列索引）和星期几索引（行索引）
+            if (daysFromStart >= 0 && daysFromStart < 140) {
+                // 计算周索引（列索引）和星期几索引（行索引）
                 val weekIndex = daysFromStart / 7
                 val dayIndex = daysFromStart % 7
                 
-                data[dayIndex][weekIndex] = record.level
+                if (weekIndex < weeks && dayIndex < daysPerWeek) {
+                    data[dayIndex][weekIndex] = record.level
+                }
             }
         }
     }

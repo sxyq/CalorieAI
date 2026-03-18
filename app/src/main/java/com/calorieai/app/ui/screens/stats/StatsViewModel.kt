@@ -386,8 +386,10 @@ class StatsViewModel @Inject constructor(
         val today = LocalDate.now()
         val daysToShow = 140 // 20周
         
-        // 修正：从今天往前推 139 天作为起始日期（这样今天就是第140天）
-        val startDate = today.minusDays((daysToShow - 1).toLong())
+        // 从今天往前推 139 天，然后对齐到周日（一周的开始）
+        val rawStartDate = today.minusDays(139)
+        val dayOfWeek = rawStartDate.dayOfWeek.value % 7
+        val startDate = rawStartDate.minusDays(dayOfWeek.toLong())
         
         // 按日期分组记录
         val recordsByDate = foodRecords.groupBy { 
@@ -409,7 +411,7 @@ class StatsViewModel @Inject constructor(
                 mealTypes.size == 1 -> 1
                 mealTypes.size == 2 -> 2
                 mealTypes.size == 3 -> 3
-                else -> 4 // 4个及以上餐次
+                else -> 4
             }
             
             DailyMealRecord(
