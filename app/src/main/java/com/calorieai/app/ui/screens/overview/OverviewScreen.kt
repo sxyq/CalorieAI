@@ -105,13 +105,8 @@ private fun HeatmapCard(
     isDark: Boolean,
     uiState: StatsUiState
 ) {
-    // 使用真实的每日餐次记录数据生成热力图
-    val dailyMealRecords = uiState.dailyMealRecords
-    
-    // 计算活跃度数据（基于真实每日餐次记录）
-    val activityData = remember(dailyMealRecords) {
-        generateActivityDataFromDailyRecords(dailyMealRecords)
-    }
+    // 直接使用 ViewModel 中计算好的热力图数据
+    val activityData = uiState.heatmapData
     
     val activeDays = uiState.streakDays
     val todayStats = uiState.todayStats
@@ -173,54 +168,6 @@ private fun HeatmapCard(
             }
         }
     }
-}
-
-// 从真实的每日餐次记录数据生成活跃度数据
-// level: 0=无记录, 1=1个餐次, 2=2个餐次, 3=3个餐次, 4=4个及以上餐次
-// 返回的矩阵是 [dayIndex][weekIndex] 格式，即每行是一周中的同一天（如所有周一），每列是一周
-private fun generateActivityDataFromDailyRecords(
-    dailyMealRecords: List<com.calorieai.app.ui.screens.stats.DailyMealRecord>
-): List<List<Int>> {
-    val weeks = 20
-    val daysPerWeek = 7
-    // 数据存储为每行代表星期几（0=周日, 1=周一...），每列代表第几周
-    val data = MutableList(daysPerWeek) { MutableList(weeks) { 0 } }
-
-    if (dailyMealRecords.isEmpty()) {
-        return data
-    }
-
-    val recordsMap = dailyMealRecords.associateBy { it.date }
-    val today = java.time.LocalDate.now()
-
-    // 计算起始日期：从今天往前推 139 天，然后对齐到周日（一周的开始）
-    // 这样可以确保热力图的第一列是完整的一周
-    val rawStartDate = today.minusDays(139)
-    val dayOfWeek = rawStartDate.dayOfWeek.value % 7 // 转换为 0=周日, 1=周一...6=周六
-    val startDate = rawStartDate.minusDays(dayOfWeek.toLong())
-
-    // 填充数据
-    // 热力图显示：第0列是最早的一周，第19列是最新的一周
-    // 第0行是周日，第6行是周六
-    for (record in dailyMealRecords) {
-        val date = record.date
-        // 只处理起始日期到今天之间的记录
-        if (!date.isBefore(startDate) && !date.isAfter(today)) {
-            // 计算从起始日期开始的天数偏移
-            val daysFromStart = java.time.temporal.ChronoUnit.DAYS.between(startDate, date).toInt()
-            if (daysFromStart >= 0 && daysFromStart < 140) {
-                // 计算周索引（列索引）和星期几索引（行索引）
-                val weekIndex = daysFromStart / 7
-                val dayIndex = daysFromStart % 7
-                
-                if (weekIndex < weeks && dayIndex < daysPerWeek) {
-                    data[dayIndex][weekIndex] = record.level
-                }
-            }
-        }
-    }
-
-    return data
 }
 
 @Composable

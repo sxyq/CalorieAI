@@ -82,6 +82,8 @@ class StatsViewModel @Inject constructor(
 
                 // 计算每日餐次记录数据（用于热力图）
                 val dailyMealRecords = computeDailyMealRecords(foodRecords)
+                // 计算热力图数据矩阵
+                val heatmapData = computeHeatmapData(dailyMealRecords)
 
                 // 计算统一趋势数据
                 val trendData = computeTrendData(
@@ -109,6 +111,8 @@ class StatsViewModel @Inject constructor(
                     userActivityLevel = settings?.activityLevel ?: "MODERATE",
                     // 每日餐次记录数据
                     dailyMealRecords = dailyMealRecords,
+                    // 热力图数据矩阵
+                    heatmapData = heatmapData,
                     // 本月活跃天数（本月有记录的天数）
                     monthlyActiveDays = computeMonthlyActiveDays(dailyMealRecords),
                     // 饮水相关数据
@@ -423,6 +427,26 @@ class StatsViewModel @Inject constructor(
     }
 
     /**
+     * 计算热力图数据矩阵
+     * 返回 [dayIndex][weekIndex] 格式的矩阵，每行是一周中的同一天，每列是一周
+     */
+    private fun computeHeatmapData(dailyMealRecords: List<DailyMealRecord>): List<List<Int>> {
+        val weeks = 20
+        val daysPerWeek = 7
+        val data = MutableList(daysPerWeek) { MutableList(weeks) { 0 } }
+        
+        dailyMealRecords.forEachIndexed { index, record ->
+            val weekIndex = index / daysPerWeek
+            val dayIndex = index % daysPerWeek
+            if (weekIndex < weeks) {
+                data[dayIndex][weekIndex] = record.level
+            }
+        }
+        
+        return data
+    }
+
+    /**
      * 计算本月活跃天数（本月有记录的天数）
      */
     private fun computeMonthlyActiveDays(dailyMealRecords: List<DailyMealRecord>): Int {
@@ -591,6 +615,8 @@ data class StatsUiState(
     val userActivityLevel: String = "MODERATE",
     // 每日餐次记录数据（用于热力图）
     val dailyMealRecords: List<DailyMealRecord> = emptyList(),
+    // 热力图数据矩阵 [dayIndex][weekIndex]
+    val heatmapData: List<List<Int>> = emptyList(),
     // 今日饮水量
     val todayWaterAmount: Int = 0,
     // 本月活跃天数（本月有记录的天数）
