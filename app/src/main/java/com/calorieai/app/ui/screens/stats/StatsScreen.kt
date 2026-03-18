@@ -2,6 +2,7 @@ package com.calorieai.app.ui.screens.stats
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,12 +12,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -25,23 +27,24 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.graphics.Brush
-import com.calorieai.app.ui.components.interactiveScale
-import com.calorieai.app.ui.components.liquidGlass
-import com.calorieai.app.ui.components.interactiveScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.calorieai.app.data.model.ExerciseType
+import com.calorieai.app.data.model.NutritionCalculator
+import com.calorieai.app.data.model.NutritionReference
+import com.calorieai.app.data.model.UserBodyProfile
 import com.calorieai.app.ui.components.AnimatedListItem
 import com.calorieai.app.ui.components.charts.*
 import com.calorieai.app.ui.components.fadingTopEdge
+import com.calorieai.app.ui.components.interactiveScale
+import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.utils.*
-import com.calorieai.app.data.model.ExerciseType
-import com.calorieai.app.data.model.NutritionReference
-import com.calorieai.app.data.model.NutritionCalculator
-import com.calorieai.app.data.model.UserBodyProfile
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -159,9 +162,9 @@ private fun OverviewStatsContent(
             .fillMaxSize()
             .fadingTopEdge()
     ) {
-        // 日期选择器
+        // 日期选择器 - 使用新的滑动日期选择器
         item {
-            OverviewDateSelector(
+            ElegantDateSelector(
                 selectedDate = uiState.selectedOverviewDate,
                 onDateSelected = onDateSelected
             )
@@ -187,9 +190,20 @@ private fun OverviewStatsContent(
             }
         }
 
-        // 餐次统计
+        // 今日饮水统计卡片
         item {
             AnimatedListItem(index = 2) {
+                WaterStatsCard(
+                    todayAmount = uiState.todayWaterAmount,
+                    targetAmount = uiState.waterTargetAmount,
+                    weeklyAverage = uiState.weeklyWaterAverage
+                )
+            }
+        }
+
+        // 餐次统计
+        item {
+            AnimatedListItem(index = 3) {
                 MealTypeStatsCard(stats = uiState.mealTypeStats)
             }
         }
@@ -197,7 +211,7 @@ private fun OverviewStatsContent(
         // 历史统计
         item {
             uiState.historyStats?.let { stats ->
-                AnimatedListItem(index = 3) {
+                AnimatedListItem(index = 4) {
                     HistoryStatsCard(stats = stats)
                 }
             }
@@ -205,7 +219,7 @@ private fun OverviewStatsContent(
 
         // 连续记录
         item {
-            AnimatedListItem(index = 4) {
+            AnimatedListItem(index = 5) {
                 StreakCard(streakDays = uiState.streakDays)
             }
         }
@@ -213,130 +227,8 @@ private fun OverviewStatsContent(
         // 详细营养素统计表
         item {
             uiState.todayStats?.let { stats ->
-                AnimatedListItem(index = 5) {
+                AnimatedListItem(index = 6) {
                     DetailedNutritionStatsCard(stats = stats)
-                }
-            }
-        }
-    }
-}
-
-/**
- * 概览日期选择器 - 类似首页日历的简化版
- */
-@Composable
-private fun OverviewDateSelector(
-    selectedDate: LocalDate,
-    onDateSelected: (LocalDate) -> Unit
-) {
-    val today = LocalDate.now()
-    val dates = (-3..3).map { today.plusDays(it.toLong()) }
-    val weekDays = listOf("日", "一", "二", "三", "四", "五", "六")
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp)
-        ) {
-            // 当前选中的日期显示
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "${selectedDate.monthValue}月${selectedDate.dayOfMonth}日",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "周${weekDays[selectedDate.dayOfWeek.value % 7]}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // 日期选择行
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                dates.forEach { date ->
-                    val isSelected = date == selectedDate
-                    val isToday = date == today
-                    val interactionSource = remember { MutableInteractionSource() }
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .interactiveScale(interactionSource)
-                            .clickable(
-                                interactionSource = interactionSource,
-                                indication = null,
-                                onClick = { onDateSelected(date) }
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        // 星期
-                        Text(
-                            text = weekDays[date.dayOfWeek.value % 7],
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isSelected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // 日期
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    when {
-                                        isSelected -> MaterialTheme.colorScheme.primary
-                                        isToday -> MaterialTheme.colorScheme.primaryContainer
-                                        else -> Color.Transparent
-                                    }
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "${date.dayOfMonth}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
-                                color = when {
-                                    isSelected -> MaterialTheme.colorScheme.onPrimary
-                                    isToday -> MaterialTheme.colorScheme.onPrimaryContainer
-                                    else -> MaterialTheme.colorScheme.onSurface
-                                }
-                            )
-                        }
-
-                        // 今天标记
-                        if (isToday) {
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Box(
-                                modifier = Modifier
-                                    .size(4.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary)
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -576,6 +468,130 @@ private fun ExerciseStatsCard(stats: TodayStats) {
                         MaterialTheme.colorScheme.primary 
                     else 
                         MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 今日饮水统计卡片
+ */
+@Composable
+private fun WaterStatsCard(
+    todayAmount: Int,
+    targetAmount: Int,
+    weeklyAverage: Float
+) {
+    val progress = (todayAmount.toFloat() / targetAmount).coerceIn(0f, 1f)
+    val remaining = (targetAmount - todayAmount).coerceAtLeast(0)
+    val isGoalMet = todayAmount >= targetAmount
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(20.dp),
+                tint = androidx.compose.ui.graphics.Color(0xFF26C6DA).copy(alpha = 0.15f)
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            // 标题行
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.WaterDrop,
+                        contentDescription = null,
+                        tint = androidx.compose.ui.graphics.Color(0xFF26C6DA),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = "今日饮水",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                if (isGoalMet) {
+                    Text(
+                        text = "✓ 已达标",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = androidx.compose.ui.graphics.Color(0xFF4CAF50),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 进度条
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = androidx.compose.ui.graphics.Color(0xFF26C6DA),
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 统计数据
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                StatItem(
+                    label = "已饮水",
+                    value = todayAmount.toString(),
+                    unit = "ml",
+                    color = androidx.compose.ui.graphics.Color(0xFF26C6DA)
+                )
+                StatItem(
+                    label = "目标",
+                    value = targetAmount.toString(),
+                    unit = "ml",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                StatItem(
+                    label = "还需",
+                    value = remaining.toString(),
+                    unit = "ml",
+                    color = if (remaining > 0) MaterialTheme.colorScheme.primary 
+                           else androidx.compose.ui.graphics.Color(0xFF4CAF50)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 周平均
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "7日平均: ",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "${String.format("%.0f", weeklyAverage)} ml",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = androidx.compose.ui.graphics.Color(0xFF26C6DA)
                 )
             }
         }
@@ -1309,6 +1325,12 @@ private fun TrendAnalysisContent(
             timeDimension = uiState.trendTimeDimension,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
+
+        // 饮水趋势图表
+        WaterTrendChart(
+            waterData = uiState.waterTrendData,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
     }
 }
 
@@ -1839,6 +1861,286 @@ private fun WeightTrendChart(
 }
 
 /**
+ * 饮水趋势图表
+ */
+@Composable
+private fun WaterTrendChart(
+    waterData: List<WaterTrendData>,
+    modifier: Modifier = Modifier
+) {
+    val totalWater = waterData.sumOf { it.amount }
+    val avgWater = if (waterData.isNotEmpty()) totalWater / waterData.size else 0
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(
+                                color = Color(0xFF26C6DA),
+                                shape = RoundedCornerShape(2.dp)
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "饮水趋势",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Text(
+                    text = "日均: ${avgWater}ml",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (waterData.isNotEmpty() && waterData.any { it.amount > 0 }) {
+                val chartData = waterData.map { data ->
+                    data.date.format(DateTimeFormatter.ofPattern("MM/dd")) to data.amount.toFloat()
+                }
+
+                LineChartView(
+                    data = chartData,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    lineColor = android.graphics.Color.parseColor("#26C6DA")
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    WaterTrendStat(
+                        label = "总饮水",
+                        value = "${totalWater}ml",
+                        icon = "💧"
+                    )
+                    WaterTrendStat(
+                        label = "日均",
+                        value = "${avgWater}ml",
+                        icon = "📊"
+                    )
+                    val goalDays = waterData.count { it.amount >= 2000 }
+                    WaterTrendStat(
+                        label = "达标天数",
+                        value = "${goalDays}天",
+                        icon = "🎯"
+                    )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.WaterDrop,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = Color(0xFF26C6DA).copy(alpha = 0.5f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "暂无饮水数据",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "开始记录您的饮水习惯吧",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WaterTrendStat(
+    label: String,
+    value: String,
+    icon: String
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = icon,
+            style = MaterialTheme.typography.titleMedium
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF26C6DA)
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * 饮水月度总结卡片 - 用于上月总结页面
+ */
+@Composable
+private fun WaterMonthlySummaryCard(
+    monthlyTotal: Int,
+    weeklyAverage: Float,
+    targetAmount: Int
+) {
+    val daysInMonth = 30 // 简化处理
+    val dailyAverage = if (daysInMonth > 0) monthlyTotal / daysInMonth else 0
+    val goalAchievementRate = if (targetAmount > 0) (dailyAverage * 100 / targetAmount).coerceAtMost(100) else 0
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF26C6DA).copy(alpha = 0.08f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            // 标题
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "💧",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "饮水统计",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 主要数据
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                WaterMonthlyStat(
+                    icon = "📊",
+                    value = String.format("%,d", monthlyTotal),
+                    label = "总饮水(ml)"
+                )
+                WaterMonthlyStat(
+                    icon = "📈",
+                    value = "${dailyAverage}",
+                    label = "日均(ml)"
+                )
+                WaterMonthlyStat(
+                    icon = "🎯",
+                    value = "${goalAchievementRate}%",
+                    label = "达标率"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 进度条显示达标率
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "目标达成度",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "${goalAchievementRate}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF26C6DA)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                LinearProgressIndicator(
+                    progress = { goalAchievementRate / 100f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = Color(0xFF26C6DA),
+                    trackColor = Color(0xFF26C6DA).copy(alpha = 0.2f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WaterMonthlyStat(
+    icon: String,
+    value: String,
+    label: String
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = icon,
+            style = MaterialTheme.typography.headlineSmall
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF26C6DA)
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
  * 日期范围选择器对话框
  */
 @Composable
@@ -1949,6 +2251,13 @@ private fun MonthlySummaryContent(
         if ((summary?.weightChange ?: 0f) != 0f) {
             WeightChangeCard(summary)
         }
+
+        // 饮水统计卡片
+        WaterMonthlySummaryCard(
+            monthlyTotal = uiState.monthlyWaterTotal,
+            weeklyAverage = uiState.weeklyWaterAverage,
+            targetAmount = uiState.waterTargetAmount
+        )
 
         // 详细数据表格
         SummaryDetailTable(summary)
@@ -2846,5 +3155,279 @@ private fun DetailTableRow(label: String, value: String) {
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold
         )
+    }
+}
+
+/**
+ * 优雅的日期选择器
+ * 横向滑动选择日期，带有动画效果
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ElegantDateSelector(
+    selectedDate: LocalDate,
+    onDateSelected: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val today = LocalDate.now()
+    val dateFormatter = DateTimeFormatter.ofPattern("MM-dd")
+    val weekDayFormatter = DateTimeFormatter.ofPattern("EEE")
+    
+    // 生成日期范围：前30天到今天
+    val dates = remember {
+        (-30..0).map { today.plusDays(it.toLong()) }
+    }
+    
+    // 找到选中日期的索引
+    val selectedIndex = dates.indexOf(selectedDate).takeIf { it >= 0 } ?: dates.size - 1
+    
+    // 懒加载列表状态
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = maxOf(0, selectedIndex - 2))
+    
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        // 标题行
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "选择日期",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // 显示完整日期
+            Text(
+                text = selectedDate.format(DateTimeFormatter.ofPattern("yyyy年MM月dd日")),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 日期选择卡片 - 可滑动
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
+            )
+        ) {
+            val coroutineScope = rememberCoroutineScope()
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 左箭头
+                IconButton(
+                    onClick = {
+                        // 向前滚动5天
+                        val targetIndex = maxOf(0, listState.firstVisibleItemIndex - 5)
+                        coroutineScope.launch {
+                            listState.animateScrollToItem(targetIndex)
+                        }
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowLeft,
+                        contentDescription = "向前",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // 可滑动的日期列表
+                LazyRow(
+                    state = listState,
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
+                ) {
+                    items(dates.size) { index ->
+                        val date = dates[index]
+                        val isSelected = date == selectedDate
+                        val isToday = date == today
+
+                        DateItem(
+                            date = date,
+                            isSelected = isSelected,
+                            isToday = isToday,
+                            onClick = { onDateSelected(date) },
+                            dateFormatter = dateFormatter,
+                            weekDayFormatter = weekDayFormatter
+                        )
+                    }
+                }
+
+                // 右箭头
+                IconButton(
+                    onClick = {
+                        // 向后滚动5天
+                        val targetIndex = minOf(dates.size - 1, listState.firstVisibleItemIndex + 5)
+                        coroutineScope.launch {
+                            listState.animateScrollToItem(targetIndex)
+                        }
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowRight,
+                        contentDescription = "向后",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // 更多日期按钮
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            var showDatePicker by remember { mutableStateOf(false) }
+
+            TextButton(
+                onClick = { showDatePicker = true },
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CalendarMonth,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "选择其他日期",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            if (showDatePicker) {
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = { showDatePicker = false }) {
+                            Text("确定")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDatePicker = false }) {
+                            Text("取消")
+                        }
+                    }
+                ) {
+                    val datePickerState = rememberDatePickerState(
+                        initialSelectedDateMillis = selectedDate
+                            .atStartOfDay(java.time.ZoneId.systemDefault())
+                            .toInstant()
+                            .toEpochMilli()
+                    )
+
+                    DatePicker(state = datePickerState)
+
+                    // 监听日期变化
+                    LaunchedEffect(datePickerState.selectedDateMillis) {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val selected = java.time.Instant.ofEpochMilli(millis)
+                                .atZone(java.time.ZoneId.systemDefault())
+                                .toLocalDate()
+                            onDateSelected(selected)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 单个日期项
+ */
+@Composable
+private fun DateItem(
+    date: LocalDate,
+    isSelected: Boolean,
+    isToday: Boolean,
+    onClick: () -> Unit,
+    dateFormatter: DateTimeFormatter,
+    weekDayFormatter: DateTimeFormatter
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+
+    val backgroundColor by animateColorAsState(
+        targetValue = when {
+            isSelected -> MaterialTheme.colorScheme.primary
+            isToday -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            else -> Color.Transparent
+        },
+        animationSpec = tween(300),
+        label = "background"
+    )
+
+    val contentColor by animateColorAsState(
+        targetValue = when {
+            isSelected -> MaterialTheme.colorScheme.onPrimary
+            else -> MaterialTheme.colorScheme.onSurface
+        },
+        animationSpec = tween(300),
+        label = "content"
+    )
+
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(backgroundColor)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // 星期
+        Text(
+            text = date.format(weekDayFormatter),
+            style = MaterialTheme.typography.bodySmall,
+            color = contentColor.copy(alpha = 0.8f)
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // 日期
+        Text(
+            text = date.format(dateFormatter),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            color = contentColor
+        )
+
+        // 今天标记
+        if (isToday) {
+            Spacer(modifier = Modifier.height(2.dp))
+            Box(
+                modifier = Modifier
+                    .size(4.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isSelected) MaterialTheme.colorScheme.onPrimary
+                        else MaterialTheme.colorScheme.primary
+                    )
+            )
+        }
     }
 }

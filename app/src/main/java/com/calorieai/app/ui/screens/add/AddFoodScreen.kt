@@ -11,6 +11,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -29,6 +30,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.model.getMealTypeName
@@ -41,6 +43,7 @@ import javax.inject.Inject
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddFoodScreen(
+    selectedDate: String? = null,
     onNavigateBack: () -> Unit,
     onNavigateToResult: (String) -> Unit,
     onNavigateToCamera: () -> Unit,
@@ -48,6 +51,13 @@ fun AddFoodScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    
+    // 设置选中的日期
+    LaunchedEffect(selectedDate) {
+        selectedDate?.let {
+            viewModel.setSelectedDate(it)
+        }
+    }
     
     // 语音输入状态
     var showVoiceDialog by remember { mutableStateOf(false) }
@@ -63,7 +73,7 @@ fun AddFoodScreen(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            startVoiceInput(context, voiceHelper, onStart = {
+            startVoiceInput(context, voiceHelper, viewModel, onStart = {
                 isListening = true
                 showVoiceDialog = true
             })
@@ -123,7 +133,7 @@ fun AddFoodScreen(
                                 showVoiceDialog = false
                             }
                             androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED -> {
-                                startVoiceInput(context, voiceHelper, onStart = {
+                                startVoiceInput(context, voiceHelper, viewModel, onStart = {
                                     isListening = true
                                     showVoiceDialog = true
                                 })
@@ -573,37 +583,13 @@ private fun SoftSaveButton(
             if (loading) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // 进度指示器动画
-                    val infiniteTransition = rememberInfiniteTransition(label = "progress")
-                    val progress by infiniteTransition.animateFloat(
-                        initialValue = 0f,
-                        targetValue = 1f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(1500, easing = FastOutSlowInEasing),
-                            repeatMode = RepeatMode.Restart
-                        ),
-                        label = "progress"
+                    // AI分析动画组件
+                    AIAnalysisAnimation(
+                        modifier = Modifier.size(48.dp),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
-                    
-                    Box(
-                        modifier = Modifier.size(28.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.fillMaxSize(),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f),
-                            strokeWidth = 3.dp,
-                            progress = { 1f }
-                        )
-                        CircularProgressIndicator(
-                            modifier = Modifier.fillMaxSize(),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            strokeWidth = 3.dp,
-                            progress = { progress }
-                        )
-                    }
                     
                     Column {
                         Text(
@@ -613,13 +599,31 @@ private fun SoftSaveButton(
                             ),
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
-                        if (retryAttempt > 0) {
-                            Text(
-                                text = "正在重新尝试...",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                            )
-                        }
+                        
+                        // 动态提示文字
+                        val tips = listOf(
+                            "正在识别食物成分...",
+                            "分析营养成分中...",
+                            "计算热量数据...",
+                            "生成营养报告...",
+                            "即将完成..."
+                        )
+                        val tipIndex by rememberInfiniteTransition(label = "tip").animateValue(
+                            initialValue = 0,
+                            targetValue = tips.size - 1,
+                            typeConverter = Int.VectorConverter,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(3000, easing = LinearEasing),
+                                repeatMode = RepeatMode.Restart
+                            ),
+                            label = "tip"
+                        )
+                        
+                        Text(
+                            text = tips[tipIndex],
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        )
                     }
                 }
             } else {
@@ -755,17 +759,170 @@ private fun RetryMessageCard(
 }
 
 /**
+ * AI分析动画组件
+ * 包含脉冲波纹、旋转圆点和浮动效果
+ */
+@Composable
+private fun AIAnalysisAnimation(
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primary
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "ai_analysis")
+    
+    // 脉冲缩放动画
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = EaseInOutCubic),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+    
+    // 脉冲透明度动画
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = EaseInOutCubic),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
+    
+    // 旋转动画
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
+    
+    // 浮动动画
+    val floatOffset by infiniteTransition.animateFloat(
+        initialValue = -3f,
+        targetValue = 3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "float"
+    )
+    
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        // 外层脉冲波纹
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .scale(pulseScale)
+                .background(
+                    color = color.copy(alpha = pulseAlpha),
+                    shape = CircleShape
+                )
+        )
+        
+        // 中层旋转圆点
+        Box(
+            modifier = Modifier
+                .fillMaxSize(0.7f)
+                .rotate(rotation)
+        ) {
+            // 三个旋转的小圆点
+            val dotPositions = listOf(
+                Pair(0f, -1f),    // 上
+                Pair(0.866f, 0.5f),  // 右下
+                Pair(-0.866f, 0.5f)  // 左下
+            )
+            
+            dotPositions.forEachIndexed { index, (x, y) ->
+                val dotScale by infiniteTransition.animateFloat(
+                    initialValue = 0.6f,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(600, easing = EaseInOutCubic),
+                        repeatMode = RepeatMode.Reverse,
+                        initialStartOffset = StartOffset(index * 200)
+                    ),
+                    label = "dot$index"
+                )
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .offset(
+                            x = (x * 12).dp,
+                            y = (y * 12).dp
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp * dotScale)
+                            .background(
+                                color = color.copy(alpha = 0.8f),
+                                shape = CircleShape
+                            )
+                    )
+                }
+            }
+        }
+        
+        // 内层中心图标（浮动效果）
+        Box(
+            modifier = Modifier
+                .fillMaxSize(0.4f)
+                .offset(y = floatOffset.dp)
+                .background(
+                    color = color,
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+/**
  * 开始语音输入
  */
 private fun startVoiceInput(
     context: android.content.Context,
     voiceHelper: VoiceInputHelper,
+    viewModel: AddFoodViewModel,
     onStart: () -> Unit
 ) {
+    // 检查设备是否支持语音识别
+    if (!voiceHelper.isRecognitionAvailable(context)) {
+        android.widget.Toast.makeText(context, "设备不支持语音识别", android.widget.Toast.LENGTH_SHORT).show()
+        return
+    }
+    
     onStart()
     voiceHelper.startListening(
         context = context,
-        onResult = { _ -> },
-        onError = { _ -> }
+        onResult = { result ->
+            // 识别成功，更新食物描述
+            viewModel.onFoodDescriptionChange(result)
+        },
+        onError = { error ->
+            android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
+        },
+        onPartialResult = { partialText ->
+            // 实时显示部分识别结果
+            viewModel.onFoodDescriptionChange(partialText)
+        }
     )
 }

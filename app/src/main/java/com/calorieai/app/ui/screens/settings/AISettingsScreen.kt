@@ -48,43 +48,44 @@ fun AISettingsScreen(
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            // 调用限制提示卡片
-            RateLimitInfoCard()
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Token使用统计
-            TokenUsageCard(stats = uiState.tokenUsageStats)
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 添加新配置按钮
-            AddConfigButton(
-                onClick = { onNavigateToDetail(null) }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 配置列表
-            if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+        if (uiState.isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 调用限制提示卡片
+                item {
+                    RateLimitInfoCard()
                 }
-            } else if (uiState.configs.isEmpty()) {
-                EmptyConfigState()
-            } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+
+                // Token使用统计
+                item {
+                    TokenUsageCard(stats = uiState.tokenUsageStats)
+                }
+
+                // 添加新配置按钮
+                item {
+                    AddConfigButton(
+                        onClick = { onNavigateToDetail(null) }
+                    )
+                }
+
+                // 配置列表或空状态
+                if (uiState.configs.isEmpty()) {
+                    item {
+                        EmptyConfigState()
+                    }
+                } else {
                     items(
                         items = uiState.configs,
                         key = { it.id }
@@ -258,6 +259,7 @@ fun AIConfigItem(
                             AIProtocol.QWEN -> "Qwen"
                             AIProtocol.DEEPSEEK -> "DeepSeek"
                             AIProtocol.GEMINI -> "Gemini"
+                            AIProtocol.LONGCAT -> "LongCat"
                         },
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

@@ -36,7 +36,8 @@ data class BackupData(
     val exerciseRecords: List<ExerciseRecordBackup>,
     val userSettings: UserSettingsBackup?,
     val aiConfigs: List<AIConfigBackup> = emptyList(),
-    val weightRecords: List<WeightRecordBackup> = emptyList(),  // 新增体重记录
+    val weightRecords: List<WeightRecordBackup> = emptyList(),
+    val waterRecords: List<WaterRecordBackup> = emptyList(),  // 新增饮水记录
     val includeAIConfigs: Boolean = true
 )
 
@@ -48,10 +49,12 @@ data class AIConfigBackup(
     val iconType: String,
     val protocol: String,
     val apiUrl: String,
-    val apiKey: String,
+    val apiKey: String? = null,
+    val hasApiKey: Boolean = false,
     val modelId: String,
     val isImageUnderstanding: Boolean,
-    val isDefault: Boolean
+    val isDefault: Boolean,
+    val isPreset: Boolean = false
 )
 
 @Serializable
@@ -112,6 +115,15 @@ data class WeightRecordBackup(
 )
 
 @Serializable
+data class WaterRecordBackup(
+    val id: Long,
+    val amount: Int,
+    val recordTime: Long,
+    val recordDate: Long,
+    val note: String? = null
+)
+
+@Serializable
 data class UserSettingsBackup(
     val dailyCalorieGoal: Int,
     val userName: String? = null,
@@ -156,7 +168,7 @@ class BackupService @Inject constructor(
     private val foodRecordRepository: FoodRecordRepository,
     private val exerciseRecordRepository: ExerciseRecordRepository,
     private val userSettingsRepository: UserSettingsRepository,
-    private val aiConfigRepository: com.calorieai.app.data.local.AIConfigDao,
+    private val aiConfigDao: com.calorieai.app.data.local.AIConfigDao,
     private val weightRecordRepository: com.calorieai.app.data.repository.WeightRecordRepository
 ) {
     private val json = Json {
@@ -179,7 +191,7 @@ class BackupService @Inject constructor(
 
             // 收集AI配置
             val aiConfigs = if (includeAIConfigs) {
-                aiConfigRepository.getAllConfigs().first()
+                aiConfigDao.getAllConfigs().first()
             } else {
                 emptyList()
             }
@@ -353,12 +365,13 @@ class BackupService @Inject constructor(
                         iconType = com.calorieai.app.data.model.IconType.valueOf(backup.iconType),
                         protocol = com.calorieai.app.data.model.AIProtocol.valueOf(backup.protocol),
                         apiUrl = backup.apiUrl,
-                        apiKey = backup.apiKey,
+                        apiKey = backup.apiKey ?: "",
                         modelId = backup.modelId,
                         isImageUnderstanding = backup.isImageUnderstanding,
-                        isDefault = backup.isDefault
+                        isDefault = backup.isDefault,
+                        isPreset = backup.isPreset
                     )
-                    aiConfigRepository.insertConfig(config)
+                    aiConfigDao.insertConfig(config)
                 }
             }
 
@@ -486,10 +499,12 @@ class BackupService @Inject constructor(
         iconType = iconType.name,
         protocol = protocol.name,
         apiUrl = apiUrl,
-        apiKey = apiKey,
+        apiKey = null,
+        hasApiKey = apiKey.isNotBlank(),
         modelId = modelId,
         isImageUnderstanding = isImageUnderstanding,
-        isDefault = isDefault
+        isDefault = isDefault,
+        isPreset = isPreset
     )
 }
 

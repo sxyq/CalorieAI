@@ -80,14 +80,9 @@ fun Modifier.interactiveScale(
     this.scale(scale)
 }
 
-/**
- * Gooey 容器，简化版：移除模糊效果
- */
 @Composable
 fun GlassGooeyContainer(
     modifier: Modifier = Modifier,
-    blurRadius: Float = 30f,
-    alphaThreshold: Float = 18f,
     content: @Composable BoxScope.() -> Unit
 ) {
     Box(

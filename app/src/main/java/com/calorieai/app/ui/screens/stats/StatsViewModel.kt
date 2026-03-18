@@ -11,8 +11,7 @@ import com.calorieai.app.data.repository.UserSettingsRepository
 import com.calorieai.app.data.repository.WeightRecordRepository
 import com.calorieai.app.ui.components.charts.TimeDimension
 import com.calorieai.app.ui.components.charts.TrendChartData
-import com.calorieai.app.ui.screens.settings.calculateBMR
-import com.calorieai.app.ui.screens.settings.calculateTDEE
+import com.calorieai.app.utils.MetabolicConstants
 import com.calorieai.app.utils.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -27,7 +26,8 @@ class StatsViewModel @Inject constructor(
     private val foodRecordRepository: FoodRecordRepository,
     private val exerciseRecordRepository: ExerciseRecordRepository,
     private val userSettingsRepository: UserSettingsRepository,
-    private val weightRecordRepository: WeightRecordRepository
+    private val weightRecordRepository: WeightRecordRepository,
+    private val waterRecordRepository: com.calorieai.app.data.repository.WaterRecordRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StatsUiState())
@@ -52,7 +52,7 @@ class StatsViewModel @Inject constructor(
                 
                 // 计算 BMR 和 TDEE
                 val bmr = if (settings != null && userWeight != null) {
-                    calculateBMR(
+                    MetabolicConstants.calculateBMR(
                         gender = settings.userGender ?: "MALE",
                         weight = userWeight,
                         height = settings.userHeight,
@@ -60,7 +60,7 @@ class StatsViewModel @Inject constructor(
                     )
                 } else 0
                 val tdee = if (bmr > 0 && settings != null) {
-                    calculateTDEE(bmr, settings.activityLevel)
+                    MetabolicConstants.calculateTDEE(bmr, settings.activityLevel)
                 } else 0
 
                 val todayStats = StatsUtils.computeTodayStats(
@@ -80,8 +80,11 @@ class StatsViewModel @Inject constructor(
                 val currentMonthOffset = _uiState.value.selectedMonthOffset
                 val summary = StatsUtils.computeMonthSummary(foodRecords, exerciseRecords, currentMonthOffset, userWeight)
 
-                // 计算统一趋势数据（使用挂起版本以获取体重数据）
-                val trendData = computeTrendDataSuspend(
+                // 计算每日餐次记录数据（用于热力图）
+                val dailyMealRecords = computeDailyMealRecords(foodRecords)
+
+                // 计算统一趋势数据
+                val trendData = computeTrendData(
                     foodRecords,
                     exerciseRecords,
                     _uiState.value.trendTimeDimension,
@@ -103,37 +106,26 @@ class StatsViewModel @Inject constructor(
                     userWeight = userWeight ?: 70f,
                     userGender = settings?.userGender ?: "MALE",
                     userAge = settings?.userAge ?: 30,
-                    userActivityLevel = settings?.activityLevel ?: "MODERATE"
+                    userActivityLevel = settings?.activityLevel ?: "MODERATE",
+                    // 每日餐次记录数据
+                    dailyMealRecords = dailyMealRecords,
+                    // 本月活跃天数（本月有记录的天数）
+                    monthlyActiveDays = computeMonthlyActiveDays(dailyMealRecords),
+                    // 饮水相关数据
+                    todayWaterAmount = waterRecordRepository.getTodayTotalAmount(),
+                    waterTargetAmount = settings?.dailyWaterGoal ?: 2000,
+                    weeklyWaterAverage = computeWeeklyWaterAverage(),
+                    monthlyWaterTotal = waterRecordRepository.getMonthlyTotalAmount(),
+                    waterTrendData = computeWaterTrendData()
                 )
             }
         }
     }
 
     /**
-     * 计算趋势图表数据（非挂起版本，用于非协程上下文）
+     * 计算趋势图表数据
      */
-    private fun computeTrendData(
-        foodRecords: List<com.calorieai.app.data.model.FoodRecord>,
-        exerciseRecords: List<ExerciseRecord>,
-        timeDimension: TimeDimension,
-        startDate: LocalDate?,
-        endDate: LocalDate?
-    ): TrendChartData {
-        val today = LocalDate.now()
-        val actualStartDate = startDate ?: today.minusDays(30)
-        val actualEndDate = endDate ?: today
-
-        return when (timeDimension) {
-            TimeDimension.DAY -> computeDailyTrendSync(foodRecords, exerciseRecords, actualStartDate, actualEndDate)
-            TimeDimension.WEEK -> computeWeeklyTrendDataSync(foodRecords, exerciseRecords, actualStartDate, actualEndDate)
-            TimeDimension.MONTH -> computeMonthlyTrendDataSync(foodRecords, exerciseRecords, actualStartDate, actualEndDate)
-        }
-    }
-
-    /**
-     * 计算趋势图表数据（挂起版本，用于协程上下文）
-     */
-    private suspend fun computeTrendDataSuspend(
+    private suspend fun computeTrendData(
         foodRecords: List<com.calorieai.app.data.model.FoodRecord>,
         exerciseRecords: List<ExerciseRecord>,
         timeDimension: TimeDimension,
@@ -149,50 +141,6 @@ class StatsViewModel @Inject constructor(
             TimeDimension.WEEK -> computeWeeklyTrendData(foodRecords, exerciseRecords, actualStartDate, actualEndDate)
             TimeDimension.MONTH -> computeMonthlyTrendData(foodRecords, exerciseRecords, actualStartDate, actualEndDate)
         }
-    }
-
-    /**
-     * 计算每日趋势数据（同步版本）
-     */
-    private fun computeDailyTrendSync(
-        foodRecords: List<com.calorieai.app.data.model.FoodRecord>,
-        exerciseRecords: List<ExerciseRecord>,
-        startDate: LocalDate,
-        endDate: LocalDate
-    ): TrendChartData {
-        val dates = mutableListOf<LocalDate>()
-        val calorieIntake = mutableListOf<Float>()
-        val exerciseCalories = mutableListOf<Float>()
-        val weightData = mutableListOf<Float?>()
-
-        var current = startDate
-        while (!current.isAfter(endDate)) {
-            dates.add(current)
-
-            val dayStart = current.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            val dayEnd = current.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
-
-            // 热量摄入
-            val intake = foodRecords
-                .filter { it.recordTime in dayStart..dayEnd }
-                .sumOf { it.totalCalories }
-                .toFloat()
-            calorieIntake.add(intake)
-
-            // 运动消耗
-            val exercise = exerciseRecords
-                .filter { it.recordTime in dayStart..dayEnd }
-                .sumOf { it.caloriesBurned }
-                .toFloat()
-            exerciseCalories.add(exercise)
-
-            // 体重数据（同步版本不获取体重数据）
-            weightData.add(null)
-
-            current = current.plusDays(1)
-        }
-
-        return TrendChartData(dates, calorieIntake, exerciseCalories, weightData)
     }
 
     /**
@@ -214,7 +162,9 @@ class StatsViewModel @Inject constructor(
         val endMillis = endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val weightRecords = weightRecordRepository.getRecordsBetweenSync(startMillis, endMillis)
         val weightMap = weightRecords.associateBy { 
-            LocalDate.ofInstant(java.time.Instant.ofEpochMilli(it.recordDate), ZoneId.systemDefault())
+            java.time.Instant.ofEpochMilli(it.recordDate)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate()
         }
 
         var current = startDate
@@ -242,52 +192,6 @@ class StatsViewModel @Inject constructor(
             weightData.add(weightMap[current]?.weight)
 
             current = current.plusDays(1)
-        }
-
-        return TrendChartData(dates, calorieIntake, exerciseCalories, weightData)
-    }
-
-    /**
-     * 计算每周趋势数据（同步版本）
-     */
-    private fun computeWeeklyTrendDataSync(
-        foodRecords: List<com.calorieai.app.data.model.FoodRecord>,
-        exerciseRecords: List<ExerciseRecord>,
-        startDate: LocalDate,
-        endDate: LocalDate
-    ): TrendChartData {
-        val weekFields = WeekFields.of(java.util.Locale.getDefault())
-        val dates = mutableListOf<LocalDate>()
-        val calorieIntake = mutableListOf<Float>()
-        val exerciseCalories = mutableListOf<Float>()
-        val weightData = mutableListOf<Float?>()
-
-        var currentWeekStart = startDate.with(weekFields.dayOfWeek(), 1)
-        while (!currentWeekStart.isAfter(endDate)) {
-            val weekEnd = currentWeekStart.plusDays(6)
-            dates.add(currentWeekStart)
-
-            val weekStartMillis = currentWeekStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            val weekEndMillis = weekEnd.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
-
-            // 热量摄入
-            val intake = foodRecords
-                .filter { it.recordTime in weekStartMillis..weekEndMillis }
-                .sumOf { it.totalCalories }
-                .toFloat()
-            calorieIntake.add(intake)
-
-            // 运动消耗
-            val exercise = exerciseRecords
-                .filter { it.recordTime in weekStartMillis..weekEndMillis }
-                .sumOf { it.caloriesBurned }
-                .toFloat()
-            exerciseCalories.add(exercise)
-
-            // 体重数据（同步版本不获取体重数据）
-            weightData.add(null)
-
-            currentWeekStart = currentWeekStart.plusWeeks(1)
         }
 
         return TrendChartData(dates, calorieIntake, exerciseCalories, weightData)
@@ -342,51 +246,6 @@ class StatsViewModel @Inject constructor(
             weightData.add(if (weekWeights.isNotEmpty()) weekWeights.average().toFloat() else null)
 
             currentWeekStart = currentWeekStart.plusWeeks(1)
-        }
-
-        return TrendChartData(dates, calorieIntake, exerciseCalories, weightData)
-    }
-
-    /**
-     * 计算每月趋势数据（同步版本）
-     */
-    private fun computeMonthlyTrendDataSync(
-        foodRecords: List<com.calorieai.app.data.model.FoodRecord>,
-        exerciseRecords: List<ExerciseRecord>,
-        startDate: LocalDate,
-        endDate: LocalDate
-    ): TrendChartData {
-        val dates = mutableListOf<LocalDate>()
-        val calorieIntake = mutableListOf<Float>()
-        val exerciseCalories = mutableListOf<Float>()
-        val weightData = mutableListOf<Float?>()
-
-        var currentMonth = startDate.withDayOfMonth(1)
-        while (!currentMonth.isAfter(endDate)) {
-            dates.add(currentMonth)
-
-            val monthStartMillis = currentMonth.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            val monthEnd = currentMonth.withDayOfMonth(currentMonth.lengthOfMonth())
-            val monthEndMillis = monthEnd.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
-
-            // 热量摄入
-            val intake = foodRecords
-                .filter { it.recordTime in monthStartMillis..monthEndMillis }
-                .sumOf { it.totalCalories }
-                .toFloat()
-            calorieIntake.add(intake)
-
-            // 运动消耗
-            val exercise = exerciseRecords
-                .filter { it.recordTime in monthStartMillis..monthEndMillis }
-                .sumOf { it.caloriesBurned }
-                .toFloat()
-            exerciseCalories.add(exercise)
-
-            // 体重数据（同步版本不获取体重数据）
-            weightData.add(null)
-
-            currentMonth = currentMonth.plusMonths(1)
         }
 
         return TrendChartData(dates, calorieIntake, exerciseCalories, weightData)
@@ -493,7 +352,7 @@ class StatsViewModel @Inject constructor(
         viewModelScope.launch {
             val foodRecords = foodRecordRepository.getAllRecordsOnce()
             val exerciseRecords = exerciseRecordRepository.getAllRecordsOnce()
-            val trendData = computeTrendDataSuspend(
+            val trendData = computeTrendData(
                 foodRecords,
                 exerciseRecords,
                 _uiState.value.trendTimeDimension,
@@ -514,6 +373,103 @@ class StatsViewModel @Inject constructor(
             trendTimeDimension = TimeDimension.DAY
         )
         loadStats()
+    }
+
+    /**
+     * 计算每日餐次记录数据（用于热力图）
+     * 返回最近20周（140天）的每日餐次记录情况
+     * level: 0=无记录, 1=1个餐次, 2=2个餐次, 3=3个餐次, 4=4个及以上餐次
+     */
+    private fun computeDailyMealRecords(
+        foodRecords: List<com.calorieai.app.data.model.FoodRecord>
+    ): List<DailyMealRecord> {
+        val today = LocalDate.now()
+        val daysToShow = 140 // 20周
+        
+        // 修正：从今天往前推 139 天作为起始日期（这样今天就是第140天）
+        val startDate = today.minusDays((daysToShow - 1).toLong())
+        
+        // 按日期分组记录
+        val recordsByDate = foodRecords.groupBy { 
+            java.time.Instant.ofEpochMilli(it.recordTime)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate()
+        }
+        
+        return (0 until daysToShow).map { dayOffset ->
+            val date = startDate.plusDays(dayOffset.toLong())
+            val dayRecords = recordsByDate[date] ?: emptyList()
+            
+            // 获取该日记录的所有餐次类型（去重）
+            val mealTypes = dayRecords.map { it.mealType }.toSet()
+            
+            // 根据餐次数量确定等级
+            val level = when {
+                dayRecords.isEmpty() -> 0
+                mealTypes.size == 1 -> 1
+                mealTypes.size == 2 -> 2
+                mealTypes.size == 3 -> 3
+                else -> 4 // 4个及以上餐次
+            }
+            
+            DailyMealRecord(
+                date = date,
+                level = level,
+                mealTypes = mealTypes
+            )
+        }
+    }
+
+    /**
+     * 计算本月活跃天数（本月有记录的天数）
+     */
+    private fun computeMonthlyActiveDays(dailyMealRecords: List<DailyMealRecord>): Int {
+        val today = LocalDate.now()
+        val currentMonth = today.monthValue
+        val currentYear = today.year
+        
+        return dailyMealRecords.count { record ->
+            record.date.monthValue == currentMonth &&
+            record.date.year == currentYear &&
+            record.level > 0
+        }
+    }
+
+    /**
+     * 计算周平均饮水量
+     */
+    private suspend fun computeWeeklyWaterAverage(): Float {
+        val weeklyTotal = waterRecordRepository.getWeeklyTotalAmount()
+        return weeklyTotal / 7f
+    }
+
+    /**
+     * 计算饮水趋势数据（最近30天）
+     */
+    private suspend fun computeWaterTrendData(): List<WaterTrendData> {
+        val today = LocalDate.now()
+        val startDate = today.minusDays(29)
+        
+        val startMillis = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val endMillis = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
+        
+        val waterRecords = waterRecordRepository.getRecordsBetweenSync(startMillis, endMillis)
+        
+        // 按日期分组并求和
+        val recordsByDate = waterRecords.groupBy { record ->
+            java.time.Instant.ofEpochMilli(record.recordDate)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate()
+        }.mapValues { (_, records) -> records.sumOf { it.amount } }
+        
+        // 生成30天的数据
+        return (0 until 30).map { dayOffset ->
+            val date = startDate.plusDays(dayOffset.toLong())
+            WaterTrendData(
+                date = date,
+                amount = recordsByDate[date] ?: 0
+            )
+        }
     }
 
     /**
@@ -547,7 +503,7 @@ class StatsViewModel @Inject constructor(
             }
 
             val bmr = if (settings != null) {
-                calculateBMR(
+                MetabolicConstants.calculateBMR(
                     gender = settings.userGender ?: "MALE",
                     weight = settings.userWeight,
                     height = settings.userHeight,
@@ -555,7 +511,7 @@ class StatsViewModel @Inject constructor(
                 )
             } else 0
             val tdee = if (bmr > 0 && settings != null) {
-                calculateTDEE(bmr, settings.activityLevel)
+                MetabolicConstants.calculateTDEE(bmr, settings.activityLevel)
             } else 0
 
             // 手动构建TodayStats
@@ -600,6 +556,16 @@ class StatsViewModel @Inject constructor(
     }
 }
 
+/**
+ * 每日餐次记录数据（用于热力图）
+ * level: 0=无记录, 1=1个餐次, 2=2个餐次, 3=3个餐次, 4=4个及以上餐次
+ */
+data class DailyMealRecord(
+    val date: LocalDate,
+    val level: Int, // 0-4
+    val mealTypes: Set<MealType> = emptySet()
+)
+
 data class StatsUiState(
     val todayStats: TodayStats? = null,
     val mealTypeStats: Map<MealType, Int> = emptyMap(),
@@ -608,7 +574,7 @@ data class StatsUiState(
     val monthlyStats: List<MonthlyStat> = emptyList(),
     val lastMonthSummary: MonthSummary? = null,
     val streakDays: Int = 0,
-    val selectedMonthOffset: Int = 1, // 默认显示上个月
+    val selectedMonthOffset: Int = 0, // 默认显示当前月份
     val trendStartDate: LocalDate? = null,
     val trendEndDate: LocalDate? = null,
     val trendTimeDimension: TimeDimension = TimeDimension.DAY,
@@ -620,5 +586,24 @@ data class StatsUiState(
     val userWeight: Float = 70f,
     val userGender: String = "MALE",
     val userAge: Int = 30,
-    val userActivityLevel: String = "MODERATE"
+    val userActivityLevel: String = "MODERATE",
+    // 每日餐次记录数据（用于热力图）
+    val dailyMealRecords: List<DailyMealRecord> = emptyList(),
+    // 今日饮水量
+    val todayWaterAmount: Int = 0,
+    // 本月活跃天数（本月有记录的天数）
+    val monthlyActiveDays: Int = 0,
+    // 饮水相关数据
+    val waterTargetAmount: Int = 2000, // 每日饮水目标
+    val weeklyWaterAverage: Float = 0f, // 周平均饮水量
+    val monthlyWaterTotal: Int = 0, // 本月总饮水量
+    val waterTrendData: List<WaterTrendData> = emptyList() // 饮水趋势数据
+)
+
+/**
+ * 饮水趋势数据
+ */
+data class WaterTrendData(
+    val date: LocalDate,
+    val amount: Int
 )

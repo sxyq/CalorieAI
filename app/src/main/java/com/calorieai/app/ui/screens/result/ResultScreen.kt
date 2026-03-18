@@ -28,8 +28,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.FoodRecord
+import com.calorieai.app.data.model.FavoriteRecipe
 import com.calorieai.app.ui.components.interactiveScale
 import com.calorieai.app.ui.components.liquidGlass
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,9 +42,21 @@ fun ResultScreen(
     viewModel: ResultViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
+    
+    var isFavorite by remember { mutableStateOf(false) }
+    var showFavoriteToast by remember { mutableStateOf(false) }
+    var toastMessage by remember { mutableStateOf("") }
 
     LaunchedEffect(recordId) {
         viewModel.loadRecord(recordId)
+    }
+    
+    // 检查是否已收藏
+    LaunchedEffect(uiState.record?.foodName) {
+        uiState.record?.let { record ->
+            isFavorite = viewModel.isFavorite(record.foodName)
+        }
     }
 
     Scaffold(
@@ -52,6 +67,31 @@ fun ResultScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                    }
+                },
+                actions = {
+                    // 收藏按钮
+                    uiState.record?.let { record ->
+                        IconButton(onClick = {
+                            scope.launch {
+                                if (isFavorite) {
+                                    viewModel.removeFavorite(record.foodName)
+                                    isFavorite = false
+                                    toastMessage = "已取消收藏"
+                                } else {
+                                    viewModel.addFavorite(record)
+                                    isFavorite = true
+                                    toastMessage = "已添加到收藏"
+                                }
+                                showFavoriteToast = true
+                            }
+                        }) {
+                            Icon(
+                                imageVector = if (isFavorite) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                                contentDescription = if (isFavorite) "取消收藏" else "收藏",
+                                tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -84,9 +124,32 @@ fun ResultScreen(
                         viewModel.updateRecord(updatedRecord)
                         onNavigateBack()
                     },
+                    onRegenerate = { userInput ->
+                        // 删除当前记录并返回首页重新分析
+                        viewModel.deleteRecord(uiState.record!!.id)
+                        onNavigateBack()
+                    },
                     modifier = Modifier.padding(paddingValues)
                 )
             }
+        }
+    }
+    
+    // Toast 提示
+    if (showFavoriteToast) {
+        LaunchedEffect(showFavoriteToast) {
+            kotlinx.coroutines.delay(2000)
+            showFavoriteToast = false
+        }
+        Snackbar(
+            modifier = Modifier.padding(16.dp),
+            action = {
+                TextButton(onClick = { showFavoriteToast = false }) {
+                    Text("确定")
+                }
+            }
+        ) {
+            Text(toastMessage)
         }
     }
 }
@@ -95,6 +158,7 @@ fun ResultScreen(
 fun ResultContent(
     record: FoodRecord,
     onSave: (FoodRecord) -> Unit,
+    onRegenerate: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // 基础营养素状态
@@ -190,6 +254,16 @@ fun ResultContent(
                     potassium = potassium.toFloatOrNull() ?: 0f
                 )
                 onSave(updatedRecord)
+            }
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 重新生成数据按钮
+        RegenerateButton(
+            onClick = {
+                // 使用原始输入重新调用AI分析
+                onRegenerate(record.userInput)
             }
         )
 
@@ -718,6 +792,47 @@ private fun SaveButton(onClick: () -> Unit) {
                     fontWeight = FontWeight.SemiBold
                 ),
                 color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
+    }
+}
+
+/**
+ * 重新生成数据按钮
+ */
+@Composable
+private fun RegenerateButton(onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
+            .interactiveScale(interactionSource, pressedScale = 0.97f)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "重新生成数据",
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Medium
+                ),
+                color = MaterialTheme.colorScheme.onSecondaryContainer
             )
         }
     }

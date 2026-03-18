@@ -31,6 +31,9 @@ interface FoodRecordDao {
     @Query("SELECT * FROM food_records WHERE recordTime BETWEEN :startTime AND :endTime ORDER BY recordTime DESC")
     fun getRecordsBetween(startTime: Long, endTime: Long): Flow<List<FoodRecord>>
 
+    @Query("SELECT * FROM food_records WHERE recordTime BETWEEN :startTime AND :endTime ORDER BY recordTime DESC")
+    suspend fun getRecordsBetweenOnce(startTime: Long, endTime: Long): List<FoodRecord>
+
     @Query("SELECT * FROM food_records WHERE mealType = :mealType AND recordTime BETWEEN :startTime AND :endTime ORDER BY recordTime DESC")
     fun getRecordsByMealType(mealType: MealType, startTime: Long, endTime: Long): Flow<List<FoodRecord>>
 

@@ -21,6 +21,9 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        
+        // 构建时间
+        buildConfigField("long", "BUILD_TIME", "${System.currentTimeMillis()}L")
     }
 
     buildTypes {
@@ -55,6 +58,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.8"
@@ -110,12 +114,16 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("com.squareup.okhttp3:okhttp-sse:4.12.0")
 
     // Coil (图片加载)
     implementation("io.coil-kt:coil-compose:2.5.0")
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+    
+    // Security
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")

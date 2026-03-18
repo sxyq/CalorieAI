@@ -5,13 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.ExerciseRecord
 import com.calorieai.app.data.model.ExerciseType
 import com.calorieai.app.data.model.FoodRecord
-import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.repository.ExerciseRecordRepository
 import com.calorieai.app.data.repository.FoodRecordRepository
 import com.calorieai.app.data.repository.UserSettingsRepository
 import com.calorieai.app.data.repository.WeightRecordRepository
 import com.calorieai.app.ui.screens.settings.calculateBMR
 import com.calorieai.app.ui.screens.settings.calculateTDEE
+import com.calorieai.app.utils.DateUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -85,9 +85,8 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             
-            // 将LocalDate转换为时间戳范围
-            val startOfDay = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            val endOfDay = date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
+            // 使用 DateUtils 获取日期范围
+            val (startOfDay, endOfDay) = DateUtils.getDayRange(date)
             
             // 加载当前日期数据
             combine(
@@ -112,6 +111,8 @@ class HomeViewModel @Inject constructor(
                     exerciseCalories = totalExerciseCalories,
                     totalExerciseMinutes = totalExerciseMinutes,
                     tdee = _uiState.value.tdee,
+                    currentWeight = _uiState.value.currentWeight,
+                    showAIWidget = _uiState.value.showAIWidget,
                     isLoading = false
                 )
             }.collect { state ->
@@ -124,10 +125,7 @@ class HomeViewModel @Inject constructor(
      * 加载日历数据（最近30天）
      */
     private suspend fun loadCalendarData(): Map<LocalDate, Int> {
-        val today = LocalDate.now()
-        val startDate = today.minusDays(30)
-        val startOfRange = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val endOfRange = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val (startOfRange, endOfRange) = DateUtils.getDateRange(30)
         
         val records = foodRecordRepository.getAllRecordsOnce()
         return records

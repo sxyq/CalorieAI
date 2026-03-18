@@ -60,8 +60,4 @@ class ExerciseRecordRepository @Inject constructor(
     suspend fun getAllRecordsOnce(): List<ExerciseRecord> {
         return exerciseRecordDao.getAllRecordsOnce()
     }
-    
-    suspend fun insertRecord(record: ExerciseRecord) {
-        exerciseRecordDao.insertRecord(record)
-    }
 }

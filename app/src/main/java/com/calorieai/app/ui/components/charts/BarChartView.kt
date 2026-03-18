@@ -19,34 +19,13 @@ import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 fun BarChartView(
     data: List<Pair<String, Float>>,
     colors: List<Int>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    darkTheme: Boolean = false
 ) {
     AndroidView(
         factory = { context ->
             BarChart(context).apply {
-                description.isEnabled = false
-                setTouchEnabled(true)
-                setDrawGridBackground(false)
-                isDragEnabled = true
-                setScaleEnabled(false)
-                legend.isEnabled = false
-
-                xAxis.apply {
-                    position = XAxis.XAxisPosition.BOTTOM
-                    setDrawGridLines(false)
-                    granularity = 1f
-                    textColor = Color.GRAY
-                    textSize = 10f
-                }
-
-                axisLeft.apply {
-                    setDrawGridLines(true)
-                    gridColor = Color.LTGRAY
-                    textColor = Color.GRAY
-                    textSize = 10f
-                    axisMinimum = 0f
-                }
-                axisRight.isEnabled = false
+                ChartConfigFactory.configureBarChart(this, context, darkTheme, showLegend = false)
             }
         },
         modifier = modifier,
@@ -55,11 +34,12 @@ fun BarChartView(
                 BarEntry(index.toFloat(), pair.second)
             }
 
-            val dataSet = BarDataSet(entries, "摄入量").apply {
-                this.colors = colors.take(data.size)
-                valueTextSize = 10f
-                valueTextColor = Color.DKGRAY
-            }
+            val dataSet = ChartConfigFactory.createBarDataSet(
+                entries = entries,
+                label = "摄入量",
+                color = colors.firstOrNull() ?: Color.parseColor("#6750A4"),
+                darkTheme = darkTheme
+            )
 
             chart.xAxis.valueFormatter = IndexAxisValueFormatter(data.map { it.first })
             chart.data = BarData(dataSet).apply {
@@ -79,36 +59,13 @@ fun GroupedBarChartView(
     data: List<Pair<String, List<Float>>>,
     labels: List<String>,
     colors: List<Int>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    darkTheme: Boolean = false
 ) {
     AndroidView(
         factory = { context ->
             BarChart(context).apply {
-                description.isEnabled = false
-                setTouchEnabled(true)
-                setDrawGridBackground(false)
-                isDragEnabled = true
-                setScaleEnabled(false)
-                legend.isEnabled = true
-                legend.textColor = Color.DKGRAY
-                legend.textSize = 11f
-
-                xAxis.apply {
-                    position = XAxis.XAxisPosition.BOTTOM
-                    setDrawGridLines(false)
-                    granularity = 1f
-                    textColor = Color.GRAY
-                    textSize = 10f
-                }
-
-                axisLeft.apply {
-                    setDrawGridLines(true)
-                    gridColor = Color.LTGRAY
-                    textColor = Color.GRAY
-                    textSize = 10f
-                    axisMinimum = 0f
-                }
-                axisRight.isEnabled = false
+                ChartConfigFactory.configureBarChart(this, context, darkTheme, showLegend = true)
             }
         },
         modifier = modifier,
@@ -118,10 +75,12 @@ fun GroupedBarChartView(
                     BarEntry(i.toFloat(), pair.second.getOrElse(index) { 0f })
                 }
 
-                BarDataSet(entries, label).apply {
-                    color = colors.getOrElse(index) { Color.GRAY }
-                    valueTextSize = 9f
-                }
+                ChartConfigFactory.createBarDataSet(
+                    entries = entries,
+                    label = label,
+                    color = colors.getOrElse(index) { Color.GRAY },
+                    darkTheme = darkTheme
+                )
             }
 
             chart.xAxis.valueFormatter = IndexAxisValueFormatter(data.map { it.first })
@@ -142,34 +101,13 @@ fun GroupedBarChartView(
 fun HorizontalBarChartView(
     data: List<Pair<String, Float>>,
     colors: List<Int>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    darkTheme: Boolean = false
 ) {
     AndroidView(
         factory = { context ->
             com.github.mikephil.charting.charts.HorizontalBarChart(context).apply {
-                description.isEnabled = false
-                setTouchEnabled(true)
-                setDrawGridBackground(false)
-                isDragEnabled = true
-                setScaleEnabled(false)
-                legend.isEnabled = false
-
-                xAxis.apply {
-                    position = XAxis.XAxisPosition.BOTTOM
-                    setDrawGridLines(false)
-                    granularity = 1f
-                    textColor = Color.GRAY
-                    textSize = 10f
-                }
-
-                axisLeft.apply {
-                    setDrawGridLines(true)
-                    gridColor = Color.LTGRAY
-                    textColor = Color.GRAY
-                    textSize = 10f
-                    axisMinimum = 0f
-                }
-                axisRight.isEnabled = false
+                ChartConfigFactory.configureBarChart(this, context, darkTheme, showLegend = false)
             }
         },
         modifier = modifier,
@@ -178,11 +116,12 @@ fun HorizontalBarChartView(
                 BarEntry(index.toFloat(), pair.second)
             }
 
-            val dataSet = BarDataSet(entries, "").apply {
-                this.colors = colors.take(data.size)
-                valueTextSize = 10f
-                valueTextColor = Color.DKGRAY
-            }
+            val dataSet = ChartConfigFactory.createBarDataSet(
+                entries = entries,
+                label = "",
+                color = colors.firstOrNull() ?: Color.parseColor("#6750A4"),
+                darkTheme = darkTheme
+            )
 
             chart.xAxis.valueFormatter = IndexAxisValueFormatter(data.map { it.first })
             chart.data = BarData(dataSet).apply {

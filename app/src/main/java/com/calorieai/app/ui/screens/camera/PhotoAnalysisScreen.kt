@@ -24,7 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import com.calorieai.app.ui.components.liquidGlass
 import coil.compose.rememberAsyncImagePainter
-import com.calorieai.app.service.ai.FoodAnalysisResult
+import com.calorieai.app.data.model.FoodAnalysisResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -331,12 +331,12 @@ private fun EditableResultFields(
             OutlinedTextField(
                 value = result.calories.toString(),
                 onValueChange = {
-                    val calories = it.toIntOrNull() ?: 0
+                    val calories = it.toFloatOrNull() ?: 0f
                     onResultChange(result.copy(calories = calories))
                 },
                 label = { Text("热量") },
                 modifier = Modifier.weight(1f),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true
             )
         }

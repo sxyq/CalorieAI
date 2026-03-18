@@ -6,7 +6,7 @@ import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.repository.FoodRecordRepository
 import com.calorieai.app.service.ai.FoodTextAnalysisService
-import com.calorieai.app.service.ai.TextFoodAnalysisResult
+import com.calorieai.app.data.model.FoodAnalysisResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,6 +41,27 @@ class AddFoodViewModel @Inject constructor(
     
     fun clearRetryMessage() {
         _uiState.value = _uiState.value.copy(retryMessage = null)
+    }
+
+    fun setSelectedDate(dateStr: String) {
+        try {
+            // 解析日期字符串 (格式: yyyy-MM-dd)
+            val parts = dateStr.split("-")
+            if (parts.size == 3) {
+                val year = parts[0].toInt()
+                val month = parts[1].toInt() - 1 // Calendar月份从0开始
+                val day = parts[2].toInt()
+                
+                val calendar = Calendar.getInstance()
+                calendar.set(year, month, day, 12, 0, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                
+                _uiState.value = _uiState.value.copy(selectedDate = calendar.timeInMillis)
+            }
+        } catch (e: Exception) {
+            // 解析失败，使用当前时间
+            _uiState.value = _uiState.value.copy(selectedDate = System.currentTimeMillis())
+        }
     }
 
     fun saveFoodRecord(
@@ -145,7 +166,7 @@ class AddFoodViewModel @Inject constructor(
                     vitaminA = result.vitaminA,
                     potassium = result.potassium,
                     mealType = _uiState.value.selectedMealType,
-                    recordTime = System.currentTimeMillis()
+                    recordTime = _uiState.value.selectedDate
                 )
 
                 foodRecordRepository.addRecord(record)
@@ -201,8 +222,9 @@ data class AddFoodUiState(
     val selectedMealType: MealType = MealType.LUNCH,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val analysisResult: TextFoodAnalysisResult? = null,
+    val analysisResult: FoodAnalysisResult? = null,
     val retryMessage: String? = null,  // 重试提示信息
     val retryAttempt: Int = 0,  // 当前重试次数
-    val maxRetries: Int = 2  // 最大重试次数
+    val maxRetries: Int = 2,  // 最大重试次数
+    val selectedDate: Long = System.currentTimeMillis()  // 选中的日期
 )

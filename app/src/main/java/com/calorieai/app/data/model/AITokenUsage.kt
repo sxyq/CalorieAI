@@ -31,5 +31,20 @@ data class TokenUsageStats(
     val todayTokens: Int,
     val todayCost: Double,
     val monthTokens: Int,
-    val monthCost: Double
+    val monthCost: Double,
+    val modelStats: List<ModelTokenStats> = emptyList()  // 按模型统计
+)
+
+/**
+ * 单个模型的Token使用统计
+ */
+data class ModelTokenStats(
+    val modelId: String,           // 模型ID
+    val modelName: String,         // 模型名称
+    val configId: String,          // 配置ID
+    val totalTokens: Int,          // 总Token数
+    val promptTokens: Int,         // Prompt Token数
+    val completionTokens: Int,     // Completion Token数
+    val cost: Double,              // 成本
+    val requestCount: Int          // 请求次数
 )

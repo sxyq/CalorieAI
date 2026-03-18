@@ -12,7 +12,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class WeightRecordViewModel @Inject constructor(
-    private val weightRecordRepository: WeightRecordRepository
+    private val weightRecordRepository: WeightRecordRepository,
+    private val userSettingsRepository: com.calorieai.app.data.repository.UserSettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WeightRecordUiState())
@@ -83,12 +84,20 @@ class WeightRecordViewModel @Inject constructor(
         val weight = _uiState.value.weightInput.toFloatOrNull() ?: return
         
         viewModelScope.launch {
+            // 保存体重记录
             val record = WeightRecord(
                 weight = weight,
                 recordDate = _uiState.value.selectedDate,
                 note = _uiState.value.noteInput.takeIf { it.isNotBlank() }
             )
-            weightRecordRepository.insertRecord(record)
+            weightRecordRepository.insert(record)
+            
+            // 同时更新UserSettings中的体重，以便同步到首页和个人信息
+            val currentSettings = userSettingsRepository.getSettings().firstOrNull()
+            currentSettings?.let { settings ->
+                val updatedSettings = settings.copy(userWeight = weight)
+                userSettingsRepository.saveSettings(updatedSettings)
+            }
             
             // 重置输入
             _uiState.value = _uiState.value.copy(

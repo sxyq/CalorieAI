@@ -22,39 +22,15 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 fun LineChartView(
     data: List<Pair<String, Float>>,
     modifier: Modifier = Modifier,
-    lineColor: Int = Color.parseColor("#2196F3"),
-    fillColor: Int = Color.parseColor("#332196F3"),
-    showLabels: Boolean = true
+    lineColor: Int = Color.parseColor("#6750A4"),
+    fillColor: Int = Color.parseColor("#336750A4"),
+    showLabels: Boolean = true,
+    darkTheme: Boolean = false
 ) {
     AndroidView(
         factory = { context ->
             LineChart(context).apply {
-                description.isEnabled = false
-                setTouchEnabled(true)
-                setDrawGridBackground(false)
-                isDragEnabled = true
-                setScaleEnabled(true)
-                setPinchZoom(true)
-                legend.isEnabled = false
-
-                // X轴配置
-                xAxis.apply {
-                    position = XAxis.XAxisPosition.BOTTOM
-                    setDrawGridLines(false)
-                    granularity = 1f
-                    textColor = Color.GRAY
-                    textSize = 10f
-                }
-
-                // Y轴配置
-                axisLeft.apply {
-                    setDrawGridLines(true)
-                    gridColor = Color.LTGRAY
-                    textColor = Color.GRAY
-                    textSize = 10f
-                    axisMinimum = 0f
-                }
-                axisRight.isEnabled = false
+                ChartConfigFactory.configureLineChart(this, context, darkTheme, showLegend = false)
             }
         },
         modifier = modifier,
@@ -63,19 +39,14 @@ fun LineChartView(
                 Entry(index.toFloat(), pair.second)
             }
 
-            val dataSet = LineDataSet(entries, "摄入量").apply {
-                color = lineColor
-                setDrawCircles(true)
-                setCircleColor(lineColor)
-                circleRadius = 4f
-                lineWidth = 2f
-                setDrawFilled(true)
+            val dataSet = ChartConfigFactory.createLineDataSet(
+                entries = entries,
+                label = "摄入量",
+                color = lineColor,
+                darkTheme = darkTheme,
+                fillGradient = true
+            ).apply {
                 this.fillColor = fillColor
-                fillAlpha = 50
-                valueTextSize = 10f
-                valueTextColor = Color.DKGRAY
-                setDrawValues(false)
-                mode = LineDataSet.Mode.CUBIC_BEZIER
             }
 
             chart.xAxis.valueFormatter = IndexAxisValueFormatter(data.map { it.first })
@@ -93,36 +64,13 @@ fun LineChartView(
 fun MultiLineChartView(
     dataSets: List<Pair<String, List<Pair<String, Float>>>>,
     colors: List<Int>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    darkTheme: Boolean = false
 ) {
     AndroidView(
         factory = { context ->
             LineChart(context).apply {
-                description.isEnabled = false
-                setTouchEnabled(true)
-                setDrawGridBackground(false)
-                isDragEnabled = true
-                setScaleEnabled(true)
-                legend.isEnabled = true
-                legend.textColor = Color.DKGRAY
-                legend.textSize = 12f
-
-                xAxis.apply {
-                    position = XAxis.XAxisPosition.BOTTOM
-                    setDrawGridLines(false)
-                    granularity = 1f
-                    textColor = Color.GRAY
-                    textSize = 10f
-                }
-
-                axisLeft.apply {
-                    setDrawGridLines(true)
-                    gridColor = Color.LTGRAY
-                    textColor = Color.GRAY
-                    textSize = 10f
-                    axisMinimum = 0f
-                }
-                axisRight.isEnabled = false
+                ChartConfigFactory.configureLineChart(this, context, darkTheme, showLegend = true)
             }
         },
         modifier = modifier,
@@ -132,15 +80,15 @@ fun MultiLineChartView(
                     Entry(i.toFloat(), pair.second)
                 }
 
-                LineDataSet(entries, label).apply {
-                    color = colors.getOrElse(index) { Color.GRAY }
+                ChartConfigFactory.createLineDataSet(
+                    entries = entries,
+                    label = label,
+                    color = colors.getOrElse(index) { Color.GRAY },
+                    darkTheme = darkTheme,
+                    fillGradient = false
+                ).apply {
                     setDrawCircles(true)
-                    setCircleColor(colors.getOrElse(index) { Color.GRAY })
                     circleRadius = 3f
-                    lineWidth = 2f
-                    setDrawFilled(false)
-                    valueTextSize = 9f
-                    setDrawValues(false)
                     mode = LineDataSet.Mode.LINEAR
                 }
             }

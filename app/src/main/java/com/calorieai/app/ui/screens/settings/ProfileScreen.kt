@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import com.calorieai.app.ui.components.liquidGlass
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.calorieai.app.ui.components.interactiveScale
+import com.calorieai.app.utils.MetabolicConstants
 
 /**
  * 个人信息页面
@@ -516,52 +517,15 @@ private fun CalorieGoalSection(
     }
 }
 
-/**
- * 计算基础代谢率 (BMR)
- * 使用Mifflin-St Jeor公式
- */
 fun calculateBMR(
     gender: String,
     weight: Float?,
     height: Float?,
     age: Int?
-): Int {
-    if (weight == null || height == null || age == null) return 0
+): Int = MetabolicConstants.calculateBMR(gender, weight, height, age)
 
-    val bmr = if (gender == "MALE") {
-        (10 * weight) + (6.25 * height) - (5 * age) + 5
-    } else {
-        (10 * weight) + (6.25 * height) - (5 * age) - 161
-    }
-    return bmr.toInt().coerceAtLeast(1000)
-}
+fun calculateTDEE(bmr: Int, activityLevel: String): Int = 
+    MetabolicConstants.calculateTDEE(bmr, activityLevel)
 
-/**
- * 计算每日总消耗 (TDEE)
- */
-fun calculateTDEE(bmr: Int, activityLevel: String): Int {
-    val multiplier = when (activityLevel) {
-        "SEDENTARY" -> 1.2
-        "LIGHT" -> 1.375
-        "MODERATE" -> 1.55
-        "ACTIVE" -> 1.725
-        "VERY_ACTIVE" -> 1.9
-        else -> 1.2
-    }
-    return (bmr * multiplier).toInt().coerceAtLeast(1200)
-}
-
-/**
- * 从TDEE反推BMR（用于快捷设置）
- */
-private fun calculateBMRFromTDEE(tdee: Int, activityLevel: String): Int {
-    val multiplier = when (activityLevel) {
-        "SEDENTARY" -> 1.2
-        "LIGHT" -> 1.375
-        "MODERATE" -> 1.55
-        "ACTIVE" -> 1.725
-        "VERY_ACTIVE" -> 1.9
-        else -> 1.2
-    }
-    return (tdee / multiplier).toInt()
-}
+private fun calculateBMRFromTDEE(tdee: Int, activityLevel: String): Int = 
+    MetabolicConstants.calculateBMRFromTDEE(tdee, activityLevel)

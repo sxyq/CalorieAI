@@ -120,6 +120,8 @@ class AIChatViewModel @Inject constructor(
     }
 
     fun sendMessage(message: String) {
+        // 并发控制：如果正在发送，则忽略新请求
+        if (_uiState.value.isSending) return
         if (message.isBlank()) return
 
         val userMessage = ChatMessage(
@@ -131,7 +133,8 @@ class AIChatViewModel @Inject constructor(
             messages = _uiState.value.messages + userMessage,
             inputText = "",
             isLoading = true,
-            isTyping = true
+            isTyping = true,
+            isSending = true  // 锁定发送状态
         )
 
         // 设置会话标题（如果是第一条消息）
@@ -143,7 +146,94 @@ class AIChatViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                val response = aiChatService.sendMessage(message)
+                // 创建AI消息占位符
+                val aiMessageId = UUID.randomUUID().toString()
+                val aiMessage = ChatMessage(
+                    id = aiMessageId,
+                    content = "",
+                    isFromUser = false
+                )
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + aiMessage
+                )
+
+                // 使用流式API接收响应
+                val fullResponse = StringBuilder()
+                aiChatService.sendMessageStream(message).collect { char ->
+                    fullResponse.append(char)
+                    // 实时更新消息内容
+                    val updatedMessages = _uiState.value.messages.map { msg ->
+                        if (msg.id == aiMessageId) {
+                            msg.copy(content = fullResponse.toString())
+                        } else {
+                            msg
+                        }
+                    }
+                    _uiState.value = _uiState.value.copy(messages = updatedMessages)
+                }
+
+                // 完成后更新状态
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isTyping = false,
+                    isSending = false  // 解锁发送状态
+                )
+
+                // 更新剩余调用次数
+                updateRemainingCalls()
+
+                // 自动保存会话
+                saveCurrentSession()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                
+                val errorMsg = when {
+                    e.message?.contains("未配置AI服务") == true -> "未配置AI服务，请先在设置中配置AI服务"
+                    e.message?.contains("API调用次数已用完") == true -> e.message!!
+                    e.message?.contains("API调用失败") == true -> e.message!!
+                    e.message?.contains("API返回为空") == true -> "AI服务返回为空，请检查网络连接"
+                    e.message?.contains("Unable to resolve host") == true -> "网络连接失败，请检查网络设置"
+                    e.message != null -> "抱歉，我遇到了一些问题：${e.message}"
+                    else -> "未知错误，请检查网络连接或AI配置。错误类型：${e.javaClass.simpleName}"
+                }
+                
+                val errorMessage = ChatMessage(
+                    content = errorMsg,
+                    isFromUser = false
+                )
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + errorMessage,
+                    isLoading = false,
+                    isTyping = false,
+                    isSending = false  // 解锁发送状态
+                )
+            }
+        }
+    }
+
+    fun startCalorieAssessment() {
+        val userMessage = "请帮我评估最近一周的热量消耗是否合理"
+        val displayMessage = ChatMessage(
+            content = userMessage,
+            isFromUser = true
+        )
+
+        _uiState.value = _uiState.value.copy(
+            messages = _uiState.value.messages + displayMessage,
+            inputText = "",
+            isLoading = true,
+            isTyping = true
+        )
+
+        if (_uiState.value.currentSessionTitle.isBlank()) {
+            _uiState.value = _uiState.value.copy(
+                currentSessionTitle = userMessage.take(30)
+            )
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = aiChatService.assessCalorieIntake()
 
                 val aiMessage = ChatMessage(
                     content = response,
@@ -156,25 +246,11 @@ class AIChatViewModel @Inject constructor(
                     isTyping = false
                 )
 
-                // 更新剩余调用次数
                 updateRemainingCalls()
-
-                // 自动保存会话
                 saveCurrentSession()
             } catch (e: Exception) {
-                e.printStackTrace() // 打印完整错误堆栈以便调试
-                
-                val errorMsg = when {
-                    e.message?.contains("未配置AI服务") == true -> "未配置AI服务，请先在设置中配置AI服务"
-                    e.message?.contains("API调用次数已用完") == true -> e.message!!
-                    e.message?.contains("API调用失败") == true -> e.message!!
-                    e.message?.contains("API返回为空") == true -> "AI服务返回为空，请检查网络连接"
-                    e.message != null -> "抱歉，我遇到了一些问题：${e.message}"
-                    else -> "未知错误，请检查网络连接或AI配置。错误类型：${e.javaClass.simpleName}"
-                }
-                
                 val errorMessage = ChatMessage(
-                    content = errorMsg,
+                    content = "抱歉，评估失败：${e.message}",
                     isFromUser = false
                 )
                 _uiState.value = _uiState.value.copy(
@@ -186,25 +262,106 @@ class AIChatViewModel @Inject constructor(
         }
     }
 
-    fun startCalorieAssessment() {
-        _uiState.value = _uiState.value.copy(
-            inputText = "请帮我评估今天的热量消耗是否合理"
-        )
-        sendMessage()
-    }
-
     fun startMealPlanning() {
-        _uiState.value = _uiState.value.copy(
-            inputText = "请帮我规划今天的健康菜谱"
+        val userMessage = "请帮我规划今天的健康菜谱"
+        val displayMessage = ChatMessage(
+            content = userMessage,
+            isFromUser = true
         )
-        sendMessage()
+
+        _uiState.value = _uiState.value.copy(
+            messages = _uiState.value.messages + displayMessage,
+            inputText = "",
+            isLoading = true,
+            isTyping = true
+        )
+
+        if (_uiState.value.currentSessionTitle.isBlank()) {
+            _uiState.value = _uiState.value.copy(
+                currentSessionTitle = userMessage.take(30)
+            )
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = aiChatService.planHealthyMeals()
+
+                val aiMessage = ChatMessage(
+                    content = response,
+                    isFromUser = false
+                )
+
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + aiMessage,
+                    isLoading = false,
+                    isTyping = false
+                )
+
+                updateRemainingCalls()
+                saveCurrentSession()
+            } catch (e: Exception) {
+                val errorMessage = ChatMessage(
+                    content = "抱歉，规划失败：${e.message}",
+                    isFromUser = false
+                )
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + errorMessage,
+                    isLoading = false,
+                    isTyping = false
+                )
+            }
+        }
     }
 
     fun startHealthConsult() {
-        _uiState.value = _uiState.value.copy(
-            inputText = "我想咨询一些营养健康问题"
+        val userMessage = "我想咨询一些营养健康问题"
+        val displayMessage = ChatMessage(
+            content = userMessage,
+            isFromUser = true
         )
-        sendMessage()
+
+        _uiState.value = _uiState.value.copy(
+            messages = _uiState.value.messages + displayMessage,
+            inputText = "",
+            isLoading = true,
+            isTyping = true
+        )
+
+        if (_uiState.value.currentSessionTitle.isBlank()) {
+            _uiState.value = _uiState.value.copy(
+                currentSessionTitle = userMessage.take(30)
+            )
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = aiChatService.healthConsult()
+
+                val aiMessage = ChatMessage(
+                    content = response,
+                    isFromUser = false
+                )
+
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + aiMessage,
+                    isLoading = false,
+                    isTyping = false
+                )
+
+                updateRemainingCalls()
+                saveCurrentSession()
+            } catch (e: Exception) {
+                val errorMessage = ChatMessage(
+                    content = "抱歉，咨询失败：${e.message}",
+                    isFromUser = false
+                )
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + errorMessage,
+                    isLoading = false,
+                    isTyping = false
+                )
+            }
+        }
     }
 
     fun clearCurrentChat() {
@@ -252,6 +409,7 @@ data class AIChatUiState(
     val inputText: String = "",
     val isLoading: Boolean = false,
     val isTyping: Boolean = false,
+    val isSending: Boolean = false,  // 发送锁定状态
     val chatSessions: List<ChatSessionInfo> = emptyList(),
     val remainingCalls: Int = 10,
     val dailyLimit: Int = 10

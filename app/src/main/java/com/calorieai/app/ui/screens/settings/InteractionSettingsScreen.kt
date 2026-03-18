@@ -2,28 +2,14 @@ package com.calorieai.app.ui.screens.settings
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.foundation.background
+import com.calorieai.app.ui.components.*
 
-/**
- * 交互与行为设置页面
- * 参考Deadliner的交互设置
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InteractionSettingsScreen(
@@ -34,13 +20,9 @@ fun InteractionSettingsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("交互与行为") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                }
+            SettingsTopAppBar(
+                title = "交互与行为",
+                onNavigateBack = onNavigateBack
             )
         }
     ) { paddingValues ->
@@ -50,15 +32,15 @@ fun InteractionSettingsScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
-            // 操作反馈
-            SettingsSection(title = "操作反馈") {
-                FeedbackTypeSelector(
-                    selectedType = uiState.feedbackType,
-                    onTypeSelected = viewModel::updateFeedbackType
-                )
-            }
+            EnumSelectorCard(
+                title = "操作反馈",
+                items = FeedbackType.entries,
+                selectedItem = uiState.feedbackType,
+                onItemSelected = viewModel::updateFeedbackType,
+                itemLabel = { it.label },
+                itemDescription = { it.description }
+            )
 
-            // 振动反馈
             SettingsSection(title = "振动") {
                 SettingsSwitchItem(
                     title = "启用振动反馈",
@@ -68,7 +50,6 @@ fun InteractionSettingsScreen(
                 )
             }
 
-            // 声音反馈
             SettingsSection(title = "声音") {
                 SettingsSwitchItem(
                     title = "启用声音反馈",
@@ -78,23 +59,23 @@ fun InteractionSettingsScreen(
                 )
             }
 
-            // 应用后台行为
-            SettingsSection(title = "后台行为") {
-                BackgroundBehaviorSelector(
-                    selectedBehavior = uiState.backgroundBehavior,
-                    onBehaviorSelected = viewModel::updateBackgroundBehavior
-                )
-            }
+            EnumSelectorCard(
+                title = "后台行为",
+                items = BackgroundBehavior.entries,
+                selectedItem = uiState.backgroundBehavior,
+                onItemSelected = viewModel::updateBackgroundBehavior,
+                itemLabel = { it.label },
+                itemDescription = { it.description }
+            )
 
-            // 启动页面
-            SettingsSection(title = "启动") {
-                StartupPageSelector(
-                    selectedPage = uiState.startupPage,
-                    onPageSelected = viewModel::updateStartupPage
-                )
-            }
+            EnumSelectorCard(
+                title = "启动页面",
+                items = StartupPage.entries,
+                selectedItem = uiState.startupPage,
+                onItemSelected = viewModel::updateStartupPage,
+                itemLabel = { it.label }
+            )
 
-            // 快速添加
             SettingsSection(title = "快速操作") {
                 SettingsSwitchItem(
                     title = "快速添加",
@@ -104,190 +85,26 @@ fun InteractionSettingsScreen(
                 )
             }
 
-            // AI助手设置
-            SettingsSection(title = "AI助手") {
-                SettingsSwitchItem(
-                    title = "显示AI助手",
-                    subtitle = "在首页显示AI助手悬浮按钮",
-                    checked = uiState.showAIWidget,
-                    onCheckedChange = viewModel::updateShowAIWidget
-                )
-            }
-
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
-
 }
 
-/**
- * 操作反馈类型选择器
- */
-@Composable
-private fun FeedbackTypeSelector(
-    selectedType: FeedbackType,
-    onTypeSelected: (FeedbackType) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .selectableGroup()
-            .padding(horizontal = 16.dp)
-    ) {
-        FeedbackType.values().forEach { type ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .selectable(
-                        selected = (type == selectedType),
-                        onClick = { onTypeSelected(type) },
-                        role = Role.RadioButton
-                    )
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RadioButton(
-                    selected = (type == selectedType),
-                    onClick = null
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = when (type) {
-                            FeedbackType.NONE -> "无反馈"
-                            FeedbackType.VIBRATION -> "仅振动"
-                            FeedbackType.SOUND -> "仅声音"
-                            FeedbackType.BOTH -> "振动和声音"
-                        },
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = when (type) {
-                            FeedbackType.NONE -> "操作时不提供任何反馈"
-                            FeedbackType.VIBRATION -> "操作时仅提供振动反馈"
-                            FeedbackType.SOUND -> "操作时仅播放提示音"
-                            FeedbackType.BOTH -> "操作时同时提供振动和声音反馈"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
+enum class FeedbackType(val label: String, val description: String) {
+    NONE("无反馈", "操作时不提供任何反馈"),
+    VIBRATION("仅振动", "操作时仅提供振动反馈"),
+    SOUND("仅声音", "操作时仅播放提示音"),
+    BOTH("振动和声音", "操作时同时提供振动和声音反馈")
 }
 
-/**
- * 后台行为选择器
- */
-@Composable
-private fun BackgroundBehaviorSelector(
-    selectedBehavior: BackgroundBehavior,
-    onBehaviorSelected: (BackgroundBehavior) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .selectableGroup()
-            .padding(horizontal = 16.dp)
-    ) {
-        BackgroundBehavior.values().forEach { behavior ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .selectable(
-                        selected = (behavior == selectedBehavior),
-                        onClick = { onBehaviorSelected(behavior) },
-                        role = Role.RadioButton
-                    )
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RadioButton(
-                    selected = (behavior == selectedBehavior),
-                    onClick = null
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = when (behavior) {
-                            BackgroundBehavior.STANDARD -> "标准"
-                            BackgroundBehavior.KEEP_ALIVE -> "保持运行"
-                            BackgroundBehavior.BATTERY_SAVER -> "省电模式"
-                        },
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = when (behavior) {
-                            BackgroundBehavior.STANDARD -> "系统默认后台行为"
-                            BackgroundBehavior.KEEP_ALIVE -> "保持应用在后台运行，及时提醒"
-                            BackgroundBehavior.BATTERY_SAVER -> "减少后台活动，延长电池续航"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
+enum class BackgroundBehavior(val label: String, val description: String) {
+    STANDARD("标准", "系统默认后台行为"),
+    KEEP_ALIVE("保持运行", "保持应用在后台运行，及时提醒"),
+    BATTERY_SAVER("省电模式", "减少后台活动，延长电池续航")
 }
 
-/**
- * 启动页面选择器
- */
-@Composable
-private fun StartupPageSelector(
-    selectedPage: StartupPage,
-    onPageSelected: (StartupPage) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .selectableGroup()
-            .padding(horizontal = 16.dp)
-    ) {
-        StartupPage.values().forEach { page ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .selectable(
-                        selected = (page == selectedPage),
-                        onClick = { onPageSelected(page) },
-                        role = Role.RadioButton
-                    )
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RadioButton(
-                    selected = (page == selectedPage),
-                    onClick = null
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    text = when (page) {
-                        StartupPage.HOME -> "首页"
-                        StartupPage.STATS -> "统计"
-                        StartupPage.ADD -> "添加"
-                    },
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-        }
-    }
-}
-
-// 枚举定义
-enum class FeedbackType {
-    NONE, VIBRATION, SOUND, BOTH
-}
-
-enum class BackgroundBehavior {
-    STANDARD, KEEP_ALIVE, BATTERY_SAVER
-}
-
-enum class StartupPage {
-    HOME, STATS, ADD
+enum class StartupPage(val label: String) {
+    HOME("首页"),
+    STATS("统计"),
+    ADD("添加")
 }

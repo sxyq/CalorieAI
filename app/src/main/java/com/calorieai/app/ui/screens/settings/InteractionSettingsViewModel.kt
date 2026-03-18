@@ -27,8 +27,7 @@ class InteractionSettingsViewModel @Inject constructor(
                         enableSound = it.enableSound,
                         backgroundBehavior = BackgroundBehavior.valueOf(it.backgroundBehavior),
                         startupPage = StartupPage.valueOf(it.startupPage),
-                        enableQuickAdd = it.enableQuickAdd,
-                        showAIWidget = it.showAIWidget
+                        enableQuickAdd = it.enableQuickAdd
                     )
                 }
             }
@@ -65,22 +64,43 @@ class InteractionSettingsViewModel @Inject constructor(
         saveSettings()
     }
 
-    fun updateShowAIWidget(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(showAIWidget = enabled)
-        saveSettings()
-    }
-
     private fun saveSettings() {
         viewModelScope.launch {
             val currentState = _uiState.value
+            // 获取当前数据库设置以保留其他字段
+            val existingSettings = userSettingsRepository.getSettings().firstOrNull()
             val settings = UserSettings(
+                dailyCalorieGoal = existingSettings?.dailyCalorieGoal ?: 2000,
+                userName = existingSettings?.userName,
+                userGender = existingSettings?.userGender,
+                userAge = existingSettings?.userAge,
+                userHeight = existingSettings?.userHeight,
+                userWeight = existingSettings?.userWeight,
+                activityLevel = existingSettings?.activityLevel ?: "MODERATE",
+                dietaryPreference = existingSettings?.dietaryPreference,
+                isNotificationEnabled = existingSettings?.isNotificationEnabled ?: true,
+                isDarkMode = existingSettings?.isDarkMode,
+                themeMode = existingSettings?.themeMode ?: "SYSTEM",
+                useDeadlinerStyle = existingSettings?.useDeadlinerStyle ?: true,
+                hideDividers = existingSettings?.hideDividers ?: false,
+                fontSize = existingSettings?.fontSize ?: "MEDIUM",
+                enableAnimations = existingSettings?.enableAnimations ?: true,
                 feedbackType = currentState.feedbackType.name,
                 enableVibration = currentState.enableVibration,
                 enableSound = currentState.enableSound,
                 backgroundBehavior = currentState.backgroundBehavior.name,
                 startupPage = currentState.startupPage.name,
                 enableQuickAdd = currentState.enableQuickAdd,
-                showAIWidget = currentState.showAIWidget
+                enableGoalReminder = existingSettings?.enableGoalReminder ?: true,
+                enableStreakReminder = existingSettings?.enableStreakReminder ?: true,
+                enableAutoBackup = existingSettings?.enableAutoBackup ?: false,
+                enableCloudSync = existingSettings?.enableCloudSync ?: false,
+                showAIWidget = existingSettings?.showAIWidget ?: true,
+                wallpaperType = existingSettings?.wallpaperType ?: "GRADIENT",
+                wallpaperColor = existingSettings?.wallpaperColor,
+                wallpaperGradientStart = existingSettings?.wallpaperGradientStart,
+                wallpaperGradientEnd = existingSettings?.wallpaperGradientEnd,
+                wallpaperImageUri = existingSettings?.wallpaperImageUri
             )
             userSettingsRepository.saveSettings(settings)
         }
@@ -93,6 +113,5 @@ data class InteractionSettingsUiState(
     val enableSound: Boolean = false,
     val backgroundBehavior: BackgroundBehavior = BackgroundBehavior.STANDARD,
     val startupPage: StartupPage = StartupPage.HOME,
-    val enableQuickAdd: Boolean = false,
-    val showAIWidget: Boolean = true
+    val enableQuickAdd: Boolean = false
 )
