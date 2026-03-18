@@ -3,8 +3,6 @@ package com.calorieai.app.ui.animations
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -21,6 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.navigation.NavBackStackEntry
+import com.calorieai.app.ui.animation.AnimationEasing
+import com.calorieai.app.ui.animation.AnimationSpecs
 
 /**
  * Glass 主题导航动画时长和缓动曲线
@@ -36,23 +36,6 @@ object NavigationDurations {
 }
 
 /**
- * Glass 主题缓动曲线
- */
-object NavigationEasings {
-    // 标准缓动: cubic-bezier(0.4, 0.0, 0.2, 1)
-    val Standard = CubicBezierEasing(0.4f, 0.0f, 0.2f, 1f)
-
-    // 弹跳缓动: cubic-bezier(0.34, 1.56, 0.64, 1)
-    val Bounce = CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f)
-
-    // 减速缓动
-    val Decelerate = CubicBezierEasing(0.0f, 0.0f, 0.2f, 1f)
-
-    // 加速缓动
-    val Accelerate = CubicBezierEasing(0.4f, 0.0f, 1f, 1f)
-}
-
-/**
  * 页面切换滑动动画 - 水平滑动
  * 用于导航页面之间的切换
  */
@@ -60,13 +43,13 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.slideInFromRight(): EnterT
     return slideInHorizontally(
         animationSpec = tween(
             durationMillis = NavigationDurations.PAGE_TRANSITION,
-            easing = NavigationEasings.Standard
+            easing = AnimationEasing.EaseOutCubic
         ),
         initialOffsetX = { it }
     ) + fadeIn(
         animationSpec = tween(
             durationMillis = NavigationDurations.PAGE_TRANSITION,
-            easing = NavigationEasings.Standard
+            easing = AnimationEasing.EaseOutCubic
         )
     )
 }
@@ -75,13 +58,13 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.slideOutToLeft(): ExitTran
     return slideOutHorizontally(
         animationSpec = tween(
             durationMillis = NavigationDurations.PAGE_TRANSITION,
-            easing = NavigationEasings.Standard
+            easing = AnimationEasing.EaseOutCubic
         ),
         targetOffsetX = { -it / 3 }
     ) + fadeOut(
         animationSpec = tween(
             durationMillis = NavigationDurations.PAGE_TRANSITION,
-            easing = NavigationEasings.Standard
+            easing = AnimationEasing.EaseOutCubic
         )
     )
 }
@@ -90,13 +73,13 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.slideInFromLeft(): EnterTr
     return slideInHorizontally(
         animationSpec = tween(
             durationMillis = NavigationDurations.PAGE_TRANSITION,
-            easing = NavigationEasings.Standard
+            easing = AnimationEasing.EaseOutCubic
         ),
         initialOffsetX = { -it }
     ) + fadeIn(
         animationSpec = tween(
             durationMillis = NavigationDurations.PAGE_TRANSITION,
-            easing = NavigationEasings.Standard
+            easing = AnimationEasing.EaseOutCubic
         )
     )
 }
@@ -105,13 +88,13 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.slideOutToRight(): ExitTra
     return slideOutHorizontally(
         animationSpec = tween(
             durationMillis = NavigationDurations.PAGE_TRANSITION,
-            easing = NavigationEasings.Standard
+            easing = AnimationEasing.EaseOutCubic
         ),
         targetOffsetX = { it }
     ) + fadeOut(
         animationSpec = tween(
             durationMillis = NavigationDurations.PAGE_TRANSITION,
-            easing = NavigationEasings.Standard
+            easing = AnimationEasing.EaseOutCubic
         )
     )
 }
@@ -139,10 +122,7 @@ object GestureReturnConfig {
     /**
      * 手势返回动画规格
      */
-    fun <T> gestureAnimationSpec() = spring<T>(
-        dampingRatio = Spring.DampingRatioMediumBouncy,
-        stiffness = Spring.StiffnessLow
-    )
+    fun <T> gestureAnimationSpec() = AnimationSpecs.SpringBouncy
 }
 
 /**
@@ -162,7 +142,7 @@ fun rememberIndicatorAnimation(
                 targetValue = 1f,
                 animationSpec = tween(
                     durationMillis = NavigationDurations.INDICATOR_SCALE,
-                    easing = NavigationEasings.Bounce
+                    easing = AnimationEasing.EaseOutBack
                 )
             )
         } else {
@@ -170,7 +150,7 @@ fun rememberIndicatorAnimation(
                 targetValue = 0f,
                 animationSpec = tween(
                     durationMillis = NavigationDurations.INDICATOR_APPEAR,
-                    easing = NavigationEasings.Standard
+                    easing = AnimationEasing.EaseOutCubic
                 )
             )
         }
@@ -197,14 +177,14 @@ fun rememberIconBounceAnimation(
                 targetValue = 0.8f,
                 animationSpec = tween(
                     durationMillis = NavigationDurations.ICON_BOUNCE / 2,
-                    easing = NavigationEasings.Standard
+                    easing = AnimationEasing.EaseOutCubic
                 )
             )
             scale.animateTo(
                 targetValue = 1f,
                 animationSpec = tween(
                     durationMillis = NavigationDurations.ICON_BOUNCE,
-                    easing = NavigationEasings.Bounce
+                    easing = AnimationEasing.EaseOutBack
                 )
             )
             onAnimationEnd?.invoke()
@@ -263,30 +243,18 @@ object PageTransitions {
 object FadeTransitions {
     val fadeIn: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = {
         fadeIn(
-            animationSpec = tween(
-                durationMillis = NavigationDurations.PAGE_TRANSITION,
-                easing = NavigationEasings.Standard
-            )
+            animationSpec = AnimationSpecs.Normal
         ) + scaleIn(
-            animationSpec = tween(
-                durationMillis = NavigationDurations.PAGE_TRANSITION,
-                easing = NavigationEasings.Standard
-            ),
+            animationSpec = AnimationSpecs.Normal,
             initialScale = 0.95f
         )
     }
 
     val fadeOut: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
         fadeOut(
-            animationSpec = tween(
-                durationMillis = NavigationDurations.PAGE_TRANSITION,
-                easing = NavigationEasings.Standard
-            )
+            animationSpec = AnimationSpecs.Normal
         ) + scaleOut(
-            animationSpec = tween(
-                durationMillis = NavigationDurations.PAGE_TRANSITION,
-                easing = NavigationEasings.Standard
-            ),
+            animationSpec = AnimationSpecs.Normal,
             targetScale = 1.05f
         )
     }

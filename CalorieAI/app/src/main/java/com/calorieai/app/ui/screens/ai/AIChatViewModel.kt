@@ -120,6 +120,8 @@ class AIChatViewModel @Inject constructor(
     }
 
     fun sendMessage(message: String) {
+        // 并发控制：如果正在发送，则忽略新请求
+        if (_uiState.value.isSending) return
         if (message.isBlank()) return
 
         val userMessage = ChatMessage(
@@ -131,7 +133,8 @@ class AIChatViewModel @Inject constructor(
             messages = _uiState.value.messages + userMessage,
             inputText = "",
             isLoading = true,
-            isTyping = true
+            isTyping = true,
+            isSending = true  // 锁定发送状态
         )
 
         // 设置会话标题（如果是第一条消息）
@@ -143,17 +146,37 @@ class AIChatViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                val response = aiChatService.sendMessage(message)
-
+                // 创建AI消息占位符
+                val aiMessageId = UUID.randomUUID().toString()
                 val aiMessage = ChatMessage(
-                    content = response,
+                    id = aiMessageId,
+                    content = "",
                     isFromUser = false
                 )
-
                 _uiState.value = _uiState.value.copy(
-                    messages = _uiState.value.messages + aiMessage,
+                    messages = _uiState.value.messages + aiMessage
+                )
+
+                // 使用流式API接收响应
+                val fullResponse = StringBuilder()
+                aiChatService.sendMessageStream(message).collect { char ->
+                    fullResponse.append(char)
+                    // 实时更新消息内容
+                    val updatedMessages = _uiState.value.messages.map { msg ->
+                        if (msg.id == aiMessageId) {
+                            msg.copy(content = fullResponse.toString())
+                        } else {
+                            msg
+                        }
+                    }
+                    _uiState.value = _uiState.value.copy(messages = updatedMessages)
+                }
+
+                // 完成后更新状态
+                _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    isTyping = false
+                    isTyping = false,
+                    isSending = false  // 解锁发送状态
                 )
 
                 // 更新剩余调用次数
@@ -162,13 +185,14 @@ class AIChatViewModel @Inject constructor(
                 // 自动保存会话
                 saveCurrentSession()
             } catch (e: Exception) {
-                e.printStackTrace() // 打印完整错误堆栈以便调试
+                e.printStackTrace()
                 
                 val errorMsg = when {
                     e.message?.contains("未配置AI服务") == true -> "未配置AI服务，请先在设置中配置AI服务"
                     e.message?.contains("API调用次数已用完") == true -> e.message!!
                     e.message?.contains("API调用失败") == true -> e.message!!
                     e.message?.contains("API返回为空") == true -> "AI服务返回为空，请检查网络连接"
+                    e.message?.contains("Unable to resolve host") == true -> "网络连接失败，请检查网络设置"
                     e.message != null -> "抱歉，我遇到了一些问题：${e.message}"
                     else -> "未知错误，请检查网络连接或AI配置。错误类型：${e.javaClass.simpleName}"
                 }
@@ -180,7 +204,8 @@ class AIChatViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     messages = _uiState.value.messages + errorMessage,
                     isLoading = false,
-                    isTyping = false
+                    isTyping = false,
+                    isSending = false  // 解锁发送状态
                 )
             }
         }
@@ -384,6 +409,7 @@ data class AIChatUiState(
     val inputText: String = "",
     val isLoading: Boolean = false,
     val isTyping: Boolean = false,
+    val isSending: Boolean = false,  // 发送锁定状态
     val chatSessions: List<ChatSessionInfo> = emptyList(),
     val remainingCalls: Int = 10,
     val dailyLimit: Int = 10

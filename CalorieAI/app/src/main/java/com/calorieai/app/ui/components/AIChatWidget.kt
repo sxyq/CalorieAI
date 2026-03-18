@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.calorieai.app.ui.components.markdown.MarkdownText
 import com.calorieai.app.ui.screens.ai.AIChatViewModel
 import com.calorieai.app.ui.screens.ai.ChatMessage
 import com.calorieai.app.ui.theme.GlassDarkColors
@@ -377,12 +378,21 @@ private fun MessageItem(message: ChatMessage, isDark: Boolean) {
 
         Box(
             modifier = Modifier
-                .widthIn(max = 240.dp)
+                .widthIn(max = 280.dp)
                 .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp, bottomStart = if (isUser) 14.dp else 4.dp, bottomEnd = if (isUser) 4.dp else 14.dp))
                 .background(if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface.copy(0.6f))
                 .padding(12.dp)
         ) {
-            Text(message.content, style = MaterialTheme.typography.bodySmall, color = if (isUser) Color.White else MaterialTheme.colorScheme.onSurface)
+            if (isUser) {
+                Text(message.content, style = MaterialTheme.typography.bodySmall, color = Color.White)
+            } else {
+                // AI消息使用Markdown渲染提高可读性
+                MarkdownText(
+                    text = message.content,
+                    isDark = isDark,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }
@@ -396,6 +406,7 @@ private fun GlassInput(
     onSend: () -> Unit,
     isDark: Boolean
 ) {
+    val isLocked = isLoading
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -410,14 +421,24 @@ private fun GlassInput(
 
         androidx.compose.foundation.text.BasicTextField(
             value = inputText,
-            onValueChange = onInputChange,
+            onValueChange = { if (!isLocked) onInputChange(it) },
             modifier = Modifier.weight(1f),
             singleLine = true,
-            textStyle = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurface),
+            enabled = !isLocked,
+            textStyle = MaterialTheme.typography.bodySmall.copy(
+                color = if (isLocked) MaterialTheme.colorScheme.onSurface.copy(0.5f) 
+                       else MaterialTheme.colorScheme.onSurface
+            ),
             decorationBox = { innerTextField ->
                 Box {
                     if (inputText.isEmpty()) {
-                        Text("输入问题...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            if (isLocked) "等待回复中..." else "输入问题...", 
+                            style = MaterialTheme.typography.bodySmall, 
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                alpha = if (isLocked) 0.5f else 1f
+                            )
+                        )
                     }
                     innerTextField()
                 }

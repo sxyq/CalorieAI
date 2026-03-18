@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.calorieai.app.data.model.GoalType
+import com.calorieai.app.ui.components.OnboardingNavigationButtons
 import com.calorieai.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -139,42 +140,17 @@ fun OnboardingScreen4(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Text(
-                        text = "上一步",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        if (isFormValid) {
-                            onNext(selectedGoalType!!.name)
-                        }
-                    },
-                    enabled = isFormValid,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Text(
-                        text = "下一步",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
+            OnboardingNavigationButtons(
+                onBack = onBack,
+                onNext = {
+                    if (isFormValid) {
+                        onNext(selectedGoalType!!.name)
+                    }
+                },
+                isNextEnabled = isFormValid,
+                buttonHeight = 52,
+                cornerRadius = 14
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
         }

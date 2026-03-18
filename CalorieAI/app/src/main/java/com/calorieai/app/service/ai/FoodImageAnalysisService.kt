@@ -5,22 +5,20 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
+import com.calorieai.app.data.model.FoodAnalysisResult
 import com.calorieai.app.data.repository.AIConfigRepository
 import com.calorieai.app.service.ai.common.AIApiClient
 import com.calorieai.app.service.ai.common.AIApiException
 import com.google.gson.Gson
-import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * 食物图片分析服务
- * 通过拍照识别食物并分析营养成分
- */
 @Singleton
 class FoodImageAnalysisService @Inject constructor(
     private val aiApiClient: AIApiClient,
@@ -29,6 +27,8 @@ class FoodImageAnalysisService @Inject constructor(
     private val gson = Gson()
 
     companion object {
+        private const val CONCURRENT_CALLS = 5
+        
         private const val SYSTEM_PROMPT = """你是一个专业的营养师，擅长通过图片识别食物并分析其营养成分。请仔细分析图片中的食物，提供详细的营养信息。
 
 【严格要求 - 必须遵守】
@@ -43,7 +43,7 @@ class FoodImageAnalysisService @Inject constructor(
 - 扩展营养素（10种）：fiber, sugar, saturatedFat, cholesterol, sodium, potassium, calcium, iron, vitaminA, vitaminC
 
 【JSON格式示例】
-{"foodName":"番茄炒蛋","estimatedWeight":200,"calories":185,"protein":13.4,"carbs":7.9,"fat":12.0,"fiber":2.5,"sugar":3.0,"saturatedFat":4.0,"cholesterol":160.8,"sodium":257.3,"potassium":492.3,"calcium":15.0,"iron":1.0,"vitaminA":3975.0,"vitaminC":12.3,"description":"番茄炒蛋配米饭"}
+{"foodName":"番茄炒蛋","estimatedWeight":200,"calories":185,"protein":13.4,"carbs":7.9,"fat":12.0,"fiber":2.5,"sugar":3.0,"saturatedFat":4.0,"cholesterol":160.8,"sodium":257.3,"potassium":492.3,"calcium":15.0,"iron":1.0,"vitaminA":3975.0,"vitaminC":12.3}
 
 【格式检查清单】
 ✓ 所有字段名使用英文
@@ -68,67 +68,108 @@ class FoodImageAnalysisService @Inject constructor(
         maxRetries: Int = 2,
         onRetry: ((attempt: Int, maxAttempts: Int, reason: String) -> Unit)? = null
     ): Result<FoodAnalysisResult> = withContext(Dispatchers.IO) {
-        var lastException: Exception? = null
-        
-        repeat(maxRetries + 1) { attempt ->
-            try {
-                val config = aiConfigRepository.getDefaultConfig().firstOrNull()
-                    ?: return@withContext Result.failure(Exception("未配置AI服务"))
+        try {
+            val config = aiConfigRepository.getDefaultConfig().firstOrNull()
+                ?: return@withContext Result.failure(Exception("未配置AI服务"))
 
-                if (!config.isImageUnderstanding) {
-                    return@withContext Result.failure(Exception("当前AI配置不支持图像理解"))
-                }
+            if (!config.isImageUnderstanding) {
+                return@withContext Result.failure(Exception("当前AI配置不支持图像理解"))
+            }
 
-                val base64Image = uriToBase64(imageUri, context)
-                    ?: return@withContext Result.failure(Exception("图片转换失败"))
+            val base64Image = uriToBase64(imageUri, context)
+                ?: return@withContext Result.failure(Exception("图片转换失败"))
 
-                val userMessage = if (userHint.isNotBlank()) {
-                    "用户提示：$userHint\n\n请分析这张图片中的食物。"
-                } else {
-                    "请分析这张图片中的食物。"
-                }
+            val userMessage = if (userHint.isNotBlank()) {
+                "用户提示：$userHint\n\n请分析这张图片中的食物。"
+            } else {
+                "请分析这张图片中的食物。"
+            }
 
-                val responseText = aiApiClient.vision(
-                    config = config,
-                    systemPrompt = SYSTEM_PROMPT,
-                    userMessage = userMessage,
-                    base64Image = base64Image,
-                    temperature = 0.3,
-                    maxTokens = 1000
-                )
-
-                val result = parseAnalysisResult(responseText)
-                
-                // 验证营养素数据
-                val validation = validateNutritionData(result)
-                if (validation.isValid) {
-                    return@withContext Result.success(result)
-                } else {
-                    // 数据无效，需要重试
-                    lastException = Exception(validation.errorMessage)
-                    if (attempt < maxRetries) {
-                        onRetry?.invoke(attempt + 1, maxRetries + 1, validation.errorMessage)
-                        kotlinx.coroutines.delay(1000L * (attempt + 1))
+            // 并发调用5次
+            val results = mutableListOf<FoodAnalysisResult>()
+            val errors = mutableListOf<String>()
+            
+            val deferredResults = (1..CONCURRENT_CALLS).map { index ->
+                async {
+                    try {
+                        val responseText = aiApiClient.vision(
+                            config = config,
+                            systemPrompt = SYSTEM_PROMPT,
+                            userMessage = userMessage,
+                            base64Image = base64Image,
+                            temperature = 0.3,
+                            maxTokens = 1000
+                        )
+                        val result = parseAnalysisResult(responseText)
+                        val validation = validateNutritionData(result)
+                        if (validation.isValid) {
+                            Result.success(result)
+                        } else {
+                            Result.failure<FoodAnalysisResult>(Exception(validation.errorMessage))
+                        }
+                    } catch (e: Exception) {
+                        Result.failure<FoodAnalysisResult>(e)
                     }
                 }
-
-            } catch (e: AIApiException) {
-                lastException = Exception("AI图片分析失败: ${e.message}")
-                if (attempt < maxRetries) {
-                    onRetry?.invoke(attempt + 1, maxRetries + 1, "API错误: ${e.message}")
-                    kotlinx.coroutines.delay(1000L * (attempt + 1))
-                }
-            } catch (e: Exception) {
-                lastException = e
-                if (attempt < maxRetries) {
-                    onRetry?.invoke(attempt + 1, maxRetries + 1, "未知错误: ${e.message}")
-                    kotlinx.coroutines.delay(1000L * (attempt + 1))
-                }
             }
+            
+            deferredResults.awaitAll().forEach { result ->
+                result.fold(
+                    onSuccess = { results.add(it) },
+                    onFailure = { errors.add(it.message ?: "未知错误") }
+                )
+            }
+
+            if (results.isEmpty()) {
+                return@withContext Result.failure(Exception("所有分析尝试失败: ${errors.take(3).joinToString("; ")}"))
+            }
+
+            // 计算平均值
+            val averagedResult = calculateAverageResult(results)
+            Result.success(averagedResult)
+
+        } catch (e: AIApiException) {
+            Result.failure(Exception("AI图片分析失败: ${e.message}"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * 计算多次分析结果的平均值
+     */
+    private fun calculateAverageResult(results: List<FoodAnalysisResult>): FoodAnalysisResult {
+        if (results.isEmpty()) return FoodAnalysisResult(foodName = "未知食物")
+        if (results.size == 1) return results.first()
+        
+        // 选择出现最多的食物名称
+        val foodNames = results.map { it.foodName }.groupingBy { it }.eachCount()
+        val mostCommonName = foodNames.maxByOrNull { it.value }?.key ?: "未知食物"
+        
+        // 计算数值字段的平均值
+        fun averageOf(selector: (FoodAnalysisResult) -> Float): Float {
+            val values = results.map(selector)
+            return values.sum() / values.size
         }
         
-        // 所有重试都失败了
-        Result.failure(lastException ?: Exception("图片分析失败，请稍后重试"))
+        return FoodAnalysisResult(
+            foodName = mostCommonName,
+            estimatedWeight = (results.map { it.estimatedWeight }.sum() / results.size),
+            calories = averageOf { it.calories },
+            protein = averageOf { it.protein },
+            carbs = averageOf { it.carbs },
+            fat = averageOf { it.fat },
+            fiber = averageOf { it.fiber },
+            sugar = averageOf { it.sugar },
+            saturatedFat = averageOf { it.saturatedFat },
+            cholesterol = averageOf { it.cholesterol },
+            sodium = averageOf { it.sodium },
+            potassium = averageOf { it.potassium },
+            calcium = averageOf { it.calcium },
+            iron = averageOf { it.iron },
+            vitaminA = averageOf { it.vitaminA },
+            vitaminC = averageOf { it.vitaminC }
+        )
     }
 
     private fun uriToBase64(uri: Uri, context: Context): String? {
@@ -175,9 +216,6 @@ class FoodImageAnalysisService @Inject constructor(
         return compressedBitmap
     }
 
-    /**
-     * 从 AI 返回的文本中提取 JSON 并解析
-     */
     private fun parseAnalysisResult(content: String): FoodAnalysisResult {
         val jsonString = extractJsonFromText(content)
 
@@ -185,23 +223,11 @@ class FoodImageAnalysisService @Inject constructor(
             gson.fromJson(jsonString, FoodAnalysisResult::class.java)
                 ?: FoodAnalysisResult()
         } catch (e: Exception) {
-            FoodAnalysisResult(
-                foodName = "未知食物",
-                estimatedWeight = 0,
-                calories = 0,
-                protein = 0f,
-                carbs = 0f,
-                fat = 0f,
-                description = content.take(200)
-            )
+            FoodAnalysisResult(foodName = "未知食物")
         }
     }
 
-    /**
-     * 验证营养素数据是否有效
-     */
     private fun validateNutritionData(result: FoodAnalysisResult): ValidationResult {
-        // 检查基本信息
         if (result.foodName.isBlank()) {
             return ValidationResult(false, "食物名称为空")
         }
@@ -209,7 +235,6 @@ class FoodImageAnalysisService @Inject constructor(
             return ValidationResult(false, "热量数据无效")
         }
         
-        // 检查基础营养素（3种关键营养素不能同时为0）
         val basicNutrients = listOf(result.protein, result.carbs, result.fat)
         if (basicNutrients.all { it <= 0 }) {
             return ValidationResult(false, "基础营养素（蛋白质、碳水、脂肪）数据无效，全部为0")
@@ -218,20 +243,12 @@ class FoodImageAnalysisService @Inject constructor(
         return ValidationResult(true, "数据有效")
     }
     
-    /**
-     * 验证结果数据类
-     */
     private data class ValidationResult(
         val isValid: Boolean,
         val errorMessage: String
     )
 
-    /**
-     * 从可能包含 Markdown 代码块的文本中提取 JSON
-     * 参考 Deadliner 的 AIUtils.extractJsonFromMarkdown()
-     */
     private fun extractJsonFromText(raw: String): String {
-        // 1. 查找第一个 { 并配对闭合的 }
         val idx = raw.indexOf('{')
         if (idx >= 0) {
             var depth = 0
@@ -246,27 +263,12 @@ class FoodImageAnalysisService @Inject constructor(
             }
         }
 
-        // 2. 尝试从 ```json ... ``` 代码块中提取
         val jsonFenceRegex = Regex("```json\\s*([\\s\\S]*?)```", RegexOption.IGNORE_CASE)
         jsonFenceRegex.find(raw)?.let { return it.groups[1]!!.value.trim() }
 
         val anyFenceRegex = Regex("```\\s*([\\s\\S]*?)```")
         anyFenceRegex.find(raw)?.let { return it.groups[1]!!.value.trim() }
 
-        // 3. 兜底返回原文
         return raw.trim()
     }
 }
-
-/**
- * 食物图片分析结果
- */
-data class FoodAnalysisResult(
-    @SerializedName("foodName") val foodName: String = "",
-    @SerializedName("estimatedWeight") val estimatedWeight: Int = 0,
-    @SerializedName("calories") val calories: Int = 0,
-    @SerializedName("protein") val protein: Float = 0f,
-    @SerializedName("carbs") val carbs: Float = 0f,
-    @SerializedName("fat") val fat: Float = 0f,
-    @SerializedName("description") val description: String = ""
-)

@@ -5,6 +5,7 @@ import com.calorieai.app.data.repository.AIConfigRepository
 import com.calorieai.app.data.repository.AITokenUsageRepository
 import com.calorieai.app.service.ai.common.AIApiClient
 import com.calorieai.app.service.ai.common.AIApiException
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,7 +28,17 @@ class AIChatService @Inject constructor(
     companion object {
         const val DEFAULT_DAILY_LIMIT = 50
 
-        private const val SYSTEM_PROMPT = "你是一位专业的营养师和健康顾问。请根据用户的问题提供准确、实用的营养和健康建议。回答要简洁明了，适合普通用户理解。提供具体的建议和数据支持。如果不确定，建议用户咨询专业医生。保持友好、鼓励的语气。"
+        private const val SYSTEM_PROMPT = """你是一位专业的营养师和健康顾问。请遵循以下规则：
+
+1. 回答简洁明了，控制在200字以内
+2. 使用Markdown格式增强可读性：
+   - 用**粗体**强调重点
+   - 用列表展示多条建议
+   - 用>引用重要提示
+3. 结构清晰：先给结论，再列要点
+4. 避免冗长的开场白和客套话
+5. 提供具体数据和建议
+6. 不确定时建议咨询专业医生"""
     }
 
     suspend fun sendMessage(message: String): String {
@@ -59,6 +70,40 @@ class AIChatService @Inject constructor(
             return content
         } catch (e: AIApiException) {
             throw Exception("API调用失败: ${e.message}")
+        }
+    }
+
+    /**
+     * 流式发送消息 - 返回Flow<String>实现打字机效果
+     */
+    fun sendMessageStream(message: String): Flow<String> {
+        return kotlinx.coroutines.flow.flow {
+            // 确保默认配置已初始化
+            var config = aiConfigRepository.getDefaultConfig().firstOrNull()
+            if (config == null) {
+                aiDefaultConfigInitializer.initializeDefaultConfig()
+                config = aiConfigRepository.getDefaultConfig().firstOrNull()
+                    ?: throw Exception("无法初始化AI服务配置")
+            }
+
+            val (canCall, _) = aiRateLimiter.canMakeCall(config.id, DEFAULT_DAILY_LIMIT)
+            if (!canCall) {
+                throw Exception("今日API调用次数已用完（限制：${DEFAULT_DAILY_LIMIT}次/天），请明天再试")
+            }
+
+            // 记录调用
+            aiRateLimiter.recordCall(config.id)
+
+            // 使用流式API
+            aiApiClient.chatStream(
+                config = config,
+                systemPrompt = SYSTEM_PROMPT,
+                userMessage = message,
+                temperature = 0.7,
+                maxTokens = 1000
+            ).collect { char ->
+                emit(char)
+            }
         }
     }
 

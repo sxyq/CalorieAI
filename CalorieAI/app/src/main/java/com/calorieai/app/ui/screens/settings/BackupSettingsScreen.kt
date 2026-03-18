@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.ui.components.interactiveScale
+import com.calorieai.app.ui.components.SettingsTopAppBar
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -52,13 +53,9 @@ fun BackupSettingsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("备份与恢复") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                }
+            SettingsTopAppBar(
+                title = "备份与恢复",
+                onNavigateBack = onNavigateBack
             )
         }
     ) { paddingValues ->

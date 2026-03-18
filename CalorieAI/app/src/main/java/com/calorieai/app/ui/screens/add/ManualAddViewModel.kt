@@ -21,81 +21,28 @@ class ManualAddViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ManualAddUiState())
     val uiState: StateFlow<ManualAddUiState> = _uiState.asStateFlow()
 
-    fun updateFoodName(name: String) {
-        _uiState.value = _uiState.value.copy(foodName = name)
+    private inline fun updateState(update: (ManualAddUiState) -> ManualAddUiState) {
+        _uiState.value = update(_uiState.value)
     }
 
-    fun updateCalories(calories: String) {
-        _uiState.value = _uiState.value.copy(calories = calories)
-    }
+    fun updateFoodName(name: String) = updateState { it.copy(foodName = name) }
+    fun updateCalories(calories: String) = updateState { it.copy(calories = calories) }
+    fun updateProtein(protein: String) = updateState { it.copy(protein = protein) }
+    fun updateCarbs(carbs: String) = updateState { it.copy(carbs = carbs) }
+    fun updateFat(fat: String) = updateState { it.copy(fat = fat) }
+    fun updateFiber(fiber: String) = updateState { it.copy(fiber = fiber) }
+    fun updateSugar(sugar: String) = updateState { it.copy(sugar = sugar) }
+    fun updateSodium(sodium: String) = updateState { it.copy(sodium = sodium) }
+    fun updateCholesterol(cholesterol: String) = updateState { it.copy(cholesterol = cholesterol) }
+    fun updateSaturatedFat(saturatedFat: String) = updateState { it.copy(saturatedFat = saturatedFat) }
+    fun updateCalcium(calcium: String) = updateState { it.copy(calcium = calcium) }
+    fun updateIron(iron: String) = updateState { it.copy(iron = iron) }
+    fun updateVitaminC(vitaminC: String) = updateState { it.copy(vitaminC = vitaminC) }
+    fun updateMealType(mealType: MealType) = updateState { it.copy(mealType = mealType) }
+    fun updateNotes(notes: String) = updateState { it.copy(notes = notes) }
 
-    // 基础营养素
-    fun updateProtein(protein: String) {
-        _uiState.value = _uiState.value.copy(protein = protein)
-    }
-
-    fun updateCarbs(carbs: String) {
-        _uiState.value = _uiState.value.copy(carbs = carbs)
-    }
-
-    fun updateFat(fat: String) {
-        _uiState.value = _uiState.value.copy(fat = fat)
-    }
-
-    // 扩展营养素
-    fun updateFiber(fiber: String) {
-        _uiState.value = _uiState.value.copy(fiber = fiber)
-    }
-
-    fun updateSugar(sugar: String) {
-        _uiState.value = _uiState.value.copy(sugar = sugar)
-    }
-
-    fun updateSodium(sodium: String) {
-        _uiState.value = _uiState.value.copy(sodium = sodium)
-    }
-
-    fun updateCholesterol(cholesterol: String) {
-        _uiState.value = _uiState.value.copy(cholesterol = cholesterol)
-    }
-
-    fun updateSaturatedFat(saturatedFat: String) {
-        _uiState.value = _uiState.value.copy(saturatedFat = saturatedFat)
-    }
-
-    fun updateCalcium(calcium: String) {
-        _uiState.value = _uiState.value.copy(calcium = calcium)
-    }
-
-    fun updateIron(iron: String) {
-        _uiState.value = _uiState.value.copy(iron = iron)
-    }
-
-    fun updateVitaminC(vitaminC: String) {
-        _uiState.value = _uiState.value.copy(vitaminC = vitaminC)
-    }
-
-    // 切换是否添加营养素详情
-    fun toggleNutritionDetails() {
-        _uiState.value = _uiState.value.copy(
-            includeNutritionDetails = !_uiState.value.includeNutritionDetails
-        )
-    }
-
-    // 切换是否显示扩展营养素
-    fun toggleExtendedNutrition() {
-        _uiState.value = _uiState.value.copy(
-            showExtendedNutrition = !_uiState.value.showExtendedNutrition
-        )
-    }
-
-    fun updateMealType(mealType: MealType) {
-        _uiState.value = _uiState.value.copy(mealType = mealType)
-    }
-
-    fun updateNotes(notes: String) {
-        _uiState.value = _uiState.value.copy(notes = notes)
-    }
+    fun toggleNutritionDetails() = updateState { it.copy(includeNutritionDetails = !it.includeNutritionDetails) }
+    fun toggleExtendedNutrition() = updateState { it.copy(showExtendedNutrition = !it.showExtendedNutrition) }
 
     fun saveRecord() {
         val state = _uiState.value
@@ -112,7 +59,6 @@ class ManualAddViewModel @Inject constructor(
             protein = protein,
             carbs = carbs,
             fat = fat,
-            // 扩展营养素（仅在开启详情时保存）
             fiber = if (state.includeNutritionDetails) state.fiber.toFloatOrNull() ?: 0f else 0f,
             sugar = if (state.includeNutritionDetails) state.sugar.toFloatOrNull() ?: 0f else 0f,
             sodium = if (state.includeNutritionDetails) state.sodium.toFloatOrNull() ?: 0f else 0f,
@@ -141,11 +87,9 @@ class ManualAddViewModel @Inject constructor(
 data class ManualAddUiState(
     val foodName: String = "",
     val calories: String = "",
-    // 基础营养素
     val protein: String = "",
     val carbs: String = "",
     val fat: String = "",
-    // 扩展营养素
     val fiber: String = "",
     val sugar: String = "",
     val sodium: String = "",
@@ -154,9 +98,8 @@ data class ManualAddUiState(
     val calcium: String = "",
     val iron: String = "",
     val vitaminC: String = "",
-    // 控制选项
-    val includeNutritionDetails: Boolean = true,  // 是否添加营养素详情
-    val showExtendedNutrition: Boolean = false,   // 是否显示扩展营养素
+    val includeNutritionDetails: Boolean = true,
+    val showExtendedNutrition: Boolean = false,
     val mealType: MealType = MealType.LUNCH,
     val notes: String = ""
 )

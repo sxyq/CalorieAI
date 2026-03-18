@@ -24,6 +24,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.calorieai.app.ui.components.OnboardingNavigationButtons
 import com.calorieai.app.ui.theme.*
 
 /**
@@ -251,50 +252,19 @@ fun OnboardingScreen2(
             }
 
             // 按钮行
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = if (isDark) GlassDarkColors.OnSurface else GlassLightColors.OnSurface
-                    )
-                ) {
-                    Text(
-                        text = "上一步",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        if (isFormValid) {
-                            val weight = weightInput.toFloatOrNull() ?: return@Button
-                            val height = heightInput.toFloatOrNull() ?: return@Button
-                            onNext(weight, height, weightUnit, heightUnit)
-                        }
-                    },
-                    enabled = isFormValid,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isDark) GlassDarkColors.Primary else GlassLightColors.Primary
-                    )
-                ) {
-                    Text(
-                        text = "下一步",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
+            OnboardingNavigationButtons(
+                onBack = onBack,
+                onNext = {
+                    if (isFormValid) {
+                        val weight = weightInput.toFloatOrNull() ?: return@OnboardingNavigationButtons
+                        val height = heightInput.toFloatOrNull() ?: return@OnboardingNavigationButtons
+                        onNext(weight, height, weightUnit, heightUnit)
+                    }
+                },
+                isNextEnabled = isFormValid,
+                nextButtonColor = if (isDark) GlassDarkColors.Primary else GlassLightColors.Primary,
+                backButtonContentColor = if (isDark) GlassDarkColors.OnSurface else GlassLightColors.OnSurface
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
         }

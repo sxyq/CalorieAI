@@ -1,7 +1,6 @@
 package com.calorieai.app.ui.animations
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -22,6 +21,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.debugInspectorInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.calorieai.app.ui.animation.AnimationEasing
+import com.calorieai.app.ui.animation.AnimationSpecs
 import kotlinx.coroutines.launch
 
 /**
@@ -35,20 +36,6 @@ object CardAnimationDurations {
     const val APPEAR_SCALE = 300
     const val ELEVATION_CHANGE = 200
     const val RELEASE_BOUNCE = 250
-}
-
-/**
- * 卡片动画缓动曲线
- */
-object CardAnimationEasings {
-    // 标准缓动
-    val Standard = CubicBezierEasing(0.4f, 0.0f, 0.2f, 1f)
-
-    // 弹跳缓动
-    val Bounce = CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f)
-
-    // 减速缓动
-    val Decelerate = CubicBezierEasing(0.0f, 0.0f, 0.2f, 1f)
 }
 
 /**
@@ -77,16 +64,13 @@ fun Modifier.pressFeedbackScale(
                 targetValue = scale,
                 animationSpec = tween(
                     durationMillis = CardAnimationDurations.PRESS_FEEDBACK,
-                    easing = CardAnimationEasings.Standard
+                    easing = AnimationEasing.EaseOutCubic
                 )
             )
         } else {
             animScale.animateTo(
                 targetValue = 1f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
+                animationSpec = AnimationSpecs.SpringBouncy
             )
         }
     }
@@ -115,10 +99,7 @@ fun rememberHoverElevation(
     LaunchedEffect(isHovered) {
         elevation.animateTo(
             targetValue = if (isHovered) hoveredElevation.value else defaultElevation.value,
-            animationSpec = tween(
-                durationMillis = CardAnimationDurations.HOVER_ELEVATION,
-                easing = CardAnimationEasings.Standard
-            )
+            animationSpec = AnimationSpecs.Normal
         )
     }
 
@@ -145,7 +126,7 @@ fun rememberCardAppearAnimation(
                 targetValue = 1f,
                 animationSpec = tween(
                     durationMillis = CardAnimationDurations.APPEAR_FADE,
-                    easing = CardAnimationEasings.Standard
+                    easing = AnimationEasing.EaseOutCubic
                 )
             )
         }
@@ -153,10 +134,7 @@ fun rememberCardAppearAnimation(
         launch {
             scale.animateTo(
                 targetValue = 1f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
+                animationSpec = AnimationSpecs.SpringBouncy
             )
         }
 
@@ -211,16 +189,13 @@ fun AnimatedCardContainer(
                 targetValue = 0.98f,
                 animationSpec = tween(
                     durationMillis = CardAnimationDurations.PRESS_FEEDBACK,
-                    easing = CardAnimationEasings.Standard
+                    easing = AnimationEasing.EaseOutCubic
                 )
             )
         } else {
             pressScale.animateTo(
                 targetValue = 1f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
+                animationSpec = AnimationSpecs.SpringBouncy
             )
         }
     }
@@ -263,7 +238,7 @@ fun rememberCardDisappearAnimation(
                     targetValue = 0f,
                     animationSpec = tween(
                         durationMillis = CardAnimationDurations.APPEAR_FADE,
-                        easing = CardAnimationEasings.Standard
+                        easing = AnimationEasing.EaseOutCubic
                     )
                 )
             }
@@ -273,7 +248,7 @@ fun rememberCardDisappearAnimation(
                     targetValue = 0.9f,
                     animationSpec = tween(
                         durationMillis = CardAnimationDurations.APPEAR_SCALE,
-                        easing = CardAnimationEasings.Standard
+                        easing = AnimationEasing.EaseOutCubic
                     )
                 )
             }
@@ -283,7 +258,7 @@ fun rememberCardDisappearAnimation(
                     targetValue = -100f,
                     animationSpec = tween(
                         durationMillis = CardAnimationDurations.APPEAR_SCALE,
-                        easing = CardAnimationEasings.Standard
+                        easing = AnimationEasing.EaseOutCubic
                     )
                 )
             }
@@ -347,10 +322,7 @@ fun rememberCardShakeAnimation(
             shakeKeyframes.forEach { (progress, offset) ->
                 translationX.animateTo(
                     targetValue = offset,
-                    animationSpec = tween(
-                        durationMillis = 50,
-                        easing = CardAnimationEasings.Standard
-                    )
+                    animationSpec = AnimationSpecs.Fast
                 )
             }
 
@@ -380,7 +352,7 @@ fun rememberCardFlipAnimation(
             targetValue = targetRotation,
             animationSpec = tween(
                 durationMillis = durationMillis,
-                easing = CardAnimationEasings.Standard
+                easing = AnimationEasing.EaseInOutCubic
             )
         )
     }
@@ -425,30 +397,21 @@ fun rememberCardStackAnimation(
         launch {
             translationY.animateTo(
                 targetValue = index * -8f,
-                animationSpec = tween(
-                    durationMillis = CardAnimationDurations.ELEVATION_CHANGE,
-                    easing = CardAnimationEasings.Standard
-                )
+                animationSpec = AnimationSpecs.Normal
             )
         }
 
         launch {
             scale.animateTo(
                 targetValue = 1f - index * 0.05f,
-                animationSpec = tween(
-                    durationMillis = CardAnimationDurations.ELEVATION_CHANGE,
-                    easing = CardAnimationEasings.Standard
-                )
+                animationSpec = AnimationSpecs.Normal
             )
         }
 
         launch {
             alpha.animateTo(
                 targetValue = 1f - index * 0.15f,
-                animationSpec = tween(
-                    durationMillis = CardAnimationDurations.ELEVATION_CHANGE,
-                    easing = CardAnimationEasings.Standard
-                )
+                animationSpec = AnimationSpecs.Normal
             )
         }
     }
@@ -497,20 +460,14 @@ fun rememberCardExpandAnimation(
         launch {
             expandProgress.animateTo(
                 targetValue = if (isExpanded) 1f else 0f,
-                animationSpec = tween(
-                    durationMillis = durationMillis,
-                    easing = CardAnimationEasings.Standard
-                )
+                animationSpec = AnimationSpecs.Normal
             )
         }
 
         launch {
             rotation.animateTo(
                 targetValue = if (isExpanded) 180f else 0f,
-                animationSpec = tween(
-                    durationMillis = durationMillis,
-                    easing = CardAnimationEasings.Standard
-                )
+                animationSpec = AnimationSpecs.Normal
             )
         }
     }

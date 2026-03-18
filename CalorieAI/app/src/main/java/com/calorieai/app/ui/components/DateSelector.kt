@@ -31,8 +31,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.calorieai.app.utils.getRelativeDateLabel
-import com.calorieai.app.utils.getWeekDayLabel
+import com.calorieai.app.utils.DateUtils.getRelativeDateLabel
+import com.calorieai.app.utils.DateUtils.getWeekDayLabel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -125,9 +125,9 @@ private fun DateDisplay(
     date: LocalDate,
     modifier: Modifier = Modifier
 ) {
-    val weekDay = getWeekDayLabel(date)
-    val dateStr = date.format(DateTimeFormatter.ofPattern("MM-dd"))
-    val relativeLabel = getRelativeDateLabel(date)
+    val weekDay: String = getWeekDayLabel(date)
+    val dateStr: String = date.format(DateTimeFormatter.ofPattern("MM-dd"))
+    val relativeLabel: String = getRelativeDateLabel(date)
 
     AnimatedContent(
         targetState = date,

@@ -34,6 +34,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.ui.components.interactiveScale
+import com.calorieai.app.ui.components.SettingsTopAppBar
 
 /**
  * 界面外观设置页面
@@ -49,13 +50,9 @@ fun AppearanceSettingsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("界面外观") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                }
+            SettingsTopAppBar(
+                title = "界面外观",
+                onNavigateBack = onNavigateBack
             )
         }
     ) { paddingValues ->

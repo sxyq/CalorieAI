@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.calorieai.app.data.model.GoalType
 import com.calorieai.app.data.model.WeightLossStrategy
+import com.calorieai.app.ui.components.OnboardingNavigationButtons
 import com.calorieai.app.ui.theme.*
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -266,51 +267,22 @@ fun OnboardingScreen5(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Text(
-                        text = "上一步",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        if (isFormValid && targetWeight != null) {
-                            val strategy = selectedStrategy
-                            if (strategy != null) {
-                                onNext(targetWeight, strategy.name, estimatedWeeks ?: 0)
-                            }
+            OnboardingNavigationButtons(
+                onBack = onBack,
+                onNext = {
+                    if (isFormValid && targetWeight != null) {
+                        val strategy = selectedStrategy
+                        if (strategy != null) {
+                            onNext(targetWeight, strategy.name, estimatedWeeks ?: 0)
                         }
-                    },
-                    enabled = isFormValid,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "完成设置",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
+                    }
+                },
+                isNextEnabled = isFormValid,
+                nextButtonText = "完成设置",
+                showCheckIcon = true,
+                buttonHeight = 52,
+                cornerRadius = 14
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
         }

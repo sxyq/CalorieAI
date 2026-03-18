@@ -68,29 +68,16 @@ class TutorialManager @Inject constructor(
         }
     }
 
-    /**
-     * 跳过教程
-     */
-    fun skipTutorial() {
-        _isTutorialActive.value = false
-        // 标记为已完成，但记录是跳过的
-        prefs.edit().apply {
-            putBoolean(TutorialConfig.PREFS_TUTORIAL_COMPLETED, true)
-            putInt(TutorialConfig.PREFS_TUTORIAL_VERSION, TutorialConfig.CURRENT_TUTORIAL_VERSION)
-            putBoolean("tutorial_skipped", true)
-            apply()
-        }
-    }
+    fun skipTutorial() = finishTutorial(skipped = true)
 
-    /**
-     * 完成教程
-     */
-    fun completeTutorial() {
+    fun completeTutorial() = finishTutorial(skipped = false)
+
+    private fun finishTutorial(skipped: Boolean) {
         _isTutorialActive.value = false
         prefs.edit().apply {
             putBoolean(TutorialConfig.PREFS_TUTORIAL_COMPLETED, true)
             putInt(TutorialConfig.PREFS_TUTORIAL_VERSION, TutorialConfig.CURRENT_TUTORIAL_VERSION)
-            putBoolean("tutorial_skipped", false)
+            putBoolean("tutorial_skipped", skipped)
             apply()
         }
     }

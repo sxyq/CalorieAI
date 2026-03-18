@@ -1,5 +1,6 @@
 package com.calorieai.app.data.repository
 
+import com.calorieai.app.data.local.dao.WeightRecordDao
 import com.calorieai.app.data.model.WeightRecord
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -35,8 +36,6 @@ class WeightRecordRepository @Inject constructor(
     
     suspend fun getRecordsBetweenSync(startDate: Long, endDate: Long): List<WeightRecord> = 
         weightRecordDao.getRecordsBetweenSync(startDate, endDate)
-    
-    suspend fun insertRecord(record: WeightRecord) = weightRecordDao.insert(record)
     
     suspend fun deleteRecordById(id: Long) = weightRecordDao.deleteById(id)
     

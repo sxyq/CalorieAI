@@ -7,6 +7,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.calorieai.app.data.model.AIConfig
 import com.calorieai.app.data.model.AITokenUsage
+import com.calorieai.app.data.model.APICallRecord
 import com.calorieai.app.data.model.Converters
 import com.calorieai.app.data.model.ExerciseRecord
 import com.calorieai.app.data.model.FoodRecord
@@ -14,12 +15,12 @@ import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.model.WaterRecord
 import com.calorieai.app.data.model.WeightRecord
 import com.calorieai.app.data.local.dao.WaterRecordDao
-import com.calorieai.app.data.repository.WeightRecordDao
+import com.calorieai.app.data.local.dao.WeightRecordDao
 import com.calorieai.app.data.model.AIChatHistory
 
 @Database(
-    entities = [FoodRecord::class, UserSettings::class, AIConfig::class, ExerciseRecord::class, AITokenUsage::class, WeightRecord::class, AIChatHistory::class, WaterRecord::class],
-    version = 14,
+    entities = [FoodRecord::class, UserSettings::class, AIConfig::class, ExerciseRecord::class, AITokenUsage::class, WeightRecord::class, AIChatHistory::class, WaterRecord::class, APICallRecord::class],
+    version = 15,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -32,6 +33,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun weightRecordDao(): WeightRecordDao
     abstract fun aiChatHistoryDao(): AIChatHistoryDao
     abstract fun waterRecordDao(): WaterRecordDao
+    abstract fun apiCallRecordDao(): APICallRecordDao
     
     companion object {
         /**
@@ -81,6 +83,33 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE user_settings ADD COLUMN dailyWaterGoal INTEGER NOT NULL DEFAULT 2000")
                 // 添加用户头像URI字段
                 database.execSQL("ALTER TABLE user_settings ADD COLUMN userAvatarUri TEXT")
+            }
+        }
+
+        /**
+         * 从版本14迁移到版本15
+         * 添加API调用记录表
+         */
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS api_call_records (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        configId TEXT NOT NULL,
+                        configName TEXT NOT NULL,
+                        modelId TEXT NOT NULL,
+                        inputText TEXT NOT NULL,
+                        outputText TEXT NOT NULL,
+                        promptTokens INTEGER NOT NULL DEFAULT 0,
+                        completionTokens INTEGER NOT NULL DEFAULT 0,
+                        totalTokens INTEGER NOT NULL DEFAULT 0,
+                        cost REAL NOT NULL DEFAULT 0.0,
+                        duration INTEGER NOT NULL DEFAULT 0,
+                        isSuccess INTEGER NOT NULL DEFAULT 1,
+                        errorMessage TEXT
+                    )
+                """)
             }
         }
     }

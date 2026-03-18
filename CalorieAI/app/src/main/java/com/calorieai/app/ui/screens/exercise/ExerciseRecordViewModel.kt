@@ -130,7 +130,7 @@ class ExerciseRecordViewModel @Inject constructor(
                 notes = _uiState.value.noteInput.takeIf { it.isNotBlank() },
                 recordTime = System.currentTimeMillis()
             )
-            exerciseRecordRepository.insertRecord(record)
+            exerciseRecordRepository.addRecord(record)
 
             // 重置输入
             _uiState.value = _uiState.value.copy(

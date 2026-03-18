@@ -2,6 +2,7 @@ package com.calorieai.app.ui.screens.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calorieai.app.CalorieAIApplication
 import com.calorieai.app.data.local.OnboardingDataStore
 import com.calorieai.app.data.model.ActivityLevel
 import com.calorieai.app.data.model.Gender
@@ -47,8 +48,8 @@ class OnboardingViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             // 恢复之前的进度
-            val savedStep = onboardingDataStore.getCurrentStep().first()
-            val savedData = onboardingDataStore.getOnboardingData().first()
+            val savedStep = onboardingDataStore.currentStep.first()
+            val savedData = onboardingDataStore.onboardingData.first()
 
             _currentStep.value = savedStep
             savedData?.let { data ->
@@ -76,7 +77,7 @@ class OnboardingViewModel @Inject constructor(
         if (step in 1..6) {
             _currentStep.value = step
             viewModelScope.launch {
-                onboardingDataStore.saveCurrentStep(step)
+                onboardingDataStore.setCurrentStep(step)
             }
         }
     }

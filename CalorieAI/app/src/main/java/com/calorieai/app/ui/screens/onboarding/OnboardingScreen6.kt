@@ -26,6 +26,7 @@ import com.calorieai.app.data.model.ActivityLevel
 import com.calorieai.app.data.model.Gender
 import com.calorieai.app.data.model.GoalType
 import com.calorieai.app.data.model.WeightLossStrategy
+import com.calorieai.app.ui.components.OnboardingNavigationButtons
 import com.calorieai.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -262,53 +263,17 @@ fun OnboardingScreen6(
             Spacer(modifier = Modifier.height(24.dp))
 
             // 按钮行
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = onSurfaceColor
-                    )
-                ) {
-                    Text(
-                        text = "上一步",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        isCompleting = true
-                        onComplete()
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp)
-                        .scale(scale),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = primaryColor
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "完成",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
+            OnboardingNavigationButtons(
+                onBack = onBack,
+                onNext = {
+                    isCompleting = true
+                    onComplete()
+                },
+                nextButtonText = "完成",
+                showCheckIcon = true,
+                nextButtonColor = primaryColor,
+                backButtonContentColor = onSurfaceColor
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
         }

@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.WaterRecord
+import com.calorieai.app.ui.components.WaterProgressCard
 import com.calorieai.app.ui.theme.*
 import com.calorieai.app.viewmodel.WaterHistoryViewModel
 import java.text.SimpleDateFormat
@@ -80,9 +81,8 @@ fun WaterHistoryScreen(
             } else {
                 // 今日饮水进度卡片
                 WaterProgressCard(
-                    todayAmount = todayAmount,
+                    currentAmount = todayAmount,
                     targetAmount = targetAmount,
-                    progress = progress,
                     isDark = isDark,
                     onTargetClick = { showTargetDialog = true }
                 )

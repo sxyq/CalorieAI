@@ -6,8 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
+import com.calorieai.app.data.model.FoodAnalysisResult
 import com.calorieai.app.data.repository.FoodRecordRepository
-import com.calorieai.app.service.ai.FoodAnalysisResult
 import com.calorieai.app.service.ai.FoodImageAnalysisService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -97,7 +97,7 @@ class PhotoAnalysisViewModel @Inject constructor(
             val record = FoodRecord(
                 foodName = result.foodName,
                 userInput = "拍照识别：${result.foodName} - ${result.description}",
-                totalCalories = result.calories,
+                totalCalories = result.calories.toInt(),
                 protein = result.protein,
                 carbs = result.carbs,
                 fat = result.fat,

@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.calorieai.app.ui.components.WaterProgressCard
 import com.calorieai.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -65,8 +66,8 @@ fun WaterTrackerScreen(
 
             // 今日饮水进度
             WaterProgressCard(
-                currentWater = currentWater,
-                dailyGoal = dailyGoal,
+                currentAmount = currentWater,
+                targetAmount = dailyGoal,
                 isDark = isDark
             )
 
@@ -83,86 +84,6 @@ fun WaterTrackerScreen(
             WaterReminderCard(isDark = isDark)
 
             Spacer(modifier = Modifier.height(24.dp))
-        }
-    }
-}
-
-@Composable
-private fun WaterProgressCard(
-    currentWater: Int,
-    dailyGoal: Int,
-    isDark: Boolean
-) {
-    val progress = (currentWater.toFloat() / dailyGoal).coerceIn(0f, 1f)
-    val percentage = (progress * 100).toInt()
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .glassCardThemed(isDark = isDark, cornerRadius = 20.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "今日饮水",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // 圆形进度
-            Box(
-                modifier = Modifier.size(180.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.size(180.dp),
-                    color = Color(0xFF26C6DA),
-                    strokeWidth = 12.dp,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                )
-
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.WaterDrop,
-                        contentDescription = null,
-                        tint = Color(0xFF26C6DA),
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "${currentWater}ml",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "/ ${dailyGoal}ml",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = when {
-                    percentage >= 100 -> "太棒了！今日目标已达成！"
-                    percentage >= 80 -> "加油！马上就达成目标了！"
-                    percentage >= 50 -> "继续努力，已完成一半！"
-                    else -> "记得多喝水哦~"
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

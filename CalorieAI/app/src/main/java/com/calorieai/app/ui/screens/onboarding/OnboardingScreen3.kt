@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieai.app.data.model.ActivityLevel
+import com.calorieai.app.ui.components.OnboardingNavigationButtons
 import com.calorieai.app.ui.theme.*
 import kotlin.math.roundToInt
 
@@ -250,41 +251,14 @@ fun OnboardingScreen3(
             Spacer(modifier = Modifier.height(24.dp))
 
             // 按钮行
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text(
-                        text = "上一步",
-                        style = MaterialTheme.typography.titleMedium
-                    )
+            OnboardingNavigationButtons(
+                onBack = onBack,
+                onNext = {
+                    val activityLevel = ActivityLevel.fromString(selectedActivityLevel)
+                    val recommendedCalories = calculateRecommendedCalories(activityLevel)
+                    onNext(selectedExerciseHabits, recommendedCalories, selectedActivityLevel)
                 }
-
-                Button(
-                    onClick = {
-                        val activityLevel = ActivityLevel.fromString(selectedActivityLevel)
-                        val recommendedCalories = calculateRecommendedCalories(activityLevel)
-                        onNext(selectedExerciseHabits, recommendedCalories, selectedActivityLevel)
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text(
-                        text = "下一步",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
         }

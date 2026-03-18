@@ -57,14 +57,6 @@ class OnboardingDataStore @Inject constructor(
             preferences[CURRENT_STEP] ?: 1
         }
     
-    /**
-     * 获取当前步骤（同步方法）
-     */
-    suspend fun getCurrentStep(): Flow<Int> = currentStep
-    
-    /**
-     * 获取引导数据
-     */
     val onboardingData: Flow<OnboardingData?> = context.onboardingDataStore.data
         .map { preferences ->
             preferences[ONBOARDING_DATA]?.let { json ->
@@ -76,14 +68,6 @@ class OnboardingDataStore @Inject constructor(
             }
         }
     
-    /**
-     * 获取引导数据（同步方法）
-     */
-    suspend fun getOnboardingData(): Flow<OnboardingData?> = onboardingData
-    
-    /**
-     * 标记引导完成
-     */
     suspend fun setOnboardingCompleted(completed: Boolean) {
         context.onboardingDataStore.edit { preferences ->
             preferences[ONBOARDING_COMPLETED] = completed
@@ -99,16 +83,6 @@ class OnboardingDataStore @Inject constructor(
         }
     }
     
-    /**
-     * 保存当前步骤
-     */
-    suspend fun saveCurrentStep(step: Int) {
-        setCurrentStep(step)
-    }
-    
-    /**
-     * 保存引导数据
-     */
     suspend fun saveOnboardingData(data: OnboardingData) {
         context.onboardingDataStore.edit { preferences ->
             preferences[ONBOARDING_DATA] = gson.toJson(data)

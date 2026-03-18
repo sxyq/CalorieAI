@@ -10,25 +10,27 @@ import javax.inject.Inject
 
 @HiltAndroidApp
 class CalorieAIApplication : Application() {
-
+    
     @Inject
     lateinit var aiDefaultConfigInitializer: AIDefaultConfigInitializer
-
+    
+    companion object {
+        @Volatile
+        var isOnboardingCompleted: Boolean? = null
+            internal set
+    }
+    
     override fun onCreate() {
         super.onCreate()
-        // 延迟初始化非关键配置，避免阻塞启动
-        initializeDefaultAIConfigLazy()
+        initializeDefaultAIConfig()
     }
-
-    private fun initializeDefaultAIConfigLazy() {
-        // 延迟2秒后初始化，让UI先渲染
+    
+    private fun initializeDefaultAIConfig() {
         CoroutineScope(Dispatchers.IO).launch {
-            kotlinx.coroutines.delay(2000)
             try {
                 aiDefaultConfigInitializer.initializeDefaultConfig()
             } catch (e: Exception) {
-                // 捕获所有异常，避免应用崩溃
-                android.util.Log.e("CalorieAI", "初始化AI配置失败", e)
+                e.printStackTrace()
             }
         }
     }

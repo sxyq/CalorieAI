@@ -2,8 +2,6 @@ package com.calorieai.app.ui.animations
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -31,6 +29,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.calorieai.app.ui.animation.AnimationEasing
+import com.calorieai.app.ui.animation.AnimationSpecs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -45,16 +45,6 @@ object ListAnimationDurations {
     const val SCROLL_DELAY = 16
     const val ITEM_EXPAND = 300
     const val ITEM_COLLAPSE = 250
-}
-
-/**
- * 列表动画缓动曲线
- */
-object ListAnimationEasings {
-    val Standard = CubicBezierEasing(0.4f, 0.0f, 0.2f, 1f)
-    val Bounce = CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f)
-    val Decelerate = CubicBezierEasing(0.0f, 0.0f, 0.2f, 1f)
-    val Accelerate = CubicBezierEasing(0.4f, 0.0f, 1f, 1f)
 }
 
 /**
@@ -81,7 +71,7 @@ fun rememberListItemEnterAnimation(
                 targetValue = 0f,
                 animationSpec = tween(
                     durationMillis = ListAnimationDurations.ITEM_ENTER,
-                    easing = ListAnimationEasings.Decelerate
+                    easing = AnimationEasing.EaseOutCubic
                 )
             )
         }
@@ -99,10 +89,7 @@ fun rememberListItemEnterAnimation(
         launch {
             scale.animateTo(
                 targetValue = 1f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
+                animationSpec = AnimationSpecs.SpringBouncy
             )
         }
     }
@@ -155,7 +142,7 @@ fun rememberListItemExitAnimation(
                     targetValue = -30f,
                     animationSpec = tween(
                         durationMillis = ListAnimationDurations.ITEM_EXIT,
-                        easing = ListAnimationEasings.Accelerate
+                        easing = AnimationEasing.EaseInCubic
                     )
                 )
             }
@@ -165,7 +152,7 @@ fun rememberListItemExitAnimation(
                     targetValue = 0f,
                     animationSpec = tween(
                         durationMillis = ListAnimationDurations.ITEM_EXIT,
-                        easing = ListAnimationEasings.Standard
+                        easing = AnimationEasing.EaseOutCubic
                     )
                 )
             }
@@ -175,7 +162,7 @@ fun rememberListItemExitAnimation(
                     targetValue = 0.95f,
                     animationSpec = tween(
                         durationMillis = ListAnimationDurations.ITEM_EXIT,
-                        easing = ListAnimationEasings.Standard
+                        easing = AnimationEasing.EaseOutCubic
                     )
                 )
             }
@@ -226,26 +213,20 @@ fun AnimatedListItem(
         visible = visible,
         modifier = modifier,
         enter = fadeIn(
-            animationSpec = tween(
-                durationMillis = ListAnimationDurations.ITEM_ENTER,
-                easing = ListAnimationEasings.Standard
-            )
+            animationSpec = AnimationSpecs.Normal
         ) + slideInVertically(
             animationSpec = tween(
                 durationMillis = ListAnimationDurations.ITEM_ENTER,
-                easing = ListAnimationEasings.Decelerate
+                easing = AnimationEasing.EaseOutCubic
             ),
             initialOffsetY = { it }
         ),
         exit = fadeOut(
-            animationSpec = tween(
-                durationMillis = ListAnimationDurations.ITEM_EXIT,
-                easing = ListAnimationEasings.Standard
-            )
+            animationSpec = AnimationSpecs.Normal
         ) + slideOutVertically(
             animationSpec = tween(
                 durationMillis = ListAnimationDurations.ITEM_EXIT,
-                easing = ListAnimationEasings.Accelerate
+                easing = AnimationEasing.EaseInCubic
             ),
             targetOffsetY = { -it / 3 }
         )
@@ -324,7 +305,7 @@ fun rememberListItemExpandAnimation(
                 targetValue = if (isExpanded) 1f else 0f,
                 animationSpec = tween(
                     durationMillis = durationMillis,
-                    easing = ListAnimationEasings.Standard
+                    easing = AnimationEasing.EaseOutCubic
                 )
             )
         }
@@ -334,7 +315,7 @@ fun rememberListItemExpandAnimation(
                 targetValue = if (isExpanded) 180f else 0f,
                 animationSpec = tween(
                     durationMillis = durationMillis,
-                    easing = ListAnimationEasings.Standard
+                    easing = AnimationEasing.EaseOutCubic
                 )
             )
         }
@@ -371,40 +352,28 @@ fun rememberListItemDragAnimation(
             launch {
                 elevation.animateTo(
                     targetValue = 8f,
-                    animationSpec = tween(
-                        durationMillis = 150,
-                        easing = ListAnimationEasings.Standard
-                    )
+                    animationSpec = AnimationSpecs.Fast
                 )
             }
 
             launch {
                 scale.animateTo(
                     targetValue = 1.05f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
+                    animationSpec = AnimationSpecs.SpringBouncy
                 )
             }
         } else {
             launch {
                 elevation.animateTo(
                     targetValue = 0f,
-                    animationSpec = tween(
-                        durationMillis = 200,
-                        easing = ListAnimationEasings.Standard
-                    )
+                    animationSpec = AnimationSpecs.Normal
                 )
             }
 
             launch {
                 scale.animateTo(
                     targetValue = 1f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
-                    )
+                    animationSpec = AnimationSpecs.SpringBouncy
                 )
             }
         }
@@ -449,7 +418,7 @@ fun rememberStaggeredItemAnimation(
                 targetValue = 0f,
                 animationSpec = tween(
                     durationMillis = ListAnimationDurations.ITEM_ENTER,
-                    easing = ListAnimationEasings.Decelerate
+                    easing = AnimationEasing.EaseOutCubic
                 )
             )
         }
@@ -459,7 +428,7 @@ fun rememberStaggeredItemAnimation(
                 targetValue = 0f,
                 animationSpec = tween(
                     durationMillis = ListAnimationDurations.ITEM_ENTER,
-                    easing = ListAnimationEasings.Decelerate
+                    easing = AnimationEasing.EaseOutCubic
                 )
             )
         }
@@ -571,32 +540,20 @@ fun rememberSwipeToDeleteAnimation(
             val progress = (swipeProgress / threshold).coerceIn(0f, 1f)
             alpha.animateTo(
                 targetValue = 1f - progress,
-                animationSpec = tween(
-                    durationMillis = 50,
-                    easing = ListAnimationEasings.Standard
-                )
+                animationSpec = AnimationSpecs.Fast
             )
             scale.animateTo(
                 targetValue = 1f - progress * 0.2f,
-                animationSpec = tween(
-                    durationMillis = 50,
-                    easing = ListAnimationEasings.Standard
-                )
+                animationSpec = AnimationSpecs.Fast
             )
         } else {
             alpha.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(
-                    durationMillis = 150,
-                    easing = ListAnimationEasings.Standard
-                )
+                animationSpec = tween(150, easing = AnimationEasing.EaseOutCubic)
             )
             scale.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(
-                    durationMillis = 150,
-                    easing = ListAnimationEasings.Standard
-                )
+                animationSpec = tween(150, easing = AnimationEasing.EaseOutCubic)
             )
         }
     }
@@ -642,7 +599,7 @@ fun rememberRefreshAnimation(
                     targetValue = rotation.value + 360f,
                     animationSpec = tween(
                         durationMillis = 800,
-                        easing = FastOutSlowInEasing
+                        easing = AnimationEasing.EaseInOutCubic
                     )
                 )
                 count++

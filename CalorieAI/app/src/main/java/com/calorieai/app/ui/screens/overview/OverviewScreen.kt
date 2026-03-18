@@ -328,6 +328,22 @@ private fun MonthlySummaryCard(
     exerciseCalories: Int,
     weightChange: Float?
 ) {
+    val currentMonth = java.time.LocalDate.now().monthValue
+    val monthName = when(currentMonth) {
+        1 -> "一月"
+        2 -> "二月"
+        3 -> "三月"
+        4 -> "四月"
+        5 -> "五月"
+        6 -> "六月"
+        7 -> "七月"
+        8 -> "八月"
+        9 -> "九月"
+        10 -> "十月"
+        11 -> "十一月"
+        else -> "十二月"
+    }
+    
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -340,7 +356,7 @@ private fun MonthlySummaryCard(
             modifier = Modifier.padding(20.dp)
         ) {
             Text(
-                text = "本月总结",
+                text = "${monthName}总结",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )

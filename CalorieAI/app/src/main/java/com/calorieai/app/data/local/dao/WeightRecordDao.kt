@@ -1,12 +1,9 @@
-package com.calorieai.app.data.repository
+package com.calorieai.app.data.local.dao
 
 import androidx.room.*
 import com.calorieai.app.data.model.WeightRecord
 import kotlinx.coroutines.flow.Flow
 
-/**
- * 体重记录数据访问对象
- */
 @Dao
 interface WeightRecordDao {
     

@@ -27,7 +27,7 @@ import com.calorieai.app.data.model.GoalType
 import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.model.WeightLossStrategy
 import com.calorieai.app.ui.theme.*
-import com.calorieai.app.viewmodel.BodyProfileViewModel
+import com.calorieai.app.viewmodel.MyViewModel
 import kotlin.math.roundToInt
 
 /**
@@ -41,7 +41,7 @@ fun BodyProfileScreen(
     onNavigateToWeightHistory: () -> Unit,
     onNavigateToGoals: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: BodyProfileViewModel = hiltViewModel()
+    viewModel: MyViewModel = hiltViewModel()
 ) {
     val isDark = isSystemInDarkTheme()
     val userSettings by viewModel.userSettings.collectAsState()

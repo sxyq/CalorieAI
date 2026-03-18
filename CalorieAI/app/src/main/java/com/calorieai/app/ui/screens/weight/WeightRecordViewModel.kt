@@ -90,7 +90,7 @@ class WeightRecordViewModel @Inject constructor(
                 recordDate = _uiState.value.selectedDate,
                 note = _uiState.value.noteInput.takeIf { it.isNotBlank() }
             )
-            weightRecordRepository.insertRecord(record)
+            weightRecordRepository.insert(record)
             
             // 同时更新UserSettings中的体重，以便同步到首页和个人信息
             val currentSettings = userSettingsRepository.getSettings().firstOrNull()

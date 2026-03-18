@@ -172,9 +172,7 @@ class NotificationHelper @Inject constructor(
 
     private fun isOppoDevice(): Boolean {
         val manufacturer = Build.MANUFACTURER.lowercase()
-        return manufacturer.contains("oppo") || 
-               manufacturer.contains("realme") || 
-               manufacturer.contains("oneplus")
+        return listOf("oppo", "realme", "oneplus").any { manufacturer.contains(it) }
     }
 }
 

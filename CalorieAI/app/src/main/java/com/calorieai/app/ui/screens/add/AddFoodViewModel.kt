@@ -6,7 +6,7 @@ import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.repository.FoodRecordRepository
 import com.calorieai.app.service.ai.FoodTextAnalysisService
-import com.calorieai.app.service.ai.TextFoodAnalysisResult
+import com.calorieai.app.data.model.FoodAnalysisResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -222,7 +222,7 @@ data class AddFoodUiState(
     val selectedMealType: MealType = MealType.LUNCH,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val analysisResult: TextFoodAnalysisResult? = null,
+    val analysisResult: FoodAnalysisResult? = null,
     val retryMessage: String? = null,  // 重试提示信息
     val retryAttempt: Int = 0,  // 当前重试次数
     val maxRetries: Int = 2,  // 最大重试次数

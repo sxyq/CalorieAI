@@ -32,6 +32,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.calorieai.app.ui.animation.AnimationEasing
+import com.calorieai.app.ui.animation.AnimationSpecs
 import com.calorieai.app.ui.theme.*
 
 /**
@@ -64,18 +66,10 @@ fun BottomNavBar(
     val supportsBlur = GlassDeviceUtils.supportsBlur()
 
     // 背景颜色 #F3EDF7（浅色）/#211F26（深色），透明度 95%
-    val backgroundColor = if (isDark) {
-        GlassDarkColors.NavigationBarBackground
-    } else {
-        GlassLightColors.NavigationBarBackground
-    }.copy(alpha = GlassAlpha.NAVIGATION_BAR)
+    val backgroundColor = AppColors.navigationBarBackground(isDark).copy(alpha = GlassAlpha.NAVIGATION_BAR)
 
     // 边框颜色
-    val borderColor = if (isDark) {
-        Color.Black.copy(alpha = 0.1f)
-    } else {
-        Color.White.copy(alpha = 0.1f)
-    }
+    val borderColor = Color.White.copy(alpha = if (isDark) 0.1f else 0.1f)
 
     val density = LocalDensity.current
     val highlightHeight = with(density) { 1.dp.toPx() }
@@ -155,6 +149,8 @@ private fun NavBarItem(
     val isLowEnd = remember { GlassDeviceUtils.isLowEndDevice(context) }
     val supportsBlur = GlassDeviceUtils.supportsBlur()
 
+    val colors = AppColors.getColors(isDark)
+
     // 图标颜色
     val selectedIconColor = if (isDark) GlassDarkColors.SelectedIcon else GlassLightColors.SelectedIcon
     val unselectedIconColor = if (isDark) GlassDarkColors.UnselectedIcon else GlassLightColors.UnselectedIcon
@@ -162,51 +158,35 @@ private fun NavBarItem(
     val unselectedTextColor = if (isDark) GlassDarkColors.UnselectedText else GlassLightColors.UnselectedText
 
     // 指示器背景色
-    val indicatorColor = if (isDark) {
-        GlassDarkColors.IndicatorBackground
-    } else {
-        GlassLightColors.IndicatorBackground
-    }
+    val indicatorColor = if (isDark) GlassDarkColors.IndicatorBackground else GlassLightColors.IndicatorBackground
 
     val density = LocalDensity.current
     val shadowHeight = with(density) { 1.dp.toPx() }
 
-    // 指示器动画 - 缩放 0.8→1 + 淡入，时长 300ms，缓动 cubic-bezier(0.4, 0.0, 0.2, 1)
+    // 指示器动画 - 缩放 0.8→1 + 淡入，时长 300ms
     val indicatorScale by animateFloatAsState(
         targetValue = if (isSelected) 1f else 0.8f,
-        animationSpec = tween(
-            durationMillis = 300,
-            easing = CubicBezierEasing(0.4f, 0.0f, 0.2f, 1f)
-        ),
+        animationSpec = AnimationSpecs.Normal,
         label = "indicatorScale"
     )
 
     val indicatorAlpha by animateFloatAsState(
         targetValue = if (isSelected) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = 300,
-            easing = CubicBezierEasing(0.4f, 0.0f, 0.2f, 1f)
-        ),
+        animationSpec = AnimationSpecs.Normal,
         label = "indicatorAlpha"
     )
 
-    // 指示器位置动画 - 时长 250ms，缓动 cubic-bezier(0.34, 1.56, 0.64, 1)
+    // 指示器位置动画 - 时长 250ms，弹跳缓动
     val indicatorOffset by animateFloatAsState(
         targetValue = if (isSelected) -2f else 0f, // 选中时上浮 2dp
-        animationSpec = tween(
-            durationMillis = 250,
-            easing = CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f)
-        ),
+        animationSpec = tween(250, easing = AnimationEasing.EaseOutBack),
         label = "indicatorOffset"
     )
 
-    // 图标微动效 - 选中时放大 1.1 倍，150ms 弹性回弹
+    // 图标微动效 - 选中时放大 1.1 倍，弹性回弹
     val iconScale by animateFloatAsState(
         targetValue = if (isSelected) 1.1f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec = AnimationSpecs.SpringBouncy,
         label = "iconScale"
     )
 
@@ -264,12 +244,7 @@ private fun NavBarItem(
                             .clip(CircleShape)
                             .drawBehind {
                                 // 指示器背景
-                                drawRect(indicatorColor)
-
-                                // 毛玻璃叠加 10-15px 模糊
-                                if (supportsBlur && !isLowEnd) {
-                                    // 模糊效果在父级处理
-                                }
+                                drawRect(color = indicatorColor)
 
                                 // 底部内阴影 1px rgba(0,0,0,0.1)
                                 drawRect(
@@ -398,17 +373,8 @@ fun BottomNavBarWithFab(
     val isLowEnd = remember { GlassDeviceUtils.isLowEndDevice(context) }
     val supportsBlur = GlassDeviceUtils.supportsBlur()
 
-    val backgroundColor = if (isDark) {
-        GlassDarkColors.NavigationBarBackground
-    } else {
-        GlassLightColors.NavigationBarBackground
-    }.copy(alpha = GlassAlpha.NAVIGATION_BAR)
-
-    val borderColor = if (isDark) {
-        Color.Black.copy(alpha = 0.1f)
-    } else {
-        Color.White.copy(alpha = 0.1f)
-    }
+    val backgroundColor = AppColors.navigationBarBackground(isDark).copy(alpha = GlassAlpha.NAVIGATION_BAR)
+    val borderColor = Color.White.copy(alpha = if (isDark) 0.1f else 0.1f)
 
     val density = LocalDensity.current
     val highlightHeight = with(density) { 1.dp.toPx() }
@@ -482,11 +448,8 @@ fun BottomNavBarWithFab(
         }
 
         // 中央FAB - Glass 风格
-        val fabBackgroundColor = if (isDark) {
-            GlassDarkColors.Primary
-        } else {
-            GlassLightColors.Primary
-        }
+        val fabBackgroundColor = AppColors.primary(isDark)
+        val fabContentColor = AppColors.onPrimary(isDark)
 
         FloatingActionButton(
             onClick = onFabClick,
@@ -495,7 +458,7 @@ fun BottomNavBarWithFab(
                 .size(64.dp),
             shape = CircleShape,
             containerColor = fabBackgroundColor,
-            contentColor = if (isDark) GlassDarkColors.OnPrimary else GlassLightColors.OnPrimary,
+            contentColor = fabContentColor,
             elevation = FloatingActionButtonDefaults.elevation(8.dp)
         ) {
             Icon(

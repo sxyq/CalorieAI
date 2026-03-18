@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.calorieai.app.BuildConfig
+import com.calorieai.app.ui.components.SettingsTopAppBar
 import com.calorieai.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -55,16 +56,9 @@ fun AboutScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text("关于") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
+            SettingsTopAppBar(
+                title = "关于",
+                onNavigateBack = onNavigateBack
             )
         }
     ) { paddingValues ->

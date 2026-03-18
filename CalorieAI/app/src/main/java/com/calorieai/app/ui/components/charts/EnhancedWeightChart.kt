@@ -28,10 +28,6 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.*
 
-/**
- * 增强体重图表组件 - Glass 毛玻璃风格
- * 支持实际数据、预测曲线、目标线、置信区间
- */
 @Composable
 fun EnhancedWeightChart(
     actualData: List<WeightDataPoint>,
@@ -43,18 +39,15 @@ fun EnhancedWeightChart(
     isDark: Boolean = false
 ) {
     val textMeasurer = rememberTextMeasurer()
+    val colors = AppColors.getColors(isDark)
     
-    val cardBackground = if (isDark) {
-        GlassDarkColors.SurfaceContainerHigh.copy(alpha = GlassAlpha.CARD_BACKGROUND)
-    } else {
-        GlassLightColors.SurfaceContainerHigh.copy(alpha = GlassAlpha.CARD_BACKGROUND)
-    }
-    
-    val borderColor = if (isDark) {
-        Color.White.copy(alpha = 0.1f)
-    } else {
-        Color.White.copy(alpha = 0.25f)
-    }
+    val cardBackground = AppColors.cardBackground(isDark).copy(alpha = GlassAlpha.CARD_BACKGROUND)
+    val borderColor = Color.White.copy(alpha = if (isDark) 0.1f else 0.25f)
+    val primaryColor = colors.Primary
+    val surfaceColor = colors.Surface
+    val outlineColor = colors.Outline
+    val tertiaryColor = colors.Tertiary
+    val onSurfaceVariantColor = colors.OnSurfaceVariant
     
     Card(
         modifier = modifier
@@ -69,12 +62,10 @@ fun EnhancedWeightChart(
                 .fillMaxSize()
                 .padding(20.dp)
         ) {
-            // 标题和图例
             ChartHeader(showPrediction, isDark)
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            // 图表区域
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -112,7 +103,6 @@ fun EnhancedWeightChart(
                     val maxDate = allData.maxOf { it.date.time }
                     val dateRange = maxDate - minDate
                     
-                    // 绘制网格线
                     drawGridLines(
                         canvasWidth,
                         canvasHeight,
@@ -120,38 +110,36 @@ fun EnhancedWeightChart(
                         minWeight,
                         maxWeight,
                         textMeasurer,
-                        color = if (isDark) GlassDarkColors.Outline.copy(alpha = 0.3f) 
-                                else GlassLightColors.Outline.copy(alpha = 0.3f),
-                        isDark = isDark
+                        color = outlineColor.copy(alpha = 0.3f),
+                        textColor = onSurfaceVariantColor
                     )
                     
-                    // 绘制目标线
                     targetWeight?.let { target ->
-                        val y = canvasHeight - padding - ((target - minWeight) / weightRange) * (canvasHeight - 2 * padding)
-                        val targetColor = if (isDark) GlassDarkColors.Tertiary else GlassLightColors.Tertiary
-                        
-                        drawLine(
-                            color = targetColor,
-                            start = Offset(padding, y),
-                            end = Offset(canvasWidth - padding, y),
-                            strokeWidth = 2f,
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
-                        )
-                        
-                        drawText(
-                            textMeasurer = textMeasurer,
-                            text = "目标: ${String.format("%.1f", target)}kg",
-                            topLeft = Offset(canvasWidth - 120f, y - 24f),
-                            style = TextStyle(
-                                color = targetColor,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
+                        if (weightRange != 0f) {
+                            val y = canvasHeight - padding - ((target - minWeight) / weightRange) * (canvasHeight - 2 * padding)
+                            
+                            drawLine(
+                                color = tertiaryColor,
+                                start = Offset(padding, y),
+                                end = Offset(canvasWidth - padding, y),
+                                strokeWidth = 2f,
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
                             )
-                        )
+                            
+                            drawText(
+                                textMeasurer = textMeasurer,
+                                text = "目标: ${String.format("%.1f", target)}kg",
+                                topLeft = Offset(canvasWidth - 120f, y - 24f),
+                                style = TextStyle(
+                                    color = tertiaryColor,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            )
+                        }
                     }
                     
-                    // 绘制置信区间
-                    if (showConfidenceInterval && prediction != null) {
+                    if (showConfidenceInterval && prediction != null && weightRange != 0f) {
                         drawConfidenceInterval(
                             prediction,
                             canvasWidth,
@@ -161,14 +149,11 @@ fun EnhancedWeightChart(
                             weightRange,
                             minDate,
                             dateRange,
-                            isDark
+                            primaryColor
                         )
                     }
                     
-                    // 绘制实际数据线和点
-                    val primaryColor = if (isDark) GlassDarkColors.Primary else GlassLightColors.Primary
-                    
-                    if (actualData.size >= 2) {
+                    if (actualData.size >= 2 && weightRange != 0f) {
                         drawWeightLine(
                             actualData,
                             canvasWidth,
@@ -183,8 +168,7 @@ fun EnhancedWeightChart(
                         )
                     }
                     
-                    // 绘制预测线
-                    if (showPrediction && prediction != null) {
+                    if (showPrediction && prediction != null && weightRange != 0f) {
                         val predictedData = prediction.predictedWeights.map {
                             WeightDataPoint(it.date, it.weight, true)
                         }
@@ -206,49 +190,43 @@ fun EnhancedWeightChart(
                         }
                     }
                     
-                    // 绘制数据点
-                    actualData.forEach { point ->
-                        val x = padding + ((point.date.time - minDate).toFloat() / dateRange) * (canvasWidth - 2 * padding)
-                        val y = canvasHeight - padding - ((point.weight - minWeight) / weightRange) * (canvasHeight - 2 * padding)
-                        
-                        drawCircle(
-                            color = primaryColor,
-                            radius = 6f,
-                            center = Offset(x, y)
-                        )
-                        drawCircle(
-                            color = if (isDark) GlassDarkColors.Surface else GlassLightColors.Surface,
-                            radius = 4f,
-                            center = Offset(x, y)
-                        )
+                    if (weightRange != 0f && dateRange != 0L) {
+                        actualData.forEach { point ->
+                            val x = padding + ((point.date.time - minDate).toFloat() / dateRange) * (canvasWidth - 2 * padding)
+                            val y = canvasHeight - padding - ((point.weight - minWeight) / weightRange) * (canvasHeight - 2 * padding)
+                            
+                            drawCircle(
+                                color = primaryColor,
+                                radius = 6f,
+                                center = Offset(x, y)
+                            )
+                            drawCircle(
+                                color = surfaceColor,
+                                radius = 4f,
+                                center = Offset(x, y)
+                            )
+                        }
                     }
                 }
             }
             
-            // 底部统计
             ChartFooter(actualData, prediction, isDark)
         }
     }
 }
 
-/**
- * 体重数据点
- */
 data class WeightDataPoint(
     val date: Date,
     val weight: Float,
     val isPredicted: Boolean = false
 )
 
-/**
- * 图表头部 - Glass 风格
- */
 @Composable
 private fun ChartHeader(showPrediction: Boolean, isDark: Boolean) {
-    val onSurfaceColor = if (isDark) GlassDarkColors.OnSurface else GlassLightColors.OnSurface
-    val onSurfaceVariantColor = if (isDark) GlassDarkColors.OnSurfaceVariant else GlassLightColors.OnSurfaceVariant
-    val primaryColor = if (isDark) GlassDarkColors.Primary else GlassLightColors.Primary
-    val tertiaryColor = if (isDark) GlassDarkColors.Tertiary else GlassLightColors.Tertiary
+    val colors = AppColors.getColors(isDark)
+    val onSurfaceColor = colors.OnSurface
+    val primaryColor = colors.Primary
+    val tertiaryColor = colors.Tertiary
     
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -262,7 +240,6 @@ private fun ChartHeader(showPrediction: Boolean, isDark: Boolean) {
             color = onSurfaceColor
         )
         
-        // 图例
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             LegendItem(
                 color = primaryColor,
@@ -287,9 +264,6 @@ private fun ChartHeader(showPrediction: Boolean, isDark: Boolean) {
     }
 }
 
-/**
- * 图例项 - Glass 风格
- */
 @Composable
 private fun LegendItem(color: Color, text: String, isDashed: Boolean) {
     val onSurfaceVariantColor = LocalContentColor.current
@@ -315,19 +289,16 @@ private fun LegendItem(color: Color, text: String, isDashed: Boolean) {
     }
 }
 
-/**
- * 图表底部统计 - Glass 风格
- */
 @Composable
 private fun ChartFooter(
     actualData: List<WeightDataPoint>,
     prediction: AIPredictionService.WeightPrediction?,
     isDark: Boolean
 ) {
-    val onSurfaceColor = if (isDark) GlassDarkColors.OnSurface else GlassLightColors.OnSurface
-    val onSurfaceVariantColor = if (isDark) GlassDarkColors.OnSurfaceVariant else GlassLightColors.OnSurfaceVariant
-    val successColor = if (isDark) GlassDarkColors.Tertiary else GlassLightColors.Tertiary
-    val errorColor = if (isDark) GlassDarkColors.Error else GlassLightColors.Error
+    val colors = AppColors.getColors(isDark)
+    val onSurfaceColor = colors.OnSurface
+    val successColor = colors.Tertiary
+    val errorColor = colors.Error
     
     Row(
         modifier = Modifier
@@ -335,7 +306,6 @@ private fun ChartFooter(
             .padding(top = 12.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        // 当前体重
         actualData.firstOrNull()?.let { latest ->
             StatItem(
                 label = "当前",
@@ -344,7 +314,6 @@ private fun ChartFooter(
             )
         }
         
-        // 变化
         if (actualData.size >= 2) {
             val change = actualData.first().weight - actualData.last().weight
             val changeText = if (change >= 0) "-${String.format("%.1f", change)}" else "+${String.format("%.1f", abs(change))}"
@@ -356,7 +325,6 @@ private fun ChartFooter(
             )
         }
         
-        // 预测达成时间
         prediction?.targetDate?.let { date ->
             val daysLeft = ((date.time - System.currentTimeMillis()) / (1000 * 60 * 60 * 24)).toInt()
             StatItem(
@@ -366,7 +334,6 @@ private fun ChartFooter(
             )
         }
         
-        // 置信度
         prediction?.let {
             StatItem(
                 label = "预测置信度",
@@ -377,9 +344,6 @@ private fun ChartFooter(
     }
 }
 
-/**
- * 统计项 - Glass 风格
- */
 @Composable
 private fun StatItem(
     label: String,
@@ -387,8 +351,9 @@ private fun StatItem(
     valueColor: Color? = null,
     isDark: Boolean
 ) {
-    val onSurfaceColor = if (isDark) GlassDarkColors.OnSurface else GlassLightColors.OnSurface
-    val onSurfaceVariantColor = if (isDark) GlassDarkColors.OnSurfaceVariant else GlassLightColors.OnSurfaceVariant
+    val colors = AppColors.getColors(isDark)
+    val onSurfaceColor = colors.OnSurface
+    val onSurfaceVariantColor = colors.OnSurfaceVariant
     
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
@@ -405,9 +370,6 @@ private fun StatItem(
     }
 }
 
-/**
- * 绘制网格线 - Glass 风格
- */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGridLines(
     canvasWidth: Float,
     canvasHeight: Float,
@@ -416,17 +378,17 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGridLines(
     maxWeight: Float,
     textMeasurer: androidx.compose.ui.text.TextMeasurer,
     color: Color,
-    isDark: Boolean
+    textColor: Color
 ) {
     val gridLines = 5
-    val weightStep = (maxWeight - minWeight) / gridLines
-    val textColor = if (isDark) GlassDarkColors.OnSurfaceVariant else GlassLightColors.OnSurfaceVariant
+    val weightRange = maxWeight - minWeight
+    if (weightRange == 0f) return
+    val weightStep = weightRange / gridLines
     
     for (i in 0..gridLines) {
         val weight = minWeight + weightStep * i
         val y = canvasHeight - padding - (i.toFloat() / gridLines) * (canvasHeight - 2 * padding)
         
-        // 水平网格线
         drawLine(
             color = color,
             start = Offset(padding, y),
@@ -434,7 +396,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGridLines(
             strokeWidth = 1f
         )
         
-        // Y轴标签
         drawText(
             textMeasurer = textMeasurer,
             text = "${weight.toInt()}",
@@ -447,9 +408,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGridLines(
     }
 }
 
-/**
- * 绘制置信区间 - Glass 风格
- */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawConfidenceInterval(
     prediction: AIPredictionService.WeightPrediction,
     canvasWidth: Float,
@@ -459,14 +417,15 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawConfidenceInter
     weightRange: Float,
     minDate: Long,
     dateRange: Long,
-    isDark: Boolean
+    primaryColor: Color
 ) {
+    if (dateRange == 0L || weightRange == 0f) return
+    
     val path = Path()
     
     prediction.predictedWeights.forEachIndexed { index, predicted ->
         val x = padding + ((predicted.date.time - minDate).toFloat() / dateRange) * (canvasWidth - 2 * padding)
         val yUpper = canvasHeight - padding - ((predicted.confidenceInterval.second - minWeight) / weightRange) * (canvasHeight - 2 * padding)
-        val yLower = canvasHeight - padding - ((predicted.confidenceInterval.first - minWeight) / weightRange) * (canvasHeight - 2 * padding)
         
         if (index == 0) {
             path.moveTo(x, yUpper)
@@ -482,17 +441,12 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawConfidenceInter
     }
     path.close()
     
-    // 绘制置信区间填充
-    val primaryColor = if (isDark) GlassDarkColors.Primary else GlassLightColors.Primary
     drawPath(
         path = path,
         color = primaryColor.copy(alpha = 0.08f)
     )
 }
 
-/**
- * 绘制体重曲线
- */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawWeightLine(
     data: List<WeightDataPoint>,
     canvasWidth: Float,
@@ -506,7 +460,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawWeightLine(
     strokeWidth: Float,
     isDashed: Boolean = false
 ) {
-    if (data.size < 2) return
+    if (data.size < 2 || dateRange == 0L || weightRange == 0f) return
     
     val path = Path()
     

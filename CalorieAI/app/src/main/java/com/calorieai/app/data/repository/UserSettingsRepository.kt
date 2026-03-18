@@ -1,6 +1,9 @@
 package com.calorieai.app.data.repository
 
 import android.content.Context
+import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import com.calorieai.app.data.local.UserSettingsDao
 import com.calorieai.app.data.model.GoalType
 import com.calorieai.app.data.model.UserSettings
@@ -16,16 +19,28 @@ class UserSettingsRepository @Inject constructor(
     private val userSettingsDao: UserSettingsDao,
     @ApplicationContext private val context: Context
 ) {
-    private val prefs by lazy {
-        context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+    private val encryptedPrefs: SharedPreferences by lazy {
+        try {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            EncryptedSharedPreferences.create(
+                context,
+                "encrypted_app_settings",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            context.getSharedPreferences("app_settings_fallback", Context.MODE_PRIVATE)
+        }
     }
 
     fun getSettings(): Flow<UserSettings?> = userSettingsDao.getSettings()
 
     suspend fun saveSettings(settings: UserSettings) {
         userSettingsDao.insertOrUpdate(settings)
-        // 同步保存到SharedPreferences用于快速读取
-        syncToPreferences(settings)
+        syncToEncryptedPreferences(settings)
     }
 
     suspend fun getSettingsOnce(): UserSettings? {
@@ -179,15 +194,14 @@ class UserSettingsRepository @Inject constructor(
     }
 
     /**
-     * 同步设置到SharedPreferences，用于启动时快速读取
+     * 同步设置到加密SharedPreferences，用于启动时快速读取
      */
-    private fun syncToPreferences(settings: UserSettings) {
-        prefs.edit().apply {
-            putString("theme_mode", settings.themeMode)
-            putBoolean("show_ai_widget", settings.showAIWidget)
-            putBoolean("onboarding_completed", settings.onboardingCompleted)
-            putInt("onboarding_step", settings.onboardingCurrentStep)
-            apply()
-        }
+    private fun syncToEncryptedPreferences(settings: UserSettings) {
+        encryptedPrefs.edit()
+            .putString("theme_mode", settings.themeMode)
+            .putBoolean("show_ai_widget", settings.showAIWidget)
+            .putBoolean("onboarding_completed", settings.onboardingCompleted)
+            .putInt("onboarding_step", settings.onboardingCurrentStep)
+            .apply()
     }
 }

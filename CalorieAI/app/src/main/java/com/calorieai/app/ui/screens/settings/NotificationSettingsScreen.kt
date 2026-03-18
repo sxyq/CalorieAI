@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.background
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import com.calorieai.app.ui.components.SettingsTopAppBar
 
 /**
  * 通知设置页面
@@ -36,13 +37,9 @@ fun NotificationSettingsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("通知") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                }
+            SettingsTopAppBar(
+                title = "通知",
+                onNavigateBack = onNavigateBack
             )
         }
     ) { paddingValues ->
