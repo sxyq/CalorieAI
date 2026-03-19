@@ -10,8 +10,8 @@ import com.calorieai.app.data.model.AITokenUsage
 import com.calorieai.app.data.model.APICallRecord
 import com.calorieai.app.data.model.Converters
 import com.calorieai.app.data.model.ExerciseRecord
-import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.FavoriteRecipe
+import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.model.WaterRecord
 import com.calorieai.app.data.model.WeightRecord
@@ -21,7 +21,7 @@ import com.calorieai.app.data.model.AIChatHistory
 
 @Database(
     entities = [FoodRecord::class, UserSettings::class, AIConfig::class, ExerciseRecord::class, AITokenUsage::class, WeightRecord::class, AIChatHistory::class, WaterRecord::class, APICallRecord::class, FavoriteRecipe::class],
-    version = 16,
+    version = 17,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -43,25 +43,25 @@ abstract class AppDatabase : RoomDatabase() {
          * 添加引导流程和用户目标相关字段
          */
         val MIGRATION_12_13 = object : Migration(12, 13) {
-            override fun migrate(database: SupportSQLiteDatabase) {
+            override fun migrate(db: SupportSQLiteDatabase) {
                 // 添加引导流程相关字段
-                database.execSQL("ALTER TABLE user_settings ADD COLUMN onboardingCompleted INTEGER NOT NULL DEFAULT 0")
-                database.execSQL("ALTER TABLE user_settings ADD COLUMN onboardingCurrentStep INTEGER NOT NULL DEFAULT 1")
-                database.execSQL("ALTER TABLE user_settings ADD COLUMN onboardingDataJson TEXT")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN onboardingCompleted INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN onboardingCurrentStep INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN onboardingDataJson TEXT")
                 
                 // 添加用户目标相关字段
-                database.execSQL("ALTER TABLE user_settings ADD COLUMN goalType TEXT")
-                database.execSQL("ALTER TABLE user_settings ADD COLUMN targetWeight REAL")
-                database.execSQL("ALTER TABLE user_settings ADD COLUMN weightLossStrategy TEXT")
-                database.execSQL("ALTER TABLE user_settings ADD COLUMN estimatedWeeksToGoal INTEGER")
-                database.execSQL("ALTER TABLE user_settings ADD COLUMN weeklyWeightChangeGoal REAL")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN goalType TEXT")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN targetWeight REAL")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN weightLossStrategy TEXT")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN estimatedWeeksToGoal INTEGER")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN weeklyWeightChangeGoal REAL")
                 
                 // 添加用户身体档案字段
-                database.execSQL("ALTER TABLE user_settings ADD COLUMN birthDate INTEGER")
-                database.execSQL("ALTER TABLE user_settings ADD COLUMN exerciseHabitsJson TEXT")
-                database.execSQL("ALTER TABLE user_settings ADD COLUMN bmr INTEGER")
-                database.execSQL("ALTER TABLE user_settings ADD COLUMN tdee INTEGER")
-                database.execSQL("ALTER TABLE user_settings ADD COLUMN bmi REAL")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN birthDate INTEGER")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN exerciseHabitsJson TEXT")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN bmr INTEGER")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN tdee INTEGER")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN bmi REAL")
             }
         }
         
@@ -70,9 +70,9 @@ abstract class AppDatabase : RoomDatabase() {
          * 添加饮水记录表
          */
         val MIGRATION_13_14 = object : Migration(13, 14) {
-            override fun migrate(database: SupportSQLiteDatabase) {
+            override fun migrate(db: SupportSQLiteDatabase) {
                 // 创建饮水记录表
-                database.execSQL("""
+                db.execSQL("""
                     CREATE TABLE IF NOT EXISTS water_records (
                         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                         amount INTEGER NOT NULL,
@@ -82,9 +82,9 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                 """)
                 // 添加每日饮水目标字段
-                database.execSQL("ALTER TABLE user_settings ADD COLUMN dailyWaterGoal INTEGER NOT NULL DEFAULT 2000")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN dailyWaterGoal INTEGER NOT NULL DEFAULT 2000")
                 // 添加用户头像URI字段
-                database.execSQL("ALTER TABLE user_settings ADD COLUMN userAvatarUri TEXT")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN userAvatarUri TEXT")
             }
         }
 
@@ -93,8 +93,8 @@ abstract class AppDatabase : RoomDatabase() {
          * 添加API调用记录表
          */
         val MIGRATION_14_15 = object : Migration(14, 15) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("""
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
                     CREATE TABLE IF NOT EXISTS api_call_records (
                         id TEXT PRIMARY KEY NOT NULL,
                         timestamp INTEGER NOT NULL,
@@ -120,12 +120,14 @@ abstract class AppDatabase : RoomDatabase() {
          * 添加收藏菜谱表
          */
         val MIGRATION_15_16 = object : Migration(15, 16) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("""
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
                     CREATE TABLE IF NOT EXISTS favorite_recipes (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        id TEXT PRIMARY KEY NOT NULL,
+                        sourceRecordId TEXT NOT NULL,
                         foodName TEXT NOT NULL,
-                        calories INTEGER NOT NULL,
+                        userInput TEXT NOT NULL,
+                        totalCalories INTEGER NOT NULL,
                         protein REAL NOT NULL,
                         carbs REAL NOT NULL,
                         fat REAL NOT NULL,
@@ -139,10 +141,76 @@ abstract class AppDatabase : RoomDatabase() {
                         vitaminC REAL NOT NULL DEFAULT 0,
                         vitaminA REAL NOT NULL DEFAULT 0,
                         potassium REAL NOT NULL DEFAULT 0,
-                        servingSize INTEGER NOT NULL DEFAULT 100,
-                        servingUnit TEXT NOT NULL DEFAULT 'g',
-                        createdAt INTEGER NOT NULL
+                        createdAt INTEGER NOT NULL,
+                        lastUsedAt INTEGER,
+                        useCount INTEGER NOT NULL DEFAULT 0
                     )
+                """)
+                db.execSQL("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS index_favorite_recipes_sourceRecordId
+                    ON favorite_recipes(sourceRecordId)
+                """)
+            }
+        }
+
+        /**
+         * 从版本16迁移到版本17
+         * 兼容旧版收藏菜谱结构到新版字段
+         */
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS favorite_recipes_new (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        sourceRecordId TEXT NOT NULL,
+                        foodName TEXT NOT NULL,
+                        userInput TEXT NOT NULL,
+                        totalCalories INTEGER NOT NULL,
+                        protein REAL NOT NULL,
+                        carbs REAL NOT NULL,
+                        fat REAL NOT NULL,
+                        fiber REAL NOT NULL DEFAULT 0,
+                        sugar REAL NOT NULL DEFAULT 0,
+                        sodium REAL NOT NULL DEFAULT 0,
+                        cholesterol REAL NOT NULL DEFAULT 0,
+                        saturatedFat REAL NOT NULL DEFAULT 0,
+                        calcium REAL NOT NULL DEFAULT 0,
+                        iron REAL NOT NULL DEFAULT 0,
+                        vitaminC REAL NOT NULL DEFAULT 0,
+                        vitaminA REAL NOT NULL DEFAULT 0,
+                        potassium REAL NOT NULL DEFAULT 0,
+                        createdAt INTEGER NOT NULL,
+                        lastUsedAt INTEGER,
+                        useCount INTEGER NOT NULL DEFAULT 0
+                    )
+                """)
+
+                db.execSQL("""
+                    INSERT INTO favorite_recipes_new (
+                        id, sourceRecordId, foodName, userInput, totalCalories,
+                        protein, carbs, fat, fiber, sugar, sodium, cholesterol,
+                        saturatedFat, calcium, iron, vitaminC, vitaminA, potassium,
+                        createdAt, lastUsedAt, useCount
+                    )
+                    SELECT
+                        'legacy_' || id,
+                        'legacy_' || id,
+                        foodName,
+                        foodName,
+                        calories,
+                        protein, carbs, fat, fiber, sugar, sodium, cholesterol,
+                        saturatedFat, calcium, iron, vitaminC, vitaminA, potassium,
+                        createdAt,
+                        NULL,
+                        0
+                    FROM favorite_recipes
+                """)
+
+                db.execSQL("DROP TABLE favorite_recipes")
+                db.execSQL("ALTER TABLE favorite_recipes_new RENAME TO favorite_recipes")
+                db.execSQL("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS index_favorite_recipes_sourceRecordId
+                    ON favorite_recipes(sourceRecordId)
                 """)
             }
         }

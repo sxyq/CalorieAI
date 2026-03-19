@@ -1,32 +1,34 @@
 package com.calorieai.app.data.local
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
 import com.calorieai.app.data.model.FavoriteRecipe
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FavoriteRecipeDao {
-    @Query("SELECT * FROM favorite_recipes ORDER BY createdAt DESC")
+    @Query("SELECT * FROM favorite_recipes ORDER BY lastUsedAt DESC, createdAt DESC")
     fun getAllFavorites(): Flow<List<FavoriteRecipe>>
-    
-    @Query("SELECT * FROM favorite_recipes WHERE id = :id")
-    suspend fun getFavoriteById(id: Long): FavoriteRecipe?
-    
-    @Query("SELECT * FROM favorite_recipes WHERE foodName LIKE '%' || :keyword || '%' ORDER BY createdAt DESC")
-    fun searchFavorites(keyword: String): Flow<List<FavoriteRecipe>>
-    
+
+    @Query("SELECT * FROM favorite_recipes WHERE sourceRecordId = :sourceRecordId LIMIT 1")
+    suspend fun getBySourceRecordId(sourceRecordId: String): FavoriteRecipe?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertFavorite(favorite: FavoriteRecipe): Long
-    
+    suspend fun insert(recipe: FavoriteRecipe)
+
+    @Update
+    suspend fun update(recipe: FavoriteRecipe)
+
     @Delete
-    suspend fun deleteFavorite(favorite: FavoriteRecipe)
-    
-    @Query("DELETE FROM favorite_recipes WHERE id = :id")
-    suspend fun deleteFavoriteById(id: Long)
-    
-    @Query("SELECT EXISTS(SELECT 1 FROM favorite_recipes WHERE foodName = :foodName)")
-    suspend fun isFavorite(foodName: String): Boolean
-    
+    suspend fun delete(recipe: FavoriteRecipe)
+
+    @Query("DELETE FROM favorite_recipes WHERE sourceRecordId = :sourceRecordId")
+    suspend fun deleteBySourceRecordId(sourceRecordId: String)
+
     @Query("DELETE FROM favorite_recipes")
     suspend fun deleteAll()
 }

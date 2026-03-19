@@ -37,6 +37,8 @@ class WaterRecordRepository @Inject constructor(
 
     suspend fun deleteById(id: Long) = waterRecordDao.deleteById(id)
 
+    suspend fun deleteAll() = waterRecordDao.deleteAll()
+
     // 获取今日饮水量
     suspend fun getTodayTotalAmount(): Int {
         val today = getStartOfDay(System.currentTimeMillis())

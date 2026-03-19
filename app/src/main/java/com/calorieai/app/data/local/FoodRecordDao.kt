@@ -65,6 +65,9 @@ interface FoodRecordDao {
     @Query("DELETE FROM food_records WHERE id = :id")
     suspend fun deleteRecordById(id: String)
 
+    @Query("DELETE FROM food_records")
+    suspend fun deleteAll()
+
     @Query("UPDATE food_records SET isStarred = :isStarred WHERE id = :id")
     suspend fun updateStarredStatus(id: String, isStarred: Boolean)
 }

@@ -109,6 +109,10 @@ class AIChatViewModel @Inject constructor(
         }
     }
 
+    fun persistCurrentSession() {
+        saveCurrentSession()
+    }
+
     fun onInputChange(text: String) {
         _uiState.value = _uiState.value.copy(inputText = text)
     }

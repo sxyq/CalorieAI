@@ -8,8 +8,8 @@ import com.calorieai.app.data.local.AITokenUsageDao
 import com.calorieai.app.data.local.APICallRecordDao
 import com.calorieai.app.data.local.AppDatabase
 import com.calorieai.app.data.local.ExerciseRecordDao
-import com.calorieai.app.data.local.FoodRecordDao
 import com.calorieai.app.data.local.FavoriteRecipeDao
+import com.calorieai.app.data.local.FoodRecordDao
 import com.calorieai.app.data.local.UserSettingsDao
 import com.calorieai.app.data.local.dao.WaterRecordDao
 import com.calorieai.app.data.local.dao.WeightRecordDao
@@ -36,7 +36,8 @@ object DatabaseModule {
                 AppDatabase.MIGRATION_12_13, 
                 AppDatabase.MIGRATION_13_14,
                 AppDatabase.MIGRATION_14_15,
-                AppDatabase.MIGRATION_15_16
+                AppDatabase.MIGRATION_15_16,
+                AppDatabase.MIGRATION_16_17
             )
             .fallbackToDestructiveMigration()
             .build()

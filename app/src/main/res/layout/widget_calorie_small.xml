@@ -3,34 +3,45 @@
     android:id="@+id/widget_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_background"
-    android:gravity="center"
+    android:background="@drawable/widget_bg_small_food"
     android:orientation="vertical"
     android:padding="12dp">
 
     <TextView
+        android:id="@+id/widget_small_icon"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="今日摄入"
+        android:text="🍱"
         android:textColor="@color/white"
-        android:textSize="12sp" />
+        android:textSize="16sp" />
 
     <TextView
-        android:id="@+id/widget_calories"
+        android:id="@+id/widget_small_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="0"
+        android:text="今日摄入"
         android:textColor="@color/white"
-        android:textSize="28sp"
+        android:textSize="12sp"
         android:textStyle="bold" />
 
     <TextView
-        android:id="@+id/widget_goal"
+        android:id="@+id/widget_small_value"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="/ 2000 千卡"
+        android:layout_marginTop="10dp"
+        android:text="0 千卡"
         android:textColor="@color/white"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/widget_small_subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="目标 2000 千卡"
+        android:textColor="#D9FFFFFF"
         android:textSize="10sp" />
 
 </LinearLayout>

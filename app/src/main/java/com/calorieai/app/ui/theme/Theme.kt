@@ -11,6 +11,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -315,9 +316,10 @@ object GlassThemeColors {
 fun CalorieAITheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,  // 默认关闭动态颜色，保持蓝色品牌色
+    backgroundOverride: Color? = null,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
+    val baseColorScheme = when {
         // 动态颜色仅在Android 12+且用户开启时生效
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
@@ -329,6 +331,15 @@ fun CalorieAITheme(
         }
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
+    }
+    val colorScheme = if (backgroundOverride != null) {
+        baseColorScheme.copy(
+            background = backgroundOverride,
+            surface = lerp(baseColorScheme.surface, backgroundOverride, 0.18f),
+            surfaceVariant = lerp(baseColorScheme.surfaceVariant, backgroundOverride, 0.1f)
+        )
+    } else {
+        baseColorScheme
     }
 
     val view = LocalView.current

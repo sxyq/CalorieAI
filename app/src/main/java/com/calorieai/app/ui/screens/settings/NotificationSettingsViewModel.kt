@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.repository.UserSettingsRepository
+import com.calorieai.app.service.notification.NotificationScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -13,7 +14,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class NotificationSettingsViewModel @Inject constructor(
-    private val userSettingsRepository: UserSettingsRepository
+    private val userSettingsRepository: UserSettingsRepository,
+    private val notificationScheduler: NotificationScheduler
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NotificationSettingsUiState())
@@ -70,7 +72,9 @@ class NotificationSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val currentState = _uiState.value
             val formatter = DateTimeFormatter.ofPattern("HH:mm")
-            val settings = UserSettings(
+            val currentSettings = userSettingsRepository.getSettingsOnce()
+            val settings = (currentSettings ?: UserSettings()).copy(
+                id = currentSettings?.id ?: 1,
                 isNotificationEnabled = currentState.isNotificationEnabled,
                 breakfastReminderTime = currentState.breakfastReminderTime.format(formatter),
                 lunchReminderTime = currentState.lunchReminderTime.format(formatter),
@@ -79,6 +83,7 @@ class NotificationSettingsViewModel @Inject constructor(
                 enableStreakReminder = currentState.enableStreakReminder
             )
             userSettingsRepository.saveSettings(settings)
+            notificationScheduler.syncMealReminders(settings)
         }
     }
 

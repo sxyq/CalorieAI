@@ -35,6 +35,11 @@ fun AISettingsScreen(
     viewModel: AISettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val visibleConfigs = remember(uiState.configs) {
+        uiState.configs.filterNot { config ->
+            config.isPreset && config.protocol != AIProtocol.LONGCAT
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -48,46 +53,55 @@ fun AISettingsScreen(
             )
         }
     ) { paddingValues ->
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // 调用限制提示卡片
-                item {
-                    RateLimitInfoCard()
-                }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            // 调用限制提示卡片
+            RateLimitInfoCard()
 
-                // Token使用统计
-                item {
-                    TokenUsageCard(stats = uiState.tokenUsageStats)
-                }
+            Spacer(modifier = Modifier.height(16.dp))
 
-                // 添加新配置按钮
-                item {
-                    AddConfigButton(
-                        onClick = { onNavigateToDetail(null) }
-                    )
-                }
+            // Token使用统计
+            TokenUsageCard(stats = uiState.tokenUsageStats)
 
-                // 配置列表或空状态
-                if (uiState.configs.isEmpty()) {
-                    item {
-                        EmptyConfigState()
-                    }
-                } else {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 添加新配置按钮
+            AddConfigButton(
+                onClick = { onNavigateToDetail(null) }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 配置列表
+            if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (visibleConfigs.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    EmptyConfigState()
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     items(
-                        items = uiState.configs,
+                        items = visibleConfigs,
                         key = { it.id }
                     ) { config ->
                         val isDefault = config.id == uiState.defaultConfigId

@@ -13,11 +13,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.calorieai.app.data.local.OnboardingDataStore
 import com.calorieai.app.data.repository.UserSettingsRepository
+import com.calorieai.app.service.notification.NotificationScheduler
 import com.calorieai.app.ui.navigation.NavGraph
 import com.calorieai.app.ui.screens.onboarding.OnboardingFlow
 import com.calorieai.app.ui.screens.settings.ThemeMode
@@ -27,7 +29,6 @@ import com.calorieai.app.ui.theme.GlassLightColors
 import com.calorieai.app.ui.theme.GlassAlpha
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -38,6 +39,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var onboardingDataStore: OnboardingDataStore
+
+    @Inject
+    lateinit var notificationScheduler: NotificationScheduler
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,6 +57,26 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.DARK.name -> true
                 else -> isSystemInDarkTheme()
             }
+            val backgroundOverride = remember(
+                settings?.wallpaperType,
+                settings?.wallpaperColor,
+                settings?.wallpaperGradientStart,
+                settings?.wallpaperGradientEnd
+            ) {
+                when (settings?.wallpaperType) {
+                    "SOLID" -> parseHexColor(settings?.wallpaperColor)
+                    "GRADIENT" -> {
+                        val start = parseHexColor(settings?.wallpaperGradientStart)
+                        val end = parseHexColor(settings?.wallpaperGradientEnd)
+                        when {
+                            start != null && end != null -> lerp(start, end, 0.5f)
+                            start != null -> start
+                            else -> end
+                        }
+                    }
+                    else -> null
+                }
+            }
 
             var shouldSkipOnboarding by remember { mutableStateOf(false) }
             var isLoading by remember { mutableStateOf(true) }
@@ -63,7 +87,19 @@ class MainActivity : ComponentActivity() {
                 isLoading = false
             }
 
-            CalorieAITheme(darkTheme = darkTheme) {
+            LaunchedEffect(
+                settings?.isNotificationEnabled,
+                settings?.breakfastReminderTime,
+                settings?.lunchReminderTime,
+                settings?.dinnerReminderTime
+            ) {
+                settings?.let { notificationScheduler.syncMealReminders(it) }
+            }
+
+            CalorieAITheme(
+                darkTheme = darkTheme,
+                backgroundOverride = backgroundOverride
+            ) {
                 val navigationBarColor = if (darkTheme) {
                     GlassDarkColors.NavigationBarBackground.copy(alpha = GlassAlpha.NAVIGATION_BAR)
                 } else {
@@ -95,5 +131,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+}
+
+private fun parseHexColor(value: String?): Color? {
+    if (value.isNullOrBlank()) return null
+    return try {
+        Color(android.graphics.Color.parseColor(value))
+    } catch (_: IllegalArgumentException) {
+        null
     }
 }

@@ -40,15 +40,16 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.ui.components.interactiveScale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
-    onNavigateToAdd: () -> Unit,
+    onNavigateToAdd: (String) -> Unit,
+    onNavigateToAIAdd: (String) -> Unit = {},
     onNavigateToStats: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToResult: (String) -> Unit,
-    onNavigateToAIChat: () -> Unit = {},
+    onNavigateToAIChat: (String) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -98,8 +99,19 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
+            val fabInteractionSource = remember { MutableInteractionSource() }
             FloatingActionButton(
-                onClick = onNavigateToAdd,
+                onClick = {},
+                modifier = Modifier.combinedClickable(
+                    interactionSource = fabInteractionSource,
+                    indication = null,
+                    onClick = { onNavigateToAdd(selectedDate.toString()) },
+                    onLongClick = {
+                        if (uiState.enableQuickAdd) {
+                            onNavigateToAIAdd(selectedDate.toString())
+                        }
+                    }
+                ),
                 containerColor = MaterialTheme.colorScheme.primaryContainer
             ) {
                 Icon(Icons.Default.Add, contentDescription = "添加")

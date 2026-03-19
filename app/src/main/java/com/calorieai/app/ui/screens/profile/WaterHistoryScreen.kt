@@ -32,6 +32,7 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WaterHistoryScreen(
+    selectedDate: String? = null,
     onNavigateBack: () -> Unit,
     viewModel: WaterHistoryViewModel = hiltViewModel()
 ) {
@@ -43,6 +44,10 @@ fun WaterHistoryScreen(
     
     var showAddDialog by remember { mutableStateOf(false) }
     var showTargetDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(selectedDate) {
+        selectedDate?.let { viewModel.setSelectedDateFromString(it) }
+    }
 
     val progress = (todayAmount.toFloat() / targetAmount).coerceIn(0f, 1f)
 

@@ -59,6 +59,23 @@ class WeightRecordViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(noteInput = note)
     }
 
+    fun setSelectedDateFromString(dateStr: String) {
+        try {
+            val parts = dateStr.split("-")
+            if (parts.size == 3) {
+                val year = parts[0].toInt()
+                val month = parts[1].toInt() - 1
+                val day = parts[2].toInt()
+                val calendar = Calendar.getInstance().apply {
+                    set(year, month, day, 12, 0, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                _uiState.value = _uiState.value.copy(selectedDate = calendar.timeInMillis)
+            }
+        } catch (_: Exception) {
+        }
+    }
+
     fun showDatePicker() {
         _uiState.value = _uiState.value.copy(showDatePicker = true)
     }

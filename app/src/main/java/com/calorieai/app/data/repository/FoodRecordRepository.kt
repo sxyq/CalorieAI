@@ -64,6 +64,8 @@ class FoodRecordRepository @Inject constructor(
     suspend fun deleteRecord(record: FoodRecord) = foodRecordDao.deleteRecord(record)
     
     suspend fun deleteRecordById(id: String) = foodRecordDao.deleteRecordById(id)
+
+    suspend fun deleteAll() = foodRecordDao.deleteAll()
     
     suspend fun toggleStarred(id: String, currentStatus: Boolean) {
         foodRecordDao.updateStarredStatus(id, !currentStatus)

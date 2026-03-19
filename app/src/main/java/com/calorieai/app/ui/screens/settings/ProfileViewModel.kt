@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.repository.UserSettingsRepository
+import com.calorieai.app.utils.MetabolicConstants
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,7 +39,7 @@ class ProfileViewModel @Inject constructor(
                         age = it.userAge,
                         height = it.userHeight,
                         weight = it.userWeight,
-                        activityLevel = "SEDENTARY", // TODO: 添加活动水平字段
+                        activityLevel = it.activityLevel,
                         calorieGoal = it.dailyCalorieGoal
                     )
                 }
@@ -81,15 +82,29 @@ class ProfileViewModel @Inject constructor(
     fun saveProfile() {
         viewModelScope.launch {
             val currentState = _uiState.value
-            val settings = UserSettings(
-                id = 1,
+            val existing = userSettingsRepository.getSettingsOnce()
+            val bmr = MetabolicConstants.calculateBMR(
+                gender = currentState.gender,
+                weight = currentState.weight,
+                height = currentState.height,
+                age = currentState.age
+            )
+            val tdee = MetabolicConstants.calculateTDEE(
+                bmr = bmr,
+                activityLevel = currentState.activityLevel
+            )
+            val settings = (existing ?: UserSettings()).copy(
+                id = existing?.id ?: 1,
                 userName = currentState.userName,
                 userId = currentState.userId,
                 userGender = currentState.gender,
                 userAge = currentState.age,
                 userHeight = currentState.height,
                 userWeight = currentState.weight,
-                dailyCalorieGoal = currentState.calorieGoal
+                activityLevel = currentState.activityLevel,
+                dailyCalorieGoal = currentState.calorieGoal,
+                bmr = bmr,
+                tdee = tdee
             )
             userSettingsRepository.saveSettings(settings)
         }

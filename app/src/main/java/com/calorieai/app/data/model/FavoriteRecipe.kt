@@ -1,14 +1,22 @@
 package com.calorieai.app.data.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "favorite_recipes")
+@Entity(
+    tableName = "favorite_recipes",
+    indices = [
+        Index(value = ["sourceRecordId"], unique = true)
+    ]
+)
 data class FavoriteRecipe(
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
+    @PrimaryKey
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val sourceRecordId: String,
     val foodName: String,
-    val calories: Int,
+    val userInput: String,
+    val totalCalories: Int,
     val protein: Float,
     val carbs: Float,
     val fat: Float,
@@ -22,57 +30,7 @@ data class FavoriteRecipe(
     val vitaminC: Float = 0f,
     val vitaminA: Float = 0f,
     val potassium: Float = 0f,
-    val servingSize: Int = 100,
-    val servingUnit: String = "g",
-    val createdAt: Long = System.currentTimeMillis()
-) {
-    fun toFoodRecord(
-        mealType: MealType,
-        recordTime: Long = System.currentTimeMillis()
-    ): FoodRecord {
-        return FoodRecord(
-            foodName = foodName,
-            totalCalories = calories,
-            protein = protein,
-            carbs = carbs,
-            fat = fat,
-            fiber = fiber,
-            sugar = sugar,
-            sodium = sodium,
-            cholesterol = cholesterol,
-            saturatedFat = saturatedFat,
-            calcium = calcium,
-            iron = iron,
-            vitaminC = vitaminC,
-            vitaminA = vitaminA,
-            potassium = potassium,
-            mealType = mealType,
-            recordTime = recordTime,
-            userInput = foodName
-        )
-    }
-    
-    companion object {
-        fun fromFoodRecord(record: FoodRecord): FavoriteRecipe {
-            return FavoriteRecipe(
-                foodName = record.foodName,
-                calories = record.totalCalories,
-                protein = record.protein,
-                carbs = record.carbs,
-                fat = record.fat,
-                fiber = record.fiber,
-                sugar = record.sugar,
-                sodium = record.sodium,
-                cholesterol = record.cholesterol,
-                saturatedFat = record.saturatedFat,
-                calcium = record.calcium,
-                iron = record.iron,
-                vitaminC = record.vitaminC,
-                vitaminA = record.vitaminA,
-                potassium = record.potassium,
-                servingSize = 100,
-                servingUnit = "g"
-            )
-        }
-    }
-}
+    val createdAt: Long = System.currentTimeMillis(),
+    val lastUsedAt: Long? = null,
+    val useCount: Int = 0
+)

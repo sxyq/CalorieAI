@@ -28,6 +28,34 @@ import com.calorieai.app.ui.screens.stats.StatsUiState
 import com.calorieai.app.utils.HistoryStats
 import com.calorieai.app.utils.TodayStats
 
+private data class OverviewHeatmapPalette(
+    val empty: Color,
+    val level1: Color,
+    val level2: Color,
+    val level3: Color,
+    val level4: Color
+)
+
+private fun overviewHeatmapPalette(isDark: Boolean): OverviewHeatmapPalette {
+    return if (isDark) {
+        OverviewHeatmapPalette(
+            empty = Color(0xFF2D3440),
+            level1 = Color(0xFF1E566D),
+            level2 = Color(0xFF1E7C96),
+            level3 = Color(0xFF23A38B),
+            level4 = Color(0xFF8AD850)
+        )
+    } else {
+        OverviewHeatmapPalette(
+            empty = Color(0xFFE6EAF0),
+            level1 = Color(0xFFBEE4F5),
+            level2 = Color(0xFF7CC8E6),
+            level3 = Color(0xFF3EA6D0),
+            level4 = Color(0xFF0E5A8A)
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OverviewScreen(
@@ -190,17 +218,23 @@ private fun generateActivityDataFromDailyRecords(
         return data
     }
 
-    // dailyMealRecords 已经按日期顺序排列，从 startDate 到 startDate + 139
-    // 直接遍历并填充数据
-    dailyMealRecords.forEachIndexed { index, record ->
-        if (index < 140) {
-            val weekIndex = index / 7
-            val dayIndex = index % 7
-            
-            if (weekIndex < weeks && dayIndex < daysPerWeek) {
-                data[dayIndex][weekIndex] = record.level
-            }
+    val today = java.time.LocalDate.now()
+    // 以“本周周日”为锚点，确保最后一列是当前周，并且行索引对应真实星期
+    val currentWeekStart = today.minusDays((today.dayOfWeek.value % 7).toLong())
+    val firstWeekStart = currentWeekStart.minusWeeks((weeks - 1).toLong())
+    val totalDays = weeks * daysPerWeek
+    val endDate = firstWeekStart.plusDays((totalDays - 1).toLong())
+
+    dailyMealRecords.forEach { record ->
+        val date = record.date
+        if (date.isBefore(firstWeekStart) || date.isAfter(endDate) || date.isAfter(today)) {
+            return@forEach
         }
+
+        val daysBetween = (date.toEpochDay() - firstWeekStart.toEpochDay()).toInt()
+        val weekIndex = daysBetween / daysPerWeek
+        val dayIndex = date.dayOfWeek.value % 7 // 周日=0 ... 周六=6
+        data[dayIndex][weekIndex] = record.level
     }
 
     return data
@@ -208,25 +242,16 @@ private fun generateActivityDataFromDailyRecords(
 
 @Composable
 private fun HeatmapLegend(isDark: Boolean) {
+    val palette = overviewHeatmapPalette(isDark)
     // 4种颜色表示不同的餐次记录情况：
     // 0=无记录(灰色), 1=1个餐次(浅色), 2=2个餐次(中浅色), 3=3个餐次(中深色), 4=4个及以上(深色)
-    val colors = if (isDark) {
-        listOf(
-            GlassDarkColors.SurfaceContainerHighest,                    // 0: 无记录
-            GlassDarkColors.Primary.copy(alpha = 0.25f),               // 1: 1个餐次
-            GlassDarkColors.Primary.copy(alpha = 0.5f),                // 2: 2个餐次
-            GlassDarkColors.Primary.copy(alpha = 0.75f),               // 3: 3个餐次
-            GlassDarkColors.Primary                                    // 4: 4个及以上
-        )
-    } else {
-        listOf(
-            GlassLightColors.SurfaceContainerHighest,                   // 0: 无记录
-            GlassLightColors.Primary.copy(alpha = 0.25f),              // 1: 1个餐次
-            GlassLightColors.Primary.copy(alpha = 0.5f),               // 2: 2个餐次
-            GlassLightColors.Primary.copy(alpha = 0.75f),              // 3: 3个餐次
-            GlassLightColors.Primary                                   // 4: 4个及以上
-        )
-    }
+    val colors = listOf(
+        palette.empty,
+        palette.level1,
+        palette.level2,
+        palette.level3,
+        palette.level4
+    )
 
     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         colors.forEach { color ->
@@ -267,14 +292,15 @@ private fun HeatmapGrid(
 
 @Composable
 private fun HeatmapCell(intensity: Int, isDark: Boolean) {
+    val palette = overviewHeatmapPalette(isDark)
     // 根据餐次记录数量显示不同颜色：
     // 0=无记录(灰色), 1=1个餐次(浅色), 2=2个餐次(中浅色), 3=3个餐次(中深色), 4=4个及以上(深色)
     val backgroundColor = when (intensity) {
-        0 -> if (isDark) GlassDarkColors.SurfaceContainerHighest else GlassLightColors.SurfaceContainerHighest
-        1 -> if (isDark) GlassDarkColors.Primary.copy(alpha = 0.25f) else GlassLightColors.Primary.copy(alpha = 0.25f)
-        2 -> if (isDark) GlassDarkColors.Primary.copy(alpha = 0.5f) else GlassLightColors.Primary.copy(alpha = 0.5f)
-        3 -> if (isDark) GlassDarkColors.Primary.copy(alpha = 0.75f) else GlassLightColors.Primary.copy(alpha = 0.75f)
-        else -> if (isDark) GlassDarkColors.Primary else GlassLightColors.Primary
+        0 -> palette.empty
+        1 -> palette.level1
+        2 -> palette.level2
+        3 -> palette.level3
+        else -> palette.level4
     }
 
     Box(

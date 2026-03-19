@@ -28,17 +28,18 @@ class AIChatService @Inject constructor(
     companion object {
         const val DEFAULT_DAILY_LIMIT = 50
 
-        private const val SYSTEM_PROMPT = """你是一位专业的营养师和健康顾问。请遵循以下规则：
+        private const val SYSTEM_PROMPT = """你是一位专业的营养师和健康顾问。请严格按以下格式回答：
 
-1. 回答简洁明了，控制在200字以内
-2. 使用Markdown格式增强可读性：
-   - 用**粗体**强调重点
-   - 用列表展示多条建议
-   - 用>引用重要提示
-3. 结构清晰：先给结论，再列要点
-4. 避免冗长的开场白和客套话
-5. 提供具体数据和建议
-6. 不确定时建议咨询专业医生"""
+1. 先给结论，后给步骤，避免寒暄和空话
+2. 使用Markdown并保持结构化，优先使用以下标题：
+   ### 总结
+   ### 执行步骤
+   ### 注意事项
+3. 每个标题下尽量用列表，单条不超过2句
+4. 关键数字、阈值、时间点必须用**粗体**
+5. 语气要直接、可执行，给出可落地动作
+6. 不确定或高风险场景要明确提示“请咨询医生/专业人士”
+7. 默认控制在300字内；如果用户要求详细，再展开"""
     }
 
     suspend fun sendMessage(message: String): String {
@@ -157,14 +158,17 @@ class AIChatService @Inject constructor(
      * 评估热量消耗是否合理
      */
     suspend fun assessCalorieIntake(): String {
-        val hasData = aiContextService.hasEnoughDataForAnalysis()
+        val hasData = aiContextService.hasEnoughFoodDataForCalorieAssessment()
         if (!hasData) {
-            return "您最近一周没有饮食记录，无法进行热量评估。请先记录几天的饮食数据，我就能帮您分析热量摄入是否合理了！\n\n建议：每天记录三餐和零食，这样我可以更准确地评估您的饮食习惯。"
+            return "近期可用于热量评估的饮食数据不足（建议至少记录3天且包含主餐）。请先补充近期饮食记录后再评估。\n\n建议：连续记录早餐/午餐/晚餐和加餐，我会基于本地近期数据做更准确分析。"
         }
-        
-        val context = aiContextService.getHealthAssessmentContext()
+
+        val context = aiContextService.getQuickActionContext(
+            action = "热量评估（校验近期热量收支与摄入结构）",
+            recentDays = 14
+        )
         return sendMessageWithContext(
-            message = "请评估我最近一周的热量摄入是否合理，并给出改进建议。",
+            message = "请基于本地近期数据，评估我近期热量摄入是否合理，并给出可执行的改进建议。",
             context = context
         )
     }
@@ -174,18 +178,21 @@ class AIChatService @Inject constructor(
      * 使用缓存机制，避免重复调用AI
      */
     suspend fun planHealthyMeals(): String {
+        val localContext = aiContextService.getQuickActionContext(
+            action = "菜谱规划（基于近期饮食/运动/体重/饮水与目标生成当日方案）",
+            recentDays = 14
+        )
         val result = mealPlanService.getMealPlan()
         
         return result.fold(
             onSuccess = { response ->
-                formatMealPlanResponse(response)
+                formatMealPlanResponse(response, localContext)
             },
-            onFailure = { error ->
+            onFailure = { _ ->
                 // 如果缓存失败，回退到原来的方式
-                val context = aiContextService.getWeeklyFoodContext()
                 sendMessageWithContext(
-                    message = "请根据我最近的饮食习惯，为我规划今天的健康菜谱，包括早餐、午餐、晚餐和加餐。",
-                    context = context
+                    message = "请基于本地近期数据，为我规划今天的健康菜谱（早餐/午餐/晚餐/加餐），并说明每餐设计理由。",
+                    context = localContext
                 )
             }
         )
@@ -194,11 +201,14 @@ class AIChatService @Inject constructor(
     /**
      * 格式化菜谱响应为可读文本
      */
-    private fun formatMealPlanResponse(response: MealPlanResponse): String {
+    private fun formatMealPlanResponse(response: MealPlanResponse, localContext: String): String {
         val plan = response.plan
         val sb = StringBuilder()
         
-        sb.append("🍽️ 今日健康菜谱推荐\n\n")
+        sb.append("🍽️ 今日健康菜谱推荐（已读取本地近期数据）\n\n")
+        sb.append("### 近期数据摘要\n")
+        sb.append(localContext.lines().take(14).joinToString("\n"))
+        sb.append("\n\n")
         
         // 早餐
         sb.append("☀️ 早餐：${plan.breakfast.name}\n")
@@ -260,13 +270,16 @@ class AIChatService @Inject constructor(
     suspend fun healthConsult(): String {
         val hasData = aiContextService.hasEnoughDataForAnalysis()
         val context = if (hasData) {
-            aiContextService.getHealthAssessmentContext()
+            aiContextService.getQuickActionContext(
+                action = "健康咨询（结合近期多维健康数据给出改善建议）",
+                recentDays = 14
+            )
         } else {
-            "用户暂无健康数据记录。"
+            "用户暂无可用的本地近期健康记录。请先补充饮食、运动、体重或饮水记录。"
         }
         
         return sendMessageWithContext(
-            message = "请根据我的健康数据，提供一些营养健康建议和改善方向。",
+            message = "请基于本地近期数据给出健康咨询建议，包含优先级、执行步骤和风险提醒。",
             context = context
         )
     }

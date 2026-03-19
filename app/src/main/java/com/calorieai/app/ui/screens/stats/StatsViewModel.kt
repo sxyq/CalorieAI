@@ -14,8 +14,11 @@ import com.calorieai.app.ui.components.charts.TrendChartData
 import com.calorieai.app.utils.MetabolicConstants
 import com.calorieai.app.utils.*
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.WeekFields
@@ -32,91 +35,97 @@ class StatsViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(StatsUiState())
     val uiState: StateFlow<StatsUiState> = _uiState.asStateFlow()
+    private var statsLoadJob: Job? = null
 
     init {
         loadStats()
     }
 
     private fun loadStats() {
-        viewModelScope.launch {
+        statsLoadJob?.cancel()
+        statsLoadJob = viewModelScope.launch {
             combine(
                 foodRecordRepository.getAllRecords(),
                 exerciseRecordRepository.getAllRecords(),
                 weightRecordRepository.getLatestRecord()
             ) { foodRecords, exerciseRecords, latestWeight ->
                 Triple(foodRecords, exerciseRecords, latestWeight)
-            }.collect { (foodRecords, exerciseRecords, latestWeight) ->
+            }.collectLatest { (foodRecords, exerciseRecords, latestWeight) ->
                 val settings = userSettingsRepository.getSettingsOnce()
                 val targetCalories = settings?.dailyCalorieGoal ?: 2000
                 val userWeight = latestWeight?.weight ?: settings?.userWeight
-                
-                // 计算 BMR 和 TDEE
-                val bmr = if (settings != null && userWeight != null) {
-                    MetabolicConstants.calculateBMR(
-                        gender = settings.userGender ?: "MALE",
-                        weight = userWeight,
-                        height = settings.userHeight,
-                        age = settings.userAge
+                val currentState = _uiState.value
+
+                val basic = withContext(Dispatchers.Default) {
+                    val bmr = if (settings != null && userWeight != null) {
+                        MetabolicConstants.calculateBMR(
+                            gender = settings.userGender ?: "MALE",
+                            weight = userWeight,
+                            height = settings.userHeight,
+                            age = settings.userAge
+                        )
+                    } else 0
+                    val tdee = if (bmr > 0 && settings != null) {
+                        MetabolicConstants.calculateTDEE(bmr, settings.activityLevel)
+                    } else 0
+
+                    val todayStats = StatsUtils.computeTodayStats(foodRecords, exerciseRecords, targetCalories, bmr, tdee)
+                    val mealTypeStats = StatsUtils.computeMealTypeStats(foodRecords)
+                    val historyStats = StatsUtils.computeHistoryStats(foodRecords)
+                    val weeklyStats = StatsUtils.computeWeeklyTrend(foodRecords)
+                    val monthlyStats = StatsUtils.computeMonthlyTrend(foodRecords)
+                    val streakDays = StatsUtils.computeStreakDays(foodRecords)
+                    val summary = StatsUtils.computeMonthSummary(foodRecords, exerciseRecords, currentState.selectedMonthOffset, userWeight)
+                    val dailyMealRecords = computeDailyMealRecords(foodRecords)
+                    val monthlyActiveDays = computeMonthlyActiveDays(dailyMealRecords)
+
+                    BasicStatsBundle(
+                        todayStats = todayStats,
+                        mealTypeStats = mealTypeStats,
+                        historyStats = historyStats,
+                        weeklyStats = weeklyStats,
+                        monthlyStats = monthlyStats,
+                        streakDays = streakDays,
+                        monthSummary = summary,
+                        dailyMealRecords = dailyMealRecords,
+                        monthlyActiveDays = monthlyActiveDays
                     )
-                } else 0
-                val tdee = if (bmr > 0 && settings != null) {
-                    MetabolicConstants.calculateTDEE(bmr, settings.activityLevel)
-                } else 0
+                }
 
-                val todayStats = StatsUtils.computeTodayStats(
-                    foodRecords, 
-                    exerciseRecords, 
-                    targetCalories,
-                    bmr,
-                    tdee
-                )
-                val mealTypeStats = StatsUtils.computeMealTypeStats(foodRecords)
-                val historyStats = StatsUtils.computeHistoryStats(foodRecords)
-                val weeklyStats = StatsUtils.computeWeeklyTrend(foodRecords)
-                val monthlyStats = StatsUtils.computeMonthlyTrend(foodRecords)
-                val streakDays = StatsUtils.computeStreakDays(foodRecords)
-
-                // 根据当前选择的月份计算总结
-                val currentMonthOffset = _uiState.value.selectedMonthOffset
-                val summary = StatsUtils.computeMonthSummary(foodRecords, exerciseRecords, currentMonthOffset, userWeight)
-
-                // 计算每日餐次记录数据（用于热力图）
-                val dailyMealRecords = computeDailyMealRecords(foodRecords)
-
-                // 计算统一趋势数据
                 val trendData = computeTrendData(
                     foodRecords,
                     exerciseRecords,
-                    _uiState.value.trendTimeDimension,
-                    _uiState.value.trendStartDate,
-                    _uiState.value.trendEndDate
+                    currentState.trendTimeDimension,
+                    currentState.trendStartDate,
+                    currentState.trendEndDate
                 )
 
+                val todayWaterAmount = waterRecordRepository.getTodayTotalAmount()
+                val weeklyWaterAverage = computeWeeklyWaterAverage()
+                val monthlyWaterTotal = waterRecordRepository.getMonthlyTotalAmount()
+                val waterTrendData = computeWaterTrendData()
+
                 _uiState.value = _uiState.value.copy(
-                    todayStats = todayStats,
-                    mealTypeStats = mealTypeStats,
-                    historyStats = historyStats,
-                    weeklyStats = weeklyStats,
-                    monthlyStats = monthlyStats,
-                    lastMonthSummary = summary,
-                    streakDays = streakDays,
+                    todayStats = basic.todayStats,
+                    mealTypeStats = basic.mealTypeStats,
+                    historyStats = basic.historyStats,
+                    weeklyStats = basic.weeklyStats,
+                    monthlyStats = basic.monthlyStats,
+                    lastMonthSummary = basic.monthSummary,
+                    streakDays = basic.streakDays,
                     trendChartData = trendData,
                     isLoading = false,
-                    // 更新用户身体数据
                     userWeight = userWeight ?: 70f,
                     userGender = settings?.userGender ?: "MALE",
                     userAge = settings?.userAge ?: 30,
                     userActivityLevel = settings?.activityLevel ?: "MODERATE",
-                    // 每日餐次记录数据
-                    dailyMealRecords = dailyMealRecords,
-                    // 本月活跃天数（本月有记录的天数）
-                    monthlyActiveDays = computeMonthlyActiveDays(dailyMealRecords),
-                    // 饮水相关数据
-                    todayWaterAmount = waterRecordRepository.getTodayTotalAmount(),
+                    dailyMealRecords = basic.dailyMealRecords,
+                    monthlyActiveDays = basic.monthlyActiveDays,
+                    todayWaterAmount = todayWaterAmount,
                     waterTargetAmount = settings?.dailyWaterGoal ?: 2000,
-                    weeklyWaterAverage = computeWeeklyWaterAverage(),
-                    monthlyWaterTotal = waterRecordRepository.getMonthlyTotalAmount(),
-                    waterTrendData = computeWaterTrendData()
+                    weeklyWaterAverage = weeklyWaterAverage,
+                    monthlyWaterTotal = monthlyWaterTotal,
+                    waterTrendData = waterTrendData
                 )
             }
         }
@@ -321,7 +330,9 @@ class StatsViewModel @Inject constructor(
             val exerciseRecords = exerciseRecordRepository.getAllRecordsOnce()
             val settings = userSettingsRepository.getSettingsOnce()
             val offset = _uiState.value.selectedMonthOffset
-            val summary = StatsUtils.computeMonthSummary(foodRecords, exerciseRecords, offset, settings?.userWeight)
+            val summary = withContext(Dispatchers.Default) {
+                StatsUtils.computeMonthSummary(foodRecords, exerciseRecords, offset, settings?.userWeight)
+            }
             _uiState.value = _uiState.value.copy(lastMonthSummary = summary)
         }
     }
@@ -352,13 +363,15 @@ class StatsViewModel @Inject constructor(
         viewModelScope.launch {
             val foodRecords = foodRecordRepository.getAllRecordsOnce()
             val exerciseRecords = exerciseRecordRepository.getAllRecordsOnce()
-            val trendData = computeTrendData(
-                foodRecords,
-                exerciseRecords,
-                _uiState.value.trendTimeDimension,
-                _uiState.value.trendStartDate,
-                _uiState.value.trendEndDate
-            )
+            val trendData = withContext(Dispatchers.Default) {
+                computeTrendData(
+                    foodRecords,
+                    exerciseRecords,
+                    _uiState.value.trendTimeDimension,
+                    _uiState.value.trendStartDate,
+                    _uiState.value.trendEndDate
+                )
+            }
             _uiState.value = _uiState.value.copy(trendChartData = trendData)
         }
     }
@@ -385,14 +398,7 @@ class StatsViewModel @Inject constructor(
     ): List<DailyMealRecord> {
         val today = LocalDate.now()
         val daysToShow = 140 // 20周
-        
-        // 从今天往前推 139 天，然后对齐到周日（一周的开始）
-        // dayOfWeek.value: 1=周一, 7=周日
-        // 我们需要: 0=周日, 1=周一, ..., 6=周六
-        val rawStartDate = today.minusDays(139)
-        val dayOfWeekValue = rawStartDate.dayOfWeek.value
-        val dayOfWeek = if (dayOfWeekValue == 7) 0 else dayOfWeekValue
-        val startDate = rawStartDate.minusDays(dayOfWeek.toLong())
+        val startDate = today.minusDays(daysToShow.toLong() - 1)
         
         // 按日期分组记录
         val recordsByDate = foodRecords.groupBy { 
@@ -414,7 +420,7 @@ class StatsViewModel @Inject constructor(
                 mealTypes.size == 1 -> 1
                 mealTypes.size == 2 -> 2
                 mealTypes.size == 3 -> 3
-                else -> 4
+                else -> 4 // 4个及以上餐次
             }
             
             DailyMealRecord(
@@ -496,70 +502,82 @@ class StatsViewModel @Inject constructor(
             val targetCalories = settings?.dailyCalorieGoal ?: 2000
             val selectedDate = _uiState.value.selectedOverviewDate
 
-            // 计算选中日期的统计数据
-            val dayStart = selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            val dayEnd = selectedDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
+            val pair = withContext(Dispatchers.Default) {
+                val dayStart = selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val dayEnd = selectedDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
 
-            val dayFoodRecords = foodRecords.filter { it.recordTime in dayStart..dayEnd }
-            val dayExerciseRecords = exerciseRecords.filter {
-                java.time.Instant.ofEpochMilli(it.recordTime)
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDate() == selectedDate
+                val dayFoodRecords = foodRecords.filter { it.recordTime in dayStart..dayEnd }
+                val dayExerciseRecords = exerciseRecords.filter {
+                    java.time.Instant.ofEpochMilli(it.recordTime)
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate() == selectedDate
+                }
+
+                val bmr = if (settings != null) {
+                    MetabolicConstants.calculateBMR(
+                        gender = settings.userGender ?: "MALE",
+                        weight = settings.userWeight,
+                        height = settings.userHeight,
+                        age = settings.userAge
+                    )
+                } else 0
+                val tdee = if (bmr > 0 && settings != null) {
+                    MetabolicConstants.calculateTDEE(bmr, settings.activityLevel)
+                } else 0
+
+                val totalCalories = dayFoodRecords.sumOf { it.totalCalories }
+                val todayStats = TodayStats(
+                    date = selectedDate,
+                    totalCalories = totalCalories,
+                    targetCalories = targetCalories,
+                    remainingCalories = targetCalories - totalCalories,
+                    isTargetMet = totalCalories <= targetCalories,
+                    recordCount = dayFoodRecords.size,
+                    proteinGrams = dayFoodRecords.sumOf { it.protein.toDouble() }.toFloat(),
+                    carbsGrams = dayFoodRecords.sumOf { it.carbs.toDouble() }.toFloat(),
+                    fatGrams = dayFoodRecords.sumOf { it.fat.toDouble() }.toFloat(),
+                    fiberGrams = dayFoodRecords.sumOf { it.fiber.toDouble() }.toFloat(),
+                    sugarGrams = dayFoodRecords.sumOf { it.sugar.toDouble() }.toFloat(),
+                    sodiumMg = dayFoodRecords.sumOf { it.sodium.toDouble() }.toFloat(),
+                    cholesterolMg = dayFoodRecords.sumOf { it.cholesterol.toDouble() }.toFloat(),
+                    saturatedFatGrams = dayFoodRecords.sumOf { it.saturatedFat.toDouble() }.toFloat(),
+                    calciumMg = dayFoodRecords.sumOf { it.calcium.toDouble() }.toFloat(),
+                    ironMg = dayFoodRecords.sumOf { it.iron.toDouble() }.toFloat(),
+                    vitaminCMg = dayFoodRecords.sumOf { it.vitaminC.toDouble() }.toFloat(),
+                    vitaminAMcg = dayFoodRecords.sumOf { it.vitaminA.toDouble() }.toFloat(),
+                    potassiumMg = dayFoodRecords.sumOf { it.potassium.toDouble() }.toFloat(),
+                    exerciseCalories = dayExerciseRecords.sumOf { it.caloriesBurned },
+                    exerciseMinutes = dayExerciseRecords.sumOf { it.durationMinutes },
+                    exerciseCount = dayExerciseRecords.size,
+                    bmr = bmr,
+                    tdee = tdee
+                )
+
+                val mealTypeStats = dayFoodRecords
+                    .groupBy { it.mealType }
+                    .mapValues { (_, records) -> records.sumOf { it.totalCalories } }
+                todayStats to mealTypeStats
             }
 
-            val bmr = if (settings != null) {
-                MetabolicConstants.calculateBMR(
-                    gender = settings.userGender ?: "MALE",
-                    weight = settings.userWeight,
-                    height = settings.userHeight,
-                    age = settings.userAge
-                )
-            } else 0
-            val tdee = if (bmr > 0 && settings != null) {
-                MetabolicConstants.calculateTDEE(bmr, settings.activityLevel)
-            } else 0
-
-            // 手动构建TodayStats
-            val totalCalories = dayFoodRecords.sumOf { it.totalCalories }
-            val todayStats = TodayStats(
-                date = selectedDate,
-                totalCalories = totalCalories,
-                targetCalories = targetCalories,
-                remainingCalories = targetCalories - totalCalories,
-                isTargetMet = totalCalories <= targetCalories,
-                recordCount = dayFoodRecords.size,
-                proteinGrams = dayFoodRecords.sumOf { it.protein.toDouble() }.toFloat(),
-                carbsGrams = dayFoodRecords.sumOf { it.carbs.toDouble() }.toFloat(),
-                fatGrams = dayFoodRecords.sumOf { it.fat.toDouble() }.toFloat(),
-                fiberGrams = dayFoodRecords.sumOf { it.fiber.toDouble() }.toFloat(),
-                sugarGrams = dayFoodRecords.sumOf { it.sugar.toDouble() }.toFloat(),
-                sodiumMg = dayFoodRecords.sumOf { it.sodium.toDouble() }.toFloat(),
-                cholesterolMg = dayFoodRecords.sumOf { it.cholesterol.toDouble() }.toFloat(),
-                saturatedFatGrams = dayFoodRecords.sumOf { it.saturatedFat.toDouble() }.toFloat(),
-                calciumMg = dayFoodRecords.sumOf { it.calcium.toDouble() }.toFloat(),
-                ironMg = dayFoodRecords.sumOf { it.iron.toDouble() }.toFloat(),
-                vitaminCMg = dayFoodRecords.sumOf { it.vitaminC.toDouble() }.toFloat(),
-                vitaminAMcg = dayFoodRecords.sumOf { it.vitaminA.toDouble() }.toFloat(),
-                potassiumMg = dayFoodRecords.sumOf { it.potassium.toDouble() }.toFloat(),
-                exerciseCalories = dayExerciseRecords.sumOf { it.caloriesBurned },
-                exerciseMinutes = dayExerciseRecords.sumOf { it.durationMinutes },
-                exerciseCount = dayExerciseRecords.size,
-                bmr = bmr,
-                tdee = tdee
-            )
-
-            // 计算餐次统计
-            val mealTypeStats = dayFoodRecords
-                .groupBy { it.mealType }
-                .mapValues { (_, records) -> records.sumOf { it.totalCalories } }
-
             _uiState.value = _uiState.value.copy(
-                todayStats = todayStats,
-                mealTypeStats = mealTypeStats
+                todayStats = pair.first,
+                mealTypeStats = pair.second
             )
         }
     }
 }
+
+private data class BasicStatsBundle(
+    val todayStats: TodayStats,
+    val mealTypeStats: Map<MealType, Int>,
+    val historyStats: HistoryStats,
+    val weeklyStats: List<WeeklyStat>,
+    val monthlyStats: List<MonthlyStat>,
+    val streakDays: Int,
+    val monthSummary: MonthSummary,
+    val dailyMealRecords: List<DailyMealRecord>,
+    val monthlyActiveDays: Int
+)
 
 /**
  * 每日餐次记录数据（用于热力图）

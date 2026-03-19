@@ -1,13 +1,10 @@
 package com.calorieai.app.service.ai
 
-import com.calorieai.app.data.model.FoodRecord
-import com.calorieai.app.data.model.ExerciseRecord
-import com.calorieai.app.data.model.ExerciseType
-import com.calorieai.app.data.model.WeightRecord
 import com.calorieai.app.data.repository.FoodRecordRepository
 import com.calorieai.app.data.repository.ExerciseRecordRepository
 import com.calorieai.app.data.repository.WeightRecordRepository
-import kotlinx.coroutines.flow.firstOrNull
+import com.calorieai.app.data.repository.WaterRecordRepository
+import com.calorieai.app.data.repository.UserSettingsRepository
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -22,8 +19,30 @@ import javax.inject.Singleton
 class AIContextService @Inject constructor(
     private val foodRecordRepository: FoodRecordRepository,
     private val exerciseRecordRepository: ExerciseRecordRepository,
-    private val weightRecordRepository: WeightRecordRepository
+    private val weightRecordRepository: WeightRecordRepository,
+    private val waterRecordRepository: WaterRecordRepository,
+    private val userSettingsRepository: UserSettingsRepository
 ) {
+    private fun getRange(days: Long): Pair<Long, Long> {
+        val today = LocalDate.now()
+        val start = today.minusDays(days - 1)
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        val end = today.atTime(23, 59, 59)
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        return start to end
+    }
+
+    private fun formatDate(millis: Long): String {
+        return java.time.Instant.ofEpochMilli(millis)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+    }
+
     /**
      * 获取用户最近一周的饮食记录上下文
      */
@@ -196,13 +215,108 @@ class AIContextService @Inject constructor(
      * 检查是否有足够的数据进行分析
      */
     suspend fun hasEnoughDataForAnalysis(): Boolean {
-        val today = LocalDate.now()
-        val weekAgo = today.minusDays(7)
-        
-        val startTime = weekAgo.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val endTime = today.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        
+        val (startTime, endTime) = getRange(7)
         val foodRecords = foodRecordRepository.getRecordsBetweenSync(startTime, endTime)
-        return foodRecords.isNotEmpty()
+        val exerciseRecords = exerciseRecordRepository.getRecordsBetweenSync(startTime, endTime)
+        val weightRecords = weightRecordRepository.getRecordsBetweenSync(startTime, endTime)
+        val waterRecords = waterRecordRepository.getRecordsBetweenSync(startTime, endTime)
+        return foodRecords.isNotEmpty() || exerciseRecords.isNotEmpty() || weightRecords.isNotEmpty() || waterRecords.isNotEmpty()
+    }
+
+    suspend fun hasEnoughFoodDataForCalorieAssessment(minDays: Int = 3): Boolean {
+        val (startTime, endTime) = getRange(14)
+        val foodRecords = foodRecordRepository.getRecordsBetweenSync(startTime, endTime)
+        if (foodRecords.isEmpty()) return false
+        val activeDays = foodRecords.groupBy {
+            java.time.Instant.ofEpochMilli(it.recordTime)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate()
+        }.size
+        return activeDays >= minDays
+    }
+
+    /**
+     * 获取快捷功能使用的本地近期数据上下文（强制包含本地数据摘要）
+     */
+    suspend fun getQuickActionContext(action: String, recentDays: Long = 14): String {
+        val (startTime, endTime) = getRange(recentDays)
+        val foodRecords = foodRecordRepository.getRecordsBetweenSync(startTime, endTime)
+        val exerciseRecords = exerciseRecordRepository.getRecordsBetweenSync(startTime, endTime)
+        val weightRecords = weightRecordRepository.getRecordsBetweenSync(startTime, endTime)
+        val waterRecords = waterRecordRepository.getRecordsBetweenSync(startTime, endTime)
+        val settings = userSettingsRepository.getSettingsOnce()
+
+        val period = "${formatDate(startTime)} 至 ${formatDate(endTime)}"
+        val sb = StringBuilder()
+        sb.appendLine("【本地近期数据快照】")
+        sb.appendLine("统计区间：$period（最近${recentDays}天）")
+        sb.appendLine("用途：$action")
+        sb.appendLine()
+
+        val foodDays = foodRecords.groupBy {
+            java.time.Instant.ofEpochMilli(it.recordTime).atZone(ZoneId.systemDefault()).toLocalDate()
+        }
+        val totalCalories = foodRecords.sumOf { it.totalCalories }
+        val avgCalories = if (foodDays.isNotEmpty()) totalCalories / foodDays.size else 0
+        sb.appendLine("### 饮食记录")
+        sb.appendLine("- 记录条数：${foodRecords.size}")
+        sb.appendLine("- 活跃天数：${foodDays.size}")
+        sb.appendLine("- 总摄入热量：${totalCalories} kcal")
+        sb.appendLine("- 日均摄入热量：${avgCalories} kcal")
+        if (foodRecords.isNotEmpty()) {
+            val latest = foodRecords.maxByOrNull { it.recordTime }
+            latest?.let {
+                sb.appendLine("- 最近一条：${formatDate(it.recordTime)} ${it.foodName}（${it.totalCalories} kcal）")
+            }
+        }
+        sb.appendLine()
+
+        val totalExerciseCalories = exerciseRecords.sumOf { it.caloriesBurned }
+        val totalExerciseMinutes = exerciseRecords.sumOf { it.durationMinutes }
+        sb.appendLine("### 运动记录")
+        sb.appendLine("- 记录条数：${exerciseRecords.size}")
+        sb.appendLine("- 总消耗热量：${totalExerciseCalories} kcal")
+        sb.appendLine("- 总运动时长：${totalExerciseMinutes} 分钟")
+        if (exerciseRecords.isNotEmpty()) {
+            val latest = exerciseRecords.maxByOrNull { it.recordTime }
+            latest?.let {
+                sb.appendLine("- 最近一条：${formatDate(it.recordTime)} ${it.exerciseType.displayName}（${it.caloriesBurned} kcal）")
+            }
+        }
+        sb.appendLine()
+
+        val sortedWeight = weightRecords.sortedBy { it.recordDate }
+        sb.appendLine("### 体重记录")
+        sb.appendLine("- 记录条数：${sortedWeight.size}")
+        if (sortedWeight.size >= 2) {
+            val change = sortedWeight.last().weight - sortedWeight.first().weight
+            sb.appendLine("- 体重变化：${if (change >= 0f) "+" else ""}${String.format("%.1f", change)} kg")
+        }
+        sortedWeight.lastOrNull()?.let {
+            sb.appendLine("- 最近体重：${it.weight} kg（${formatDate(it.recordDate)}）")
+        }
+        sb.appendLine()
+
+        val waterTotal = waterRecords.sumOf { it.amount }
+        val waterByDay = waterRecords.groupBy {
+            java.time.Instant.ofEpochMilli(it.recordTime).atZone(ZoneId.systemDefault()).toLocalDate()
+        }
+        val avgWater = if (waterByDay.isNotEmpty()) waterTotal / waterByDay.size else 0
+        sb.appendLine("### 饮水记录")
+        sb.appendLine("- 记录条数：${waterRecords.size}")
+        sb.appendLine("- 总饮水量：${waterTotal} ml")
+        sb.appendLine("- 日均饮水量：${avgWater} ml")
+        sb.appendLine()
+
+        sb.appendLine("### 目标与设定")
+        sb.appendLine("- 每日热量目标：${settings?.dailyCalorieGoal ?: 2000} kcal")
+        sb.appendLine("- 每日饮水目标：${settings?.dailyWaterGoal ?: 2000} ml")
+        settings?.userWeight?.let { sb.appendLine("- 当前体重：${it} kg") }
+        settings?.targetWeight?.let { sb.appendLine("- 目标体重：${it} kg") }
+        settings?.goalType?.let { sb.appendLine("- 目标类型：$it") }
+        sb.appendLine()
+
+        sb.appendLine("请严格基于上述本地近期数据给出结论和建议；若数据不足，明确指出缺少哪些记录。")
+        return sb.toString()
     }
 }

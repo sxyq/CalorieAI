@@ -15,6 +15,7 @@ import com.calorieai.app.ui.components.BottomNavBar
 import com.calorieai.app.ui.components.NavItem
 import com.calorieai.app.ui.screens.add.AddFoodScreen
 import com.calorieai.app.ui.screens.add.AddMethodSelectorScreen
+import com.calorieai.app.ui.screens.add.FavoriteRecipesScreen
 import com.calorieai.app.ui.screens.add.ManualAddScreen
 import com.calorieai.app.ui.screens.ai.AIChatScreen
 import com.calorieai.app.ui.screens.camera.CameraScreen
@@ -40,12 +41,10 @@ import com.calorieai.app.ui.screens.settings.SettingsScreen
 import com.calorieai.app.ui.screens.stats.StatsScreen
 import com.calorieai.app.ui.screens.weight.WeightRecordScreen
 import com.calorieai.app.ui.screens.exercise.ExerciseRecordScreen
-import com.calorieai.app.ui.screens.favorites.FavoriteRecipeScreen
 import com.calorieai.app.ui.screens.water.WaterTrackerScreen
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
-import com.calorieai.app.data.repository.FoodRecordRepository
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -55,7 +54,16 @@ sealed class Screen(val route: String) {
     object BodyProfile : Screen("body_profile")
     object WeightHistory : Screen("weight_history")
     object HealthGoals : Screen("health_goals")
-    object AddMethodSelector : Screen("add_method_selector")
+    object AddMethodSelector : Screen("add_method_selector?date={date}") {
+        fun createRoute(date: String? = null): String {
+            return if (!date.isNullOrBlank()) {
+                "add_method_selector?date=$date"
+            } else {
+                "add_method_selector"
+            }
+        }
+    }
+    object FavoriteRecipes : Screen("favorite_recipes")
     object ManualAdd : Screen("manual_add")
     object AddFood : Screen("add_food?date={date}") {
         fun createRoute(date: String? = null): String {
@@ -91,13 +99,43 @@ sealed class Screen(val route: String) {
     }
     object About : Screen("about")
     object Profile : Screen("profile")
-    object AIChat : Screen("ai_chat")
-    object WeightRecord : Screen("weight_record")
-    object ExerciseRecord : Screen("exercise_record")
+    object AIChat : Screen("ai_chat?sessionId={sessionId}") {
+        fun createRoute(sessionId: String? = null): String {
+            return if (!sessionId.isNullOrBlank()) {
+                "ai_chat?sessionId=$sessionId"
+            } else {
+                "ai_chat"
+            }
+        }
+    }
+    object WeightRecord : Screen("weight_record?date={date}") {
+        fun createRoute(date: String? = null): String {
+            return if (!date.isNullOrBlank()) {
+                "weight_record?date=$date"
+            } else {
+                "weight_record"
+            }
+        }
+    }
+    object ExerciseRecord : Screen("exercise_record?date={date}") {
+        fun createRoute(date: String? = null): String {
+            return if (!date.isNullOrBlank()) {
+                "exercise_record?date=$date"
+            } else {
+                "exercise_record"
+            }
+        }
+    }
     object WaterTracker : Screen("water_tracker")
-    object FavoriteRecipes : Screen("favorite_recipes")
-    
-    object WaterHistory : Screen("water_history")
+    object WaterHistory : Screen("water_history?date={date}") {
+        fun createRoute(date: String? = null): String {
+            return if (!date.isNullOrBlank()) {
+                "water_history?date=$date"
+            } else {
+                "water_history"
+            }
+        }
+    }
 }
 
 val bottomNavItems = listOf(
@@ -165,7 +203,10 @@ fun NavGraph(navController: NavHostController) {
             composable(Screen.Home.route) {
                 HomeScreen(
                     onNavigateToAdd = {
-                        navController.navigate(Screen.AddMethodSelector.route)
+                        navController.navigate(Screen.AddMethodSelector.createRoute(it))
+                    },
+                    onNavigateToAIAdd = {
+                        navController.navigate(Screen.AddFood.createRoute(it))
                     },
                     onNavigateToStats = {
                         navController.navigate(Screen.Stats.route)
@@ -179,8 +220,8 @@ fun NavGraph(navController: NavHostController) {
                     onNavigateToResult = { recordId ->
                         navController.navigate(Screen.Result.createRoute(recordId))
                     },
-                    onNavigateToAIChat = {
-                        navController.navigate(Screen.AIChat.route)
+                    onNavigateToAIChat = { sessionId ->
+                        navController.navigate(Screen.AIChat.createRoute(sessionId))
                     }
                 )
             }
@@ -204,22 +245,22 @@ fun NavGraph(navController: NavHostController) {
             composable(Screen.Functions.route) {
                 FunctionsScreen(
                     onNavigateToFoodDiary = {
-                        navController.navigate(Screen.AddMethodSelector.route)
+                        navController.navigate(Screen.AddMethodSelector.createRoute())
                     },
                     onNavigateToWeightRecord = {
-                        navController.navigate(Screen.WeightRecord.route)
+                        navController.navigate(Screen.WeightRecord.createRoute())
                     },
                     onNavigateToWaterTracker = {
                         navController.navigate(Screen.WaterTracker.route)
                     },
                     onNavigateToExercise = {
-                        navController.navigate(Screen.ExerciseRecord.route)
+                        navController.navigate(Screen.ExerciseRecord.createRoute())
                     },
                     onNavigateToStatistics = {
                         navController.navigate(Screen.Stats.route)
                     },
                     onNavigateToAIAssistant = {
-                        navController.navigate(Screen.AIChat.route)
+                        navController.navigate(Screen.AIChat.createRoute())
                     },
                     onNavigateToRecipes = {},
                     onNavigateToSettings = {
@@ -265,7 +306,7 @@ fun NavGraph(navController: NavHostController) {
                         navController.navigate(Screen.Profile.route)
                     },
                     onNavigateToWeightHistory = {
-                        navController.navigate(Screen.WeightRecord.route)
+                        navController.navigate(Screen.WeightRecord.createRoute())
                     },
                     onNavigateToGoals = {
                         navController.navigate(Screen.HealthGoals.route)
@@ -274,7 +315,17 @@ fun NavGraph(navController: NavHostController) {
             }
 
             // 添加方式选择
-            composable(Screen.AddMethodSelector.route) {
+            composable(
+                route = Screen.AddMethodSelector.route,
+                arguments = listOf(
+                    androidx.navigation.navArgument("date") {
+                        type = androidx.navigation.NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                val date = backStackEntry.arguments?.getString("date")
                 AddMethodSelectorScreen(
                     onNavigateBack = {
                         navController.popBackStack()
@@ -283,19 +334,19 @@ fun NavGraph(navController: NavHostController) {
                         navController.navigate(Screen.ManualAdd.route)
                     },
                     onNavigateToAI = {
-                        navController.navigate(Screen.AddFood.route)
-                    },
-                    onNavigateToWeight = {
-                        navController.navigate(Screen.WeightRecord.route)
-                    },
-                    onNavigateToExercise = {
-                        navController.navigate(Screen.ExerciseRecord.route)
-                    },
-                    onNavigateToWaterHistory = {
-                        navController.navigate(Screen.WaterHistory.route)
+                        navController.navigate(Screen.AddFood.createRoute(date))
                     },
                     onNavigateToFavoriteRecipes = {
                         navController.navigate(Screen.FavoriteRecipes.route)
+                    },
+                    onNavigateToWeight = {
+                        navController.navigate(Screen.WeightRecord.createRoute(date))
+                    },
+                    onNavigateToExercise = {
+                        navController.navigate(Screen.ExerciseRecord.createRoute(date))
+                    },
+                    onNavigateToWaterHistory = {
+                        navController.navigate(Screen.WaterHistory.createRoute(date))
                     }
                 )
             }
@@ -308,6 +359,15 @@ fun NavGraph(navController: NavHostController) {
                     },
                     onSaveComplete = {
                         navController.popBackStack(Screen.Home.route, false)
+                    }
+                )
+            }
+
+            // 收藏菜谱
+            composable(Screen.FavoriteRecipes.route) {
+                FavoriteRecipesScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
                     }
                 )
             }
@@ -374,19 +434,6 @@ fun NavGraph(navController: NavHostController) {
                     recordId = recordId,
                     onNavigateBack = {
                         navController.popBackStack()
-                    }
-                )
-            }
-            
-            // 收藏菜谱页面
-            composable(Screen.FavoriteRecipes.route) {
-                FavoriteRecipeScreen(
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    },
-                    onAddToRecord = { _, _ ->
-                        // 导航回首页
-                        navController.popBackStack(Screen.Home.route, false)
                     }
                 )
             }
@@ -499,8 +546,19 @@ fun NavGraph(navController: NavHostController) {
             }
 
             // AI聊天
-            composable(Screen.AIChat.route) {
+            composable(
+                route = Screen.AIChat.route,
+                arguments = listOf(
+                    androidx.navigation.navArgument("sessionId") {
+                        type = androidx.navigation.NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                val sessionId = backStackEntry.arguments?.getString("sessionId")
                 AIChatScreen(
+                    initialSessionId = sessionId,
                     onNavigateBack = {
                         navController.popBackStack()
                     }
@@ -517,8 +575,19 @@ fun NavGraph(navController: NavHostController) {
             }
 
             // 体重记录
-            composable(Screen.WeightRecord.route) {
+            composable(
+                route = Screen.WeightRecord.route,
+                arguments = listOf(
+                    androidx.navigation.navArgument("date") {
+                        type = androidx.navigation.NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                val date = backStackEntry.arguments?.getString("date")
                 WeightRecordScreen(
+                    selectedDate = date,
                     onNavigateBack = {
                         navController.popBackStack()
                     }
@@ -526,8 +595,19 @@ fun NavGraph(navController: NavHostController) {
             }
 
             // 运动记录
-            composable(Screen.ExerciseRecord.route) {
+            composable(
+                route = Screen.ExerciseRecord.route,
+                arguments = listOf(
+                    androidx.navigation.navArgument("date") {
+                        type = androidx.navigation.NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                val date = backStackEntry.arguments?.getString("date")
                 ExerciseRecordScreen(
+                    selectedDate = date,
                     onNavigateBack = {
                         navController.popBackStack()
                     }
@@ -544,8 +624,19 @@ fun NavGraph(navController: NavHostController) {
             }
 
             // 饮水历史
-            composable(Screen.WaterHistory.route) {
+            composable(
+                route = Screen.WaterHistory.route,
+                arguments = listOf(
+                    androidx.navigation.navArgument("date") {
+                        type = androidx.navigation.NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                val date = backStackEntry.arguments?.getString("date")
                 WaterHistoryScreen(
+                    selectedDate = date,
                     onNavigateBack = {
                         navController.popBackStack()
                     }

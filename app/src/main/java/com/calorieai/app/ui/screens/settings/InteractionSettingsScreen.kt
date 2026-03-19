@@ -79,7 +79,7 @@ fun InteractionSettingsScreen(
             SettingsSection(title = "快速操作") {
                 SettingsSwitchItem(
                     title = "快速添加",
-                    subtitle = "长按主页加号按钮直接进入手动录入",
+                    subtitle = "长按主页加号按钮直接进入AI导入添加",
                     checked = uiState.enableQuickAdd,
                     onCheckedChange = viewModel::updateEnableQuickAdd
                 )

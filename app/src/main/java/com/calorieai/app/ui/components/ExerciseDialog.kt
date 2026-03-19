@@ -35,6 +35,7 @@ fun ExerciseDialog(
     var customExerciseName by remember { mutableStateOf("") }
     var isCustomExercise by remember { mutableStateOf(false) }
     var showCustomInput by remember { mutableStateOf(false) }
+    var customCaloriesPerMinute by remember { mutableStateOf("") }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -146,8 +147,6 @@ fun ExerciseDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // 自定义每分钟消耗（可选）
-                var customCaloriesPerMinute by remember { mutableStateOf("") }
-                
                 OutlinedTextField(
                     value = customCaloriesPerMinute,
                     onValueChange = { customCaloriesPerMinute = it },

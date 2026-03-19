@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface AIChatHistoryDao {
     
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(history: AIChatHistory): Long
     
     @Update
@@ -21,6 +21,9 @@ interface AIChatHistoryDao {
     
     @Query("SELECT * FROM ai_chat_history ORDER BY isPinned DESC, updatedAt DESC")
     fun getAllHistory(): Flow<List<AIChatHistory>>
+
+    @Query("SELECT * FROM ai_chat_history ORDER BY isPinned DESC, updatedAt DESC")
+    suspend fun getAllHistoryOnce(): List<AIChatHistory>
     
     @Query("SELECT * FROM ai_chat_history WHERE sessionId = :sessionId LIMIT 1")
     suspend fun getHistoryBySessionId(sessionId: String): AIChatHistory?

@@ -7,11 +7,14 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface APICallRecordDao {
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRecord(record: APICallRecord)
 
     @Query("SELECT * FROM api_call_records ORDER BY timestamp DESC")
     fun getAllRecords(): Flow<List<APICallRecord>>
+
+    @Query("SELECT * FROM api_call_records ORDER BY timestamp DESC")
+    suspend fun getAllRecordsOnce(): List<APICallRecord>
 
     @Query("SELECT * FROM api_call_records WHERE timestamp >= :startTime AND timestamp < :endTime ORDER BY timestamp DESC")
     fun getRecordsBetween(startTime: Long, endTime: Long): Flow<List<APICallRecord>>

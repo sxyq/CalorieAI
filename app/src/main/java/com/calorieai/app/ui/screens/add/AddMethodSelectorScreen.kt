@@ -17,9 +17,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.outlined.Close
@@ -48,10 +48,10 @@ fun AddMethodSelectorScreen(
     onNavigateBack: () -> Unit,
     onNavigateToManual: () -> Unit,
     onNavigateToAI: () -> Unit,
+    onNavigateToFavoriteRecipes: () -> Unit = {},
     onNavigateToWeight: () -> Unit = {},
     onNavigateToExercise: () -> Unit = {},
-    onNavigateToWaterHistory: () -> Unit = {},
-    onNavigateToFavoriteRecipes: () -> Unit = {}
+    onNavigateToWaterHistory: () -> Unit = {}
 ) {
     val isDark = isSystemInDarkTheme()
     var visible by remember { mutableStateOf(false) }
@@ -170,45 +170,49 @@ fun AddMethodSelectorScreen(
                 enter = fadeIn(tween(400, delayMillis = 250)),
                 exit = fadeOut(tween(150))
             ) {
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    SecondaryMethodCard(
-                        icon = Icons.Default.Scale,
-                        title = "体重",
-                        subtitle = "记录体重",
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToWeight
-                    )
-                    SecondaryMethodCard(
-                        icon = Icons.Default.FitnessCenter,
-                        title = "运动",
-                        subtitle = "添加运动",
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToExercise
-                    )
-                    SecondaryMethodCard(
-                        icon = Icons.Default.WaterDrop,
-                        title = "饮水",
-                        subtitle = "记录饮水",
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToWaterHistory
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        SecondaryMethodCard(
+                            icon = Icons.Default.MenuBook,
+                            title = "收藏菜谱",
+                            subtitle = "快速添加",
+                            modifier = Modifier.weight(1f),
+                            onClick = onNavigateToFavoriteRecipes
+                        )
+                        SecondaryMethodCard(
+                            icon = Icons.Default.Scale,
+                            title = "体重",
+                            subtitle = "记录体重",
+                            modifier = Modifier.weight(1f),
+                            onClick = onNavigateToWeight
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        SecondaryMethodCard(
+                            icon = Icons.Default.FitnessCenter,
+                            title = "运动",
+                            subtitle = "添加运动",
+                            modifier = Modifier.weight(1f),
+                            onClick = onNavigateToExercise
+                        )
+                        SecondaryMethodCard(
+                            icon = Icons.Default.WaterDrop,
+                            title = "饮水",
+                            subtitle = "记录饮水",
+                            modifier = Modifier.weight(1f),
+                            onClick = onNavigateToWaterHistory
+                        )
+                    }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 收藏菜谱入口
-            AnimatedVisibility(
-                visible = visible,
-                enter = fadeIn(tween(400, delayMillis = 300)),
-                exit = fadeOut(tween(150))
-            ) {
-                FavoriteRecipesButton(
-                    onClick = onNavigateToFavoriteRecipes
-                )
             }
 
             Spacer(modifier = Modifier.weight(1f))
@@ -382,69 +386,5 @@ private fun SecondaryMethodCard(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-    }
-}
-
-/**
- * 收藏菜谱按钮
- */
-@Composable
-private fun FavoriteRecipesButton(
-    onClick: () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "cardScale"
-    )
-    
-    val isDark = isSystemInDarkTheme()
-    val surfaceVariant = if (isDark) Color(0xFF2A2A2A) else Color(0xFFF5F5F5)
-    val onSurfaceVariant = if (isDark) Color(0xFFB0B0B0) else Color(0xFF666666)
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .scale(scale)
-            .clip(RoundedCornerShape(16.dp))
-            .background(surfaceVariant)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
-            .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Bookmark,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = "收藏菜谱",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = "·",
-                fontSize = 15.sp,
-                color = onSurfaceVariant
-            )
-            Text(
-                text = "快速添加常用食物",
-                fontSize = 13.sp,
-                color = onSurfaceVariant
-            )
-        }
     }
 }

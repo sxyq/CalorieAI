@@ -35,11 +35,16 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeightRecordScreen(
+    selectedDate: String? = null,
     onNavigateBack: () -> Unit,
     viewModel: WeightRecordViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+
+    LaunchedEffect(selectedDate) {
+        selectedDate?.let { viewModel.setSelectedDateFromString(it) }
+    }
 
     Scaffold(
         topBar = {

@@ -2,18 +2,40 @@ package com.calorieai.app.ui.screens.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,18 +45,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import com.calorieai.app.ui.components.SettingsTopAppBar
 import com.calorieai.app.ui.components.liquidGlass
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import com.calorieai.app.ui.components.interactiveScale
 import com.calorieai.app.utils.MetabolicConstants
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
-/**
- * 个人信息页面
- * 参考Deadliner风格，支持编辑头像、ID、身体数据
- * 计算基础代谢率(BMR)和每日总消耗(TDEE)
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -44,15 +60,19 @@ fun ProfileScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showAvatarPicker by remember { mutableStateOf(false) }
 
+    val bmr = calculateBMR(
+        gender = uiState.gender,
+        weight = uiState.weight,
+        height = uiState.height,
+        age = uiState.age
+    )
+    val tdee = calculateTDEE(bmr, uiState.activityLevel)
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("个人信息") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
+            SettingsTopAppBar(
+                title = "个人信息编辑",
+                onNavigateBack = onNavigateBack,
                 actions = {
                     TextButton(
                         onClick = {
@@ -71,9 +91,10 @@ fun ProfileScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // 头像区域
-            ProfileAvatarSection(
+            ProfileHeroCard(
                 avatarUrl = uiState.avatarUrl,
                 userName = uiState.userName,
                 userId = uiState.userId,
@@ -82,8 +103,10 @@ fun ProfileScreen(
                 onUserIdChange = viewModel::updateUserId
             )
 
-            // 身体数据（体重已移至记录页面）
-            SettingsSection(title = "身体数据") {
+            ProfileSectionCard(
+                title = "身体数据",
+                subtitle = "用于计算基础代谢和每日建议热量"
+            ) {
                 BodyDataSection(
                     gender = uiState.gender,
                     age = uiState.age,
@@ -93,20 +116,14 @@ fun ProfileScreen(
                     onAgeChange = viewModel::updateAge,
                     onHeightChange = viewModel::updateHeight,
                     onWeightChange = viewModel::updateWeight,
-                    showWeight = false // 体重设置已移至记录页面
+                    showWeight = false
                 )
             }
 
-            // 基础代谢计算结果
-            val bmr = calculateBMR(
-                gender = uiState.gender,
-                weight = uiState.weight,
-                height = uiState.height,
-                age = uiState.age
-            )
-            val tdee = calculateTDEE(bmr, uiState.activityLevel)
-
-            SettingsSection(title = "代谢计算") {
+            ProfileSectionCard(
+                title = "代谢估算",
+                subtitle = "根据身体数据和活动水平动态计算"
+            ) {
                 MetabolismSection(
                     bmr = bmr,
                     tdee = tdee,
@@ -115,8 +132,10 @@ fun ProfileScreen(
                 )
             }
 
-            // 每日目标设置
-            SettingsSection(title = "每日目标") {
+            ProfileSectionCard(
+                title = "每日目标",
+                subtitle = "设置你每天希望摄入的热量"
+            ) {
                 CalorieGoalSection(
                     calorieGoal = uiState.calorieGoal,
                     tdee = tdee,
@@ -124,12 +143,10 @@ fun ProfileScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 
-
-    // 头像选择器（简化版）
     if (showAvatarPicker) {
         AlertDialog(
             onDismissRequest = { showAvatarPicker = false },
@@ -144,11 +161,8 @@ fun ProfileScreen(
     }
 }
 
-/**
- * 头像区域
- */
 @Composable
-private fun ProfileAvatarSection(
+private fun ProfileHeroCard(
     avatarUrl: String?,
     userName: String,
     userId: String,
@@ -156,98 +170,147 @@ private fun ProfileAvatarSection(
     onUserNameChange: (String) -> Unit,
     onUserIdChange: (String) -> Unit
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
             .liquidGlass(
                 shape = RoundedCornerShape(24.dp),
-                tint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                tint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
             )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 头像
             Box(
                 modifier = Modifier
                     .size(100.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary)
-                    .clickable { onAvatarClick() },
+                    .clickable(onClick = onAvatarClick),
                 contentAlignment = Alignment.Center
             ) {
-                if (avatarUrl != null) {
-                    // 显示头像图片
+                val displayText = userName.trim().take(1).uppercase()
+                if (avatarUrl != null || displayText.isNotEmpty()) {
                     Text(
-                        text = userName.take(1).uppercase(),
+                        text = if (displayText.isNotEmpty()) displayText else "你",
                         style = MaterialTheme.typography.headlineLarge,
                         color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.Bold
                     )
                 } else {
-                    Icon(
+                    androidx.compose.material3.Icon(
                         imageVector = Icons.Default.Person,
                         contentDescription = null,
-                        modifier = Modifier.size(50.dp),
+                        modifier = Modifier.size(44.dp),
                         tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
 
-                // 编辑图标
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .size(32.dp)
+                        .size(30.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surface)
-                        .padding(4.dp),
+                        .padding(6.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
+                    androidx.compose.material3.Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = "编辑头像",
-                        modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+            Text(
+                text = if (userName.isBlank()) "设置你的昵称" else userName,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = if (userId.isBlank()) "ID 未设置" else "ID: $userId",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
-            // 用户名输入
+            Spacer(modifier = Modifier.height(14.dp))
             OutlinedTextField(
                 value = userName,
                 onValueChange = onUserNameChange,
                 label = { Text("昵称") },
+                leadingIcon = {
+                    androidx.compose.material3.Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null
+                    )
+                },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                shape = RoundedCornerShape(16.dp)
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // ID输入
+            Spacer(modifier = Modifier.height(10.dp))
             OutlinedTextField(
                 value = userId,
                 onValueChange = onUserIdChange,
-                label = { Text("ID") },
+                label = { Text("专属 ID") },
+                leadingIcon = {
+                    androidx.compose.material3.Icon(
+                        imageVector = Icons.Default.Badge,
+                        contentDescription = null
+                    )
+                },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                placeholder = { Text("设置您的专属ID") }
+                placeholder = { Text("例如：longcat_2026") },
+                shape = RoundedCornerShape(16.dp)
             )
         }
     }
 }
 
-/**
- * 身体数据区域
- */
+@Composable
+private fun ProfileSectionCard(
+    title: String,
+    subtitle: String,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .liquidGlass(
+                shape = RoundedCornerShape(22.dp),
+                tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            content()
+        }
+    }
+}
+
 @Composable
 private fun BodyDataSection(
     gender: String,
@@ -260,20 +323,14 @@ private fun BodyDataSection(
     onWeightChange: (Float?) -> Unit,
     showWeight: Boolean = true
 ) {
-    Column(
-        modifier = Modifier.padding(16.dp)
-    ) {
-        // 性别选择
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             text = "性别",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            listOf("男" to "MALE", "女" to "FEMALE").forEach { (label, value) ->
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("👨 男" to "MALE", "👩 女" to "FEMALE").forEach { (label, value) ->
                 FilterChip(
                     selected = gender == value,
                     onClick = { onGenderChange(value) },
@@ -283,9 +340,6 @@ private fun BodyDataSection(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // 年龄
         OutlinedTextField(
             value = age?.toString() ?: "",
             onValueChange = { onAgeChange(it.toIntOrNull()) },
@@ -296,12 +350,10 @@ private fun BodyDataSection(
                 keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Next
             ),
-            suffix = { Text("岁") }
+            suffix = { Text("岁") },
+            shape = RoundedCornerShape(14.dp)
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // 身高
         OutlinedTextField(
             value = height?.toString() ?: "",
             onValueChange = { onHeightChange(it.toFloatOrNull()) },
@@ -312,12 +364,11 @@ private fun BodyDataSection(
                 keyboardType = KeyboardType.Decimal,
                 imeAction = if (showWeight) ImeAction.Next else ImeAction.Done
             ),
-            suffix = { Text("cm") }
+            suffix = { Text("cm") },
+            shape = RoundedCornerShape(14.dp)
         )
 
-        // 体重（可选显示）
         if (showWeight) {
-            Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = weight?.toString() ?: "",
                 onValueChange = { onWeightChange(it.toFloatOrNull()) },
@@ -328,15 +379,13 @@ private fun BodyDataSection(
                     keyboardType = KeyboardType.Decimal,
                     imeAction = ImeAction.Done
                 ),
-                suffix = { Text("kg") }
+                suffix = { Text("kg") },
+                shape = RoundedCornerShape(14.dp)
             )
         }
     }
 }
 
-/**
- * 代谢计算区域
- */
 @Composable
 private fun MetabolismSection(
     bmr: Int,
@@ -344,105 +393,95 @@ private fun MetabolismSection(
     activityLevel: String,
     onActivityLevelChange: (String) -> Unit
 ) {
-    Column(
-        modifier = Modifier.padding(16.dp)
-    ) {
-        // 活动水平选择
+    val activityLevels = listOf(
+        "SEDENTARY" to "久坐",
+        "LIGHT" to "轻度",
+        "MODERATE" to "中度",
+        "ACTIVE" to "高度",
+        "VERY_ACTIVE" to "极高"
+    )
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             text = "活动水平",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        val activityLevels = listOf(
-            "SEDENTARY" to "久坐不动",
-            "LIGHT" to "轻度活动",
-            "MODERATE" to "中度活动",
-            "ACTIVE" to "高度活动",
-            "VERY_ACTIVE" to "极度活动"
-        )
-
-        activityLevels.forEach { (value, label) ->
+        activityLevels.chunked(3).forEach { row ->
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onActivityLevelChange(value) }
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                RadioButton(
-                    selected = activityLevel == value,
-                    onClick = { onActivityLevelChange(value) }
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = label)
+                row.forEach { (value, label) ->
+                    FilterChip(
+                        selected = activityLevel == value,
+                        onClick = { onActivityLevelChange(value) },
+                        label = { Text(label) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                repeat(3 - row.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // BMR和TDEE显示
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             MetabolismCard(
-                title = "基础代谢",
+                title = "基础代谢(BMR)",
                 value = bmr,
-                unit = "kcal",
-                description = "静息消耗"
+                description = "静息消耗",
+                modifier = Modifier.weight(1f)
             )
             MetabolismCard(
-                title = "每日总消耗",
+                title = "每日总消耗(TDEE)",
                 value = tdee,
-                unit = "kcal",
-                description = "含活动消耗"
+                description = "随活动水平变化",
+                modifier = Modifier.weight(1f)
             )
         }
+        Text(
+            text = "说明：基础代谢(BMR)由性别/年龄/身高/体重决定，不会因活动水平变化；活动水平影响的是 TDEE。",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
-/**
- * 代谢数据卡片
- */
 @Composable
 private fun MetabolismCard(
     title: String,
     value: Int,
-    unit: String,
-    description: String
+    description: String,
+    modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = Modifier
-            .width(140.dp)
-            .padding(4.dp)
-            .liquidGlass(
-                shape = RoundedCornerShape(12.dp),
-                tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
-            )
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp, horizontal = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = value.toString(),
-                style = MaterialTheme.typography.headlineMedium,
+                text = "$value kcal",
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
-            Text(
-                text = unit,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = description,
                 style = MaterialTheme.typography.labelSmall,
@@ -452,28 +491,23 @@ private fun MetabolismCard(
     }
 }
 
-/**
- * 每日目标设置
- */
 @Composable
 private fun CalorieGoalSection(
     calorieGoal: Int,
     tdee: Int,
     onCalorieGoalChange: (Int) -> Unit
 ) {
-    Column(
-        modifier = Modifier.padding(16.dp)
-    ) {
-        Text(
-            text = "每日热量目标",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+    val clampedGoal = calorieGoal.coerceIn(1200, 4000)
+    val diff = clampedGoal - tdee
+    val diffText = when {
+        diff > 0 -> "较 TDEE 高 ${abs(diff)} kcal，偏向增重/增肌"
+        diff < 0 -> "较 TDEE 低 ${abs(diff)} kcal，偏向减脂"
+        else -> "与 TDEE 持平，偏向维持体重"
+    }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         OutlinedTextField(
-            value = calorieGoal.toString(),
+            value = clampedGoal.toString(),
             onValueChange = { onCalorieGoalChange(it.toIntOrNull() ?: 2000) },
             label = { Text("目标热量") },
             singleLine = true,
@@ -482,35 +516,53 @@ private fun CalorieGoalSection(
                 keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Done
             ),
-            suffix = { Text("kcal") }
+            suffix = { Text("kcal") },
+            shape = RoundedCornerShape(14.dp)
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Slider(
+            value = clampedGoal.toFloat(),
+            onValueChange = { onCalorieGoalChange(it.roundToInt()) },
+            valueRange = 1200f..4000f
+        )
 
-        // 快捷设置按钮
+        Text(
+            text = "区间 1200 - 4000 kcal",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            listOf(
+            val presetValues = listOf(
                 "BMR" to calculateBMRFromTDEE(tdee, "SEDENTARY"),
                 "TDEE" to tdee,
-                "减脂" to (tdee * 0.8).toInt(),
-                "增肌" to (tdee * 1.1).toInt()
-            ).forEach { (label, value) ->
-                OutlinedButton(
+                "减脂" to (tdee * 0.8f).roundToInt(),
+                "增肌" to (tdee * 1.1f).roundToInt()
+            )
+            presetValues.forEach { (label, value) ->
+                TextButton(
                     onClick = { onCalorieGoalChange(value) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+                        )
                 ) {
-                    Text(label, fontSize = 12.sp)
+                    Text(
+                        text = label,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
         Text(
-            text = "建议：减脂时摄入TDEE的80%，增肌时摄入TDEE的110%",
+            text = diffText,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -524,8 +576,8 @@ fun calculateBMR(
     age: Int?
 ): Int = MetabolicConstants.calculateBMR(gender, weight, height, age)
 
-fun calculateTDEE(bmr: Int, activityLevel: String): Int = 
+fun calculateTDEE(bmr: Int, activityLevel: String): Int =
     MetabolicConstants.calculateTDEE(bmr, activityLevel)
 
-private fun calculateBMRFromTDEE(tdee: Int, activityLevel: String): Int = 
+private fun calculateBMRFromTDEE(tdee: Int, activityLevel: String): Int =
     MetabolicConstants.calculateBMRFromTDEE(tdee, activityLevel)

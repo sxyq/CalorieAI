@@ -13,8 +13,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.graphics.Brush
@@ -23,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.ui.components.interactiveScale
 import com.calorieai.app.ui.components.SettingsTopAppBar
+import com.calorieai.app.service.backup.RestoreMode
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,7 +37,7 @@ fun BackupSettingsScreen(
     viewModel: BackupSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
+    var showCloudPassword by remember { mutableStateOf(false) }
 
     // 创建备份文件选择器
     val createBackupLauncher = rememberLauncherForActivityResult(
@@ -124,10 +126,98 @@ fun BackupSettingsScreen(
                 }
             )
 
+            // WebDAV 云备份
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .liquidGlass(
+                        shape = RoundedCornerShape(16.dp),
+                        tint = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.35f)
+                    )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "云备份（WebDAV）",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    OutlinedTextField(
+                        value = uiState.webDavUrl,
+                        onValueChange = viewModel::updateWebDavUrl,
+                        label = { Text("服务器地址") },
+                        placeholder = { Text("https://dav.example.com/dav") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = uiState.webDavDirectory,
+                        onValueChange = viewModel::updateWebDavDirectory,
+                        label = { Text("目录") },
+                        placeholder = { Text("calorieai") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = uiState.webDavFileName,
+                        onValueChange = viewModel::updateWebDavFileName,
+                        label = { Text("文件名") },
+                        placeholder = { Text("backup_latest.json") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = uiState.webDavUsername,
+                        onValueChange = viewModel::updateWebDavUsername,
+                        label = { Text("用户名") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = uiState.webDavPassword,
+                        onValueChange = viewModel::updateWebDavPassword,
+                        label = { Text("密码 / 应用专用密码") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        visualTransformation = if (showCloudPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { showCloudPassword = !showCloudPassword }) {
+                                Icon(
+                                    imageVector = if (showCloudPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = null
+                                )
+                            }
+                        }
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { viewModel.uploadCloudBackup() },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("上传云备份")
+                        }
+                        OutlinedButton(
+                            onClick = { viewModel.loadCloudBackupInfo() },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("从云端恢复")
+                        }
+                    }
+                }
+            }
+
             // 备份信息对话框
             if (uiState.showRestoreDialog && uiState.backupInfo != null) {
                 RestoreConfirmDialog(
                     backupInfo = uiState.backupInfo!!,
+                    selectedMode = uiState.restoreMode,
+                    preview = uiState.restorePreview,
+                    onModeChange = viewModel::setRestoreMode,
                     onConfirm = { viewModel.confirmRestore() },
                     onDismiss = { viewModel.dismissRestoreDialog() }
                 )
@@ -275,6 +365,9 @@ private fun BackupActionCard(
 @Composable
 private fun RestoreConfirmDialog(
     backupInfo: com.calorieai.app.service.backup.BackupData,
+    selectedMode: RestoreMode,
+    preview: com.calorieai.app.service.backup.RestorePreview?,
+    onModeChange: (RestoreMode) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -286,15 +379,81 @@ private fun RestoreConfirmDialog(
                 Text("备份日期: ${backupInfo.backupDate}")
                 Text("饮食记录: ${backupInfo.foodRecords.size} 条")
                 Text("运动记录: ${backupInfo.exerciseRecords.size} 条")
+                if (backupInfo.weightRecords.isNotEmpty()) {
+                    Text("体重记录: ${backupInfo.weightRecords.size} 条")
+                }
+                if (backupInfo.waterRecords.isNotEmpty()) {
+                    Text("饮水记录: ${backupInfo.waterRecords.size} 条")
+                }
+                if (backupInfo.favoriteRecipes.isNotEmpty()) {
+                    Text("收藏菜谱: ${backupInfo.favoriteRecipes.size} 条")
+                }
+                if (backupInfo.aiChatHistory.isNotEmpty()) {
+                    Text("AI对话历史: ${backupInfo.aiChatHistory.size} 条")
+                }
+                if (backupInfo.apiCallLogs.isNotEmpty()) {
+                    Text("API调用日志: ${backupInfo.apiCallLogs.size} 条")
+                }
                 if (backupInfo.includeAIConfigs && backupInfo.aiConfigs.isNotEmpty()) {
                     Text("AI配置: ${backupInfo.aiConfigs.size} 个")
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "警告：恢复备份将覆盖当前所有数据，是否继续？",
-                    color = MaterialTheme.colorScheme.error,
+                    text = "恢复方式",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = selectedMode == RestoreMode.OVERWRITE,
+                        onClick = { onModeChange(RestoreMode.OVERWRITE) },
+                        label = { Text("全量覆盖") }
+                    )
+                    FilterChip(
+                        selected = selectedMode == RestoreMode.MERGE,
+                        onClick = { onModeChange(RestoreMode.MERGE) },
+                        label = { Text("合并导入") }
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = if (selectedMode == RestoreMode.OVERWRITE) {
+                        "将清空当前记录后再恢复（备份中包含的数据项会被完全替换）"
+                    } else {
+                        "保留当前数据并导入备份内容；同ID记录会更新，其他记录保留"
+                    },
+                    color = if (selectedMode == RestoreMode.OVERWRITE) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                     style = MaterialTheme.typography.bodySmall
                 )
+
+                preview?.let {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "恢复预览",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    it.items.forEach { item ->
+                        Text(
+                            text = if (selectedMode == RestoreMode.OVERWRITE) {
+                                "${item.label}：备份${item.backupCount}，将清空${item.clearCount}"
+                            } else {
+                                "${item.label}：新增${item.addCount}，覆盖${item.updateCount}"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         },
         confirmButton = {

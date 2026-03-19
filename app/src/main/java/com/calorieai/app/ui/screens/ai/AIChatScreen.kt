@@ -3,6 +3,7 @@ package com.calorieai.app.ui.screens.ai
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,16 +27,20 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.ui.theme.GlassLightColors
 import com.calorieai.app.ui.theme.GlassDarkColors
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.platform.LocalContext
 import java.text.SimpleDateFormat
 import java.util.*
 import com.calorieai.app.ui.components.markdown.MarkdownText
@@ -42,12 +48,23 @@ import com.calorieai.app.ui.components.markdown.MarkdownConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AIChatScreen(onNavigateBack: () -> Unit, viewModel: AIChatViewModel = hiltViewModel()) {
+fun AIChatScreen(
+    onNavigateBack: () -> Unit,
+    initialSessionId: String? = null,
+    viewModel: AIChatViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var showHistory by remember { mutableStateOf(false) }
     val isDark = isSystemInDarkTheme()
+
+    LaunchedEffect(initialSessionId) {
+        val sessionId = initialSessionId?.takeIf { it.isNotBlank() } ?: return@LaunchedEffect
+        if (uiState.currentSessionId != sessionId) {
+            viewModel.loadSession(sessionId)
+        }
+    }
 
     Scaffold(
         containerColor = if (isDark) Color(0xFF0D0D0D) else Color(0xFFFAFAFA),
@@ -454,24 +471,25 @@ private fun AnimatedMessageItem(msg: ChatMessage, isDark: Boolean) {
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
             modifier = Modifier.weight(1f, fill = false)
         ) {
+            val displayContent = msg.content
             Box(
                 Modifier
                     .clip(RoundedCornerShape(16.dp))
                     .background(bgColor)
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 if (isUser) {
                     Text(
-                        msg.content,
+                        displayContent,
                         color = textColor,
                         fontSize = 15.sp,
                         lineHeight = 22.sp
                     )
                 } else {
-                    MarkdownText(
-                        text = msg.content,
-                        isDark = isDark,
-                        config = MarkdownConfig.Compact
+                    AssistantMessageContent(
+                        messageId = msg.id,
+                        text = displayContent,
+                        isDark = isDark
                     )
                 }
             }
@@ -498,6 +516,196 @@ private fun AnimatedMessageItem(msg: ChatMessage, isDark: Boolean) {
                     tint = Color.White,
                     modifier = Modifier.size(14.dp)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AssistantMessageContent(
+    messageId: String,
+    text: String,
+    isDark: Boolean
+) {
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+    val sections = remember(text) { text.split(Regex("\\n\\s*\\n")).filter { it.isNotBlank() } }
+    val needCollapse = sections.size > 4 || text.length > 420
+    var expanded by rememberSaveable(messageId) { mutableStateOf(false) }
+    val visibleText = if (!needCollapse || expanded) {
+        text
+    } else {
+        sections.take(3).joinToString("\n\n")
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        MarkdownText(
+            text = visibleText,
+            isDark = isDark,
+            config = MarkdownConfig.ChatReadable
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(
+                onClick = {
+                    clipboardManager.setText(AnnotatedString(stripMarkdownForCopy(text)))
+                    Toast.makeText(context, "已复制内容", Toast.LENGTH_SHORT).show()
+                },
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ContentCopy,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("复制内容", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            }
+
+            if (needCollapse) {
+                TextButton(
+                    onClick = { expanded = !expanded },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(if (expanded) "收起详情" else "展开详情", fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NormalAssistantSectionCard(
+    section: AssistantSection,
+    isDark: Boolean,
+    onCopy: () -> Unit
+) {
+    val cardBg = if (isDark) Color(0xFF1F2230) else Color(0xFFF3F7FF)
+    val cardBorder = if (isDark) Color(0xFF3A4B6A) else Color(0xFFBFD7FF)
+    val titleColor = if (isDark) Color(0xFF9CC2FF) else Color(0xFF285EA8)
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, cardBorder, RoundedCornerShape(12.dp)),
+        color = cardBg,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            section.title?.let {
+                Text(
+                    text = it,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = titleColor
+                )
+            }
+
+            MarkdownText(
+                text = section.body.ifBlank { section.fullText },
+                isDark = isDark,
+                config = MarkdownConfig.ChatReadable
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(
+                    onClick = onCopy,
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text("复制本段", fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+        }
+    }
+}
+
+private fun stripMarkdownForCopy(text: String): String {
+    return text
+        .replace("**", "")
+        .replace("__", "")
+        .replace("`", "")
+        .replace(Regex("(?m)^#{1,6}\\s*"), "")
+        .replace(Regex("(?m)^\\s*>\\s?"), "")
+        .replace(Regex("\\[([^\\]]+)]\\(([^)]+)\\)"), "$1")
+        .replace(Regex("(?m)^\\s*[-*+]\\s+"), "• ")
+        .replace(Regex("\\n{3,}"), "\n\n")
+        .trim()
+}
+
+@Composable
+private fun HighlightedAssistantSectionCard(
+    section: AssistantSection,
+    isDark: Boolean,
+    onCopy: () -> Unit
+) {
+    val cardBg = if (isDark) Color(0xFF242417) else Color(0xFFFFF8E8)
+    val cardBorder = if (isDark) Color(0xFF5F5322) else Color(0xFFFFD777)
+    val titleColor = if (isDark) Color(0xFFFFD777) else Color(0xFF8A5D00)
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, cardBorder, RoundedCornerShape(12.dp)),
+        color = cardBg,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            section.title?.let {
+                Text(
+                    text = it,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = titleColor
+                )
+            }
+
+            MarkdownText(
+                text = section.body.ifBlank { section.fullText },
+                isDark = isDark,
+                config = MarkdownConfig.ChatReadable
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(
+                    onClick = onCopy,
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text("复制本段", fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                }
             }
         }
     }
@@ -827,3 +1035,70 @@ data class ChatSessionInfo(
     val messageCount: Int,
     val isPinned: Boolean
 )
+
+private data class AssistantSection(
+    val fullText: String,
+    val title: String?,
+    val body: String,
+    val highlighted: Boolean
+)
+
+private val highlightedSectionKeywords = listOf(
+    "总结",
+    "结论",
+    "执行步骤",
+    "步骤",
+    "建议",
+    "注意事项",
+    "行动计划",
+    "下一步",
+    "提醒"
+)
+
+private fun parseAssistantSections(text: String): List<AssistantSection> {
+    val rawSections = text.split(Regex("\\n\\s*\\n")).filter { it.isNotBlank() }
+    return rawSections.map { raw ->
+        val trimmed = raw.trim()
+        val lines = trimmed.lines().filter { it.isNotBlank() }
+        if (lines.isEmpty()) {
+            return@map AssistantSection(
+                fullText = trimmed,
+                title = null,
+                body = trimmed,
+                highlighted = false
+            )
+        }
+
+        val firstLine = lines.first()
+        val headingMatch = Regex("^#{1,4}\\s*(.+)$").find(firstLine)
+        val plainTitleMatch = Regex("^([\\u4e00-\\u9fa5A-Za-z0-9 ]{2,20})\\s*[：:]\\s*(.*)$").find(firstLine)
+
+        val extractedTitle = when {
+            headingMatch != null -> headingMatch.groupValues[1].trim()
+            plainTitleMatch != null -> plainTitleMatch.groupValues[1].trim()
+            else -> null
+        }
+
+        val body = when {
+            headingMatch != null -> lines.drop(1).joinToString("\n").trim()
+            plainTitleMatch != null -> {
+                val firstBody = plainTitleMatch.groupValues[2].trim()
+                val tail = lines.drop(1).joinToString("\n").trim()
+                listOf(firstBody, tail).filter { it.isNotBlank() }.joinToString("\n")
+            }
+            else -> trimmed
+        }
+
+        val titleForCheck = extractedTitle ?: firstLine
+        val highlighted = highlightedSectionKeywords.any { keyword ->
+            titleForCheck.contains(keyword, ignoreCase = false)
+        }
+
+        AssistantSection(
+            fullText = trimmed,
+            title = extractedTitle,
+            body = body.ifBlank { trimmed },
+            highlighted = highlighted
+        )
+    }
+}

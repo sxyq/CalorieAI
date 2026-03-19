@@ -23,8 +23,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.calorieai.app.BuildConfig
+import com.calorieai.app.R
 import com.calorieai.app.ui.components.SettingsTopAppBar
+import com.calorieai.app.ui.components.markdown.MarkdownConfig
+import com.calorieai.app.ui.components.markdown.MarkdownText
 import com.calorieai.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -106,8 +110,8 @@ fun AboutScreen(
 
             SettingsSection(title = "帮助") {
                 AboutItem(
-                    title = "使用文档",
-                    subtitle = "查看使用指南",
+                    title = "使用手册",
+                    subtitle = "查看完整用户操作教程",
                     icon = Icons.Default.MenuBook,
                     showArrow = true,
                     onClick = { showUsageDocDialog = true }
@@ -456,96 +460,107 @@ private fun PrivacyDialog(onDismiss: () -> Unit) {
 
 @Composable
 private fun UsageDocDialog(onDismiss: () -> Unit) {
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(24.dp)
+    val context = LocalContext.current
+    val isDark = isSystemInDarkTheme()
+    val scrollState = rememberScrollState()
+    val tutorialMarkdown = remember {
+        loadUserTutorialMarkdown(context)
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnClickOutside = false
+        )
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
         ) {
             Column(
-                modifier = Modifier.padding(24.dp)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                Text(
-                    text = "使用文档",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Column(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(400.dp)
-                        .verticalScroll(rememberScrollState())
+                        .padding(bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = """
-                            CalorieAI 使用指南
-                            
-                            📱 首页
-                            • 查看今日饮食记录和热量摄入
-                            • 点击日期选择器查看历史记录
-                            • 使用悬浮AI助手快速添加食物
-                            
-                            📊 概览
-                            • 查看本月活跃度热力图
-                            • 查看月度数据总结
-                            • 快捷入口访问详细统计
-                            
-                            👤 我的
-                            • 管理身体档案
-                            • 设置健康目标
-                            • 配置应用偏好
-                            
-                            🍽️ 添加食物
-                            1. 点击首页的添加按钮
-                            2. 选择添加方式：
-                               • AI识别：描述食物让AI分析
-                               • 手动输入：直接输入营养数据
-                               • 拍照识别：拍摄食物照片
-                            
-                            ⚖️ 体重记录
-                            • 定期记录体重变化
-                            • 查看体重趋势图表
-                            • 设置目标体重
-                            
-                            💧 饮水记录
-                            • 记录每日饮水量
-                            • 设置饮水提醒
-                            • 查看饮水统计
-                            
-                            🏃 运动记录
-                            • 记录运动消耗
-                            • 选择运动类型
-                            • 查看运动统计
-                            
-                            ⚙️ 设置
-                            • 外观：主题、深色模式
-                            • AI配置：设置API密钥
-                            • 数据备份：导出/导入数据
-                            
-                            💡 小贴士
-                            • 坚持每天记录，数据更准确
-                            • 使用AI功能快速添加食物
-                            • 定期查看统计了解健康趋势
-                        """.trimIndent(),
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = "CalorieAI 使用手册",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(onClick = onDismiss) {
+                        Text("关闭")
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f))
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = "已接入最新用户手册内容，建议从“第一章：初次使用设置”开始阅读。",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.End)
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(scrollState)
+                        .padding(horizontal = 4.dp)
                 ) {
-                    Text("关闭")
+                    MarkdownText(
+                        text = tutorialMarkdown,
+                        config = MarkdownConfig.ChatReadable,
+                        isDark = isDark,
+                        onLinkClick = { url -> openUrl(context, url) }
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
     }
+}
+
+private fun loadUserTutorialMarkdown(context: Context): String {
+    return runCatching {
+        context.resources
+            .openRawResource(R.raw.calorieai_user_tutorial)
+            .bufferedReader()
+            .use { it.readText() }
+            .let(::sanitizeUserTutorialMarkdown)
+    }.getOrElse {
+        """
+        # 使用手册加载失败
+        
+        无法读取内置用户手册文件，请稍后重试。
+        """.trimIndent()
+    }
+}
+
+private fun sanitizeUserTutorialMarkdown(raw: String): String {
+    val withoutImageAppendix = raw.substringBefore("## 📷 图片占位符清单").trim()
+    val cleanedLines = withoutImageAppendix.lines().filterNot { line ->
+        val trimmed = line.trim()
+        trimmed.contains("【图片插入位置") ||
+            trimmed.contains("此处插入：") ||
+            trimmed.contains("图片说明：")
+    }
+    return cleanedLines.joinToString("\n").replace(Regex("\n{3,}"), "\n\n").trim()
 }
 
 @Composable
