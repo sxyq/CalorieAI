@@ -24,6 +24,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.calorieai.app.data.model.APICallRecord
 import com.calorieai.app.data.model.AIConfig
 import com.calorieai.app.data.model.AIConfigPresets
 import com.calorieai.app.data.model.AIProtocol
@@ -32,6 +33,9 @@ import androidx.compose.ui.graphics.Color
 import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.ui.components.interactiveScale
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,6 +93,7 @@ fun AIConfigDetailScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
         ) {
             // 预设配置提示
@@ -210,6 +215,14 @@ fun AIConfigDetailScreen(
                 onToggle = viewModel::updateImageUnderstanding
             )
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 调用明细日志（输入 / 返回）
+            APICallDetailsSection(
+                records = uiState.recentCallRecords,
+                canShowLogs = uiState.isEditing || uiState.isPreset
+            )
+
             Spacer(modifier = Modifier.height(32.dp))
 
             // 保存按钮（预设配置不显示）
@@ -259,6 +272,166 @@ fun AIConfigDetailScreen(
             },
             onDismiss = { showPresetSelector = false }
         )
+    }
+}
+
+@Composable
+private fun APICallDetailsSection(
+    records: List<APICallRecord>,
+    canShowLogs: Boolean
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.ReceiptLong,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "调用明细日志",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        if (!canShowLogs) {
+            Text(
+                text = "保存配置后可查看输入与返回日志",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            return@Column
+        }
+
+        if (records.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .liquidGlass(
+                        shape = RoundedCornerShape(12.dp),
+                        tint = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.35f)
+                    )
+                    .padding(12.dp)
+            ) {
+                Text(
+                    text = "暂无调用记录",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            return@Column
+        }
+
+        records.forEach { record ->
+            APICallLogItem(record = record)
+        }
+    }
+}
+
+@Composable
+private fun APICallLogItem(record: APICallRecord) {
+    var expanded by remember(record.id) { mutableStateOf(false) }
+    val timeText = remember(record.timestamp) {
+        SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault()).format(Date(record.timestamp))
+    }
+    val statusColor = if (record.isSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    val statusText = if (record.isSuccess) "成功" else "失败"
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .liquidGlass(
+                shape = RoundedCornerShape(12.dp),
+                tint = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.45f)
+            )
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = timeText,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.labelMedium,
+                color = statusColor,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = record.modelId,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Medium
+            )
+        }
+
+        Text(
+            text = "输入 ${record.promptTokens} | 输出 ${record.completionTokens} | 耗时 ${record.duration}ms",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        TextButton(
+            onClick = { expanded = !expanded },
+            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+        ) {
+            Icon(
+                imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(if (expanded) "收起输入/返回" else "展开输入/返回")
+        }
+
+        if (expanded) {
+            Text(
+                text = "输入",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.tertiary,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = record.inputText.ifBlank { "(空)" },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Text(
+                text = "返回",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = record.outputText.ifBlank { "(空)" },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            if (!record.errorMessage.isNullOrBlank()) {
+                Text(
+                    text = "错误：${record.errorMessage}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
     }
 }
 
@@ -709,76 +882,30 @@ fun PresetSelectorDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // OpenAI 预设
-                PresetCategory(title = "OpenAI")
+                PresetCategory(title = "LongCat")
                 PresetItem(
-                    icon = "🅞",
-                    name = AIConfigPresets.OPENAI_GPT5.name,
-                    description = "最新旗舰模型",
-                    onClick = { onPresetSelected(AIConfigPresets.OPENAI_GPT5) }
+                    icon = "🐱",
+                    name = AIConfigPresets.LONGCAT_FLASH_OMNI.name,
+                    description = "全能模型（推荐）",
+                    onClick = { onPresetSelected(AIConfigPresets.LONGCAT_FLASH_OMNI) }
                 )
                 PresetItem(
-                    icon = "🅞",
-                    name = AIConfigPresets.OPENAI_GPT4O.name,
-                    description = "多模态模型",
-                    onClick = { onPresetSelected(AIConfigPresets.OPENAI_GPT4O) }
-                )
-
-                // Claude 预设
-                PresetCategory(title = "Anthropic")
-                PresetItem(
-                    icon = "🅒",
-                    name = AIConfigPresets.CLAUDE_4_6_OPUS.name,
-                    description = "最强推理能力",
-                    onClick = { onPresetSelected(AIConfigPresets.CLAUDE_4_6_OPUS) }
+                    icon = "🐱",
+                    name = AIConfigPresets.LONGCAT_FLASH_CHAT.name,
+                    description = "通用对话",
+                    onClick = { onPresetSelected(AIConfigPresets.LONGCAT_FLASH_CHAT) }
                 )
                 PresetItem(
-                    icon = "🅒",
-                    name = AIConfigPresets.CLAUDE_3_5_SONNET.name,
-                    description = "均衡性能",
-                    onClick = { onPresetSelected(AIConfigPresets.CLAUDE_3_5_SONNET) }
-                )
-
-                // 国产模型
-                PresetCategory(title = "国产模型")
-                PresetItem(
-                    icon = "🅚",
-                    name = AIConfigPresets.KIMI_K2_5.name,
-                    description = "Moonshot",
-                    onClick = { onPresetSelected(AIConfigPresets.KIMI_K2_5) }
+                    icon = "🐱",
+                    name = AIConfigPresets.LONGCAT_FLASH_THINKING.name,
+                    description = "深度思考",
+                    onClick = { onPresetSelected(AIConfigPresets.LONGCAT_FLASH_THINKING) }
                 )
                 PresetItem(
-                    icon = "🅖",
-                    name = AIConfigPresets.GLM_4_PLUS.name,
-                    description = "智谱AI",
-                    onClick = { onPresetSelected(AIConfigPresets.GLM_4_PLUS) }
-                )
-                PresetItem(
-                    icon = "🅠",
-                    name = AIConfigPresets.QWEN_2_5_MAX.name,
-                    description = "阿里云",
-                    onClick = { onPresetSelected(AIConfigPresets.QWEN_2_5_MAX) }
-                )
-                PresetItem(
-                    icon = "🅓",
-                    name = AIConfigPresets.DEEPSEEK_V3.name,
-                    description = "深度求索",
-                    onClick = { onPresetSelected(AIConfigPresets.DEEPSEEK_V3) }
-                )
-                PresetItem(
-                    icon = "🅓",
-                    name = AIConfigPresets.DEEPSEEK_R1.name,
-                    description = "深度求索 - 推理模型",
-                    onClick = { onPresetSelected(AIConfigPresets.DEEPSEEK_R1) }
-                )
-
-                // Google
-                PresetCategory(title = "Google")
-                PresetItem(
-                    icon = "🅖",
-                    name = AIConfigPresets.GEMINI_2_0_PRO.name,
-                    description = "多模态模型",
-                    onClick = { onPresetSelected(AIConfigPresets.GEMINI_2_0_PRO) }
+                    icon = "🐱",
+                    name = AIConfigPresets.LONGCAT_FLASH_LITE.name,
+                    description = "轻量快速",
+                    onClick = { onPresetSelected(AIConfigPresets.LONGCAT_FLASH_LITE) }
                 )
             }
         },

@@ -1,10 +1,11 @@
 package com.calorieai.app.ui.components
 
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -23,30 +24,41 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.ui.components.markdown.MarkdownText
+import com.calorieai.app.ui.components.markdown.MarkdownConfig
 import com.calorieai.app.ui.screens.ai.AIChatViewModel
 import com.calorieai.app.ui.screens.ai.ChatMessage
+import com.calorieai.app.service.voice.VoiceInputHelper
+import com.calorieai.app.service.voice.VoiceState
 import com.calorieai.app.ui.theme.GlassDarkColors
 import com.calorieai.app.ui.theme.GlassLightColors
 import kotlinx.coroutines.launch
 
 /** 三种形态：悬浮球、迷你窗口、全屏（外部处理） */
 enum class AIWidgetState { FLOATING, MINI, FULLSCREEN }
+enum class AIWidgetMode { HEALTH_ONLY, RECIPE_ASSISTANT }
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun AIChatWidget(
-    onExpandToFullScreen: () -> Unit,
+    onExpandToFullScreen: (String) -> Unit,
+    mode: AIWidgetMode = AIWidgetMode.HEALTH_ONLY,
     widgetState: AIWidgetState = AIWidgetState.FLOATING,
     onWidgetStateChange: (AIWidgetState) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     AnimatedContent(
         targetState = widgetState,
@@ -71,10 +83,11 @@ fun AIChatWidget(
         when (state) {
             AIWidgetState.FLOATING -> FloatingButton { onWidgetStateChange(AIWidgetState.MINI) }
             AIWidgetState.MINI -> AIChatMiniWindow(
+                mode = mode,
                 onDismiss = { onWidgetStateChange(AIWidgetState.FLOATING) },
-                onExpand = {
+                onExpand = { sessionId ->
                     onWidgetStateChange(AIWidgetState.FULLSCREEN)
-                    onExpandToFullScreen()
+                    onExpandToFullScreen(sessionId)
                 }
             )
             else -> Box(Modifier.size(1.dp))
@@ -87,7 +100,7 @@ fun AIChatWidget(
 private fun FloatingButton(onClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     val scale by animateFloatAsState(
         if (isPressed) 0.9f else 1f,
@@ -137,15 +150,55 @@ private fun FloatingButton(onClick: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AIChatMiniWindow(
+    mode: AIWidgetMode,
     onDismiss: () -> Unit,
-    onExpand: () -> Unit,
+    onExpand: (String) -> Unit,
     viewModel: AIChatViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val scope = rememberCoroutineScope()
     var inputText by remember { mutableStateOf("") }
-    val isDark = isSystemInDarkTheme()
+    val context = LocalContext.current
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val voiceHelper = remember { VoiceInputHelper() }
+    val voiceState by voiceHelper.voiceState.collectAsState()
+    var showVoiceDialog by remember { mutableStateOf(false) }
+    var isVoiceListening by remember { mutableStateOf(false) }
+    var showPermissionDialog by remember { mutableStateOf(false) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            startWidgetVoiceInput(
+                context = context,
+                voiceHelper = voiceHelper,
+                onStart = {
+                    isVoiceListening = true
+                    showVoiceDialog = true
+                },
+                onText = { recognized ->
+                    inputText = if (inputText.isBlank()) recognized else "$inputText $recognized"
+                }
+            )
+        } else {
+            showPermissionDialog = true
+        }
+    }
+
+    LaunchedEffect(voiceState) {
+        when (voiceState) {
+            is VoiceState.Success -> {
+                isVoiceListening = false
+                showVoiceDialog = false
+            }
+            is VoiceState.Error -> {
+                isVoiceListening = false
+            }
+            else -> Unit
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -156,12 +209,31 @@ private fun AIChatMiniWindow(
     ) {
         Column(Modifier.fillMaxSize()) {
             // 头部
-            MiniHeader(uiState.isLoading, onExpand, onDismiss, isDark)
+            MiniHeader(
+                isLoading = uiState.isLoading,
+                onExpand = {
+                    viewModel.persistCurrentSession()
+                    onExpand(it)
+                },
+                onDismiss = onDismiss,
+                isDark = isDark,
+                sessionId = uiState.currentSessionId
+            )
 
             // 内容区
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (uiState.messages.isEmpty()) {
-                    QuickActions({ viewModel.sendMessage(it) }, isDark)
+                    QuickActions(
+                        mode = mode,
+                        onAction = { prompt ->
+                            if (mode == AIWidgetMode.HEALTH_ONLY) {
+                                viewModel.startHealthConsult()
+                            } else {
+                                viewModel.sendMessage(prompt)
+                            }
+                        },
+                        isDark = isDark
+                    )
                 } else {
                     MessageList(uiState.messages, uiState.isLoading, listState, scope, isDark)
                 }
@@ -176,8 +248,65 @@ private fun AIChatMiniWindow(
                     viewModel.sendMessage(inputText)
                     inputText = ""
                 },
+                onVoiceClick = {
+                    when {
+                        isVoiceListening -> {
+                            voiceHelper.stopListening()
+                            isVoiceListening = false
+                            showVoiceDialog = false
+                        }
+                        ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.RECORD_AUDIO
+                        ) == PackageManager.PERMISSION_GRANTED -> {
+                            startWidgetVoiceInput(
+                                context = context,
+                                voiceHelper = voiceHelper,
+                                onStart = {
+                                    isVoiceListening = true
+                                    showVoiceDialog = true
+                                },
+                                onText = { recognized ->
+                                    inputText = if (inputText.isBlank()) recognized else "$inputText $recognized"
+                                }
+                            )
+                        }
+                        else -> permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                },
                 isDark = isDark
             )
+        }
+    }
+
+    VoiceInputDialog(
+        isVisible = showVoiceDialog,
+        voiceState = voiceState,
+        onDismiss = {
+            voiceHelper.stopListening()
+            isVoiceListening = false
+            showVoiceDialog = false
+        },
+        onStopRecording = {
+            voiceHelper.stopListening()
+            isVoiceListening = false
+        }
+    )
+
+    if (showPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showPermissionDialog = false },
+            title = { Text("需要录音权限") },
+            text = { Text("语音输入功能需要录音权限，请在系统设置中开启后重试。") },
+            confirmButton = {
+                TextButton(onClick = { showPermissionDialog = false }) { Text("知道了") }
+            }
+        )
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            voiceHelper.destroy()
         }
     }
 }
@@ -186,9 +315,10 @@ private fun AIChatMiniWindow(
 @Composable
 private fun MiniHeader(
     isLoading: Boolean,
-    onExpand: () -> Unit,
+    onExpand: (String) -> Unit,
     onDismiss: () -> Unit,
-    isDark: Boolean
+    isDark: Boolean,
+    sessionId: String
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -228,7 +358,7 @@ private fun MiniHeader(
         }
 
         Row {
-            GlassIconButton(onExpand, isDark, Icons.Default.OpenInFull, "全屏")
+            GlassIconButton({ onExpand(sessionId) }, isDark, Icons.Default.OpenInFull, "全屏")
             Spacer(Modifier.width(4.dp))
             GlassIconButton(onDismiss, isDark, Icons.Default.Close, "关闭")
         }
@@ -252,7 +382,7 @@ private fun GlassIconButton(onClick: () -> Unit, isDark: Boolean, icon: ImageVec
 
 /** 快捷操作 */
 @Composable
-private fun QuickActions(onAction: (String) -> Unit, isDark: Boolean) {
+private fun QuickActions(mode: AIWidgetMode, onAction: (String) -> Unit, isDark: Boolean) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text(
             "快捷功能",
@@ -262,12 +392,24 @@ private fun QuickActions(onAction: (String) -> Unit, isDark: Boolean) {
         )
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            QuickActionCard(Icons.Default.Assessment, "热量评估", Color(0xFFFF6B6B),
-                "帮我评估一下最近一周的热量摄入是否合理", onAction, Modifier.weight(1f), isDark)
-            QuickActionCard(Icons.Default.RestaurantMenu, "菜谱规划", Color(0xFF4ECDC4),
-                "帮我规划一下今天的健康菜谱", onAction, Modifier.weight(1f), isDark)
-            QuickActionCard(Icons.Default.HealthAndSafety, "健康咨询", Color(0xFFFFE66D),
-                "我想咨询一些营养健康问题", onAction, Modifier.weight(1f), isDark)
+            if (mode == AIWidgetMode.HEALTH_ONLY) {
+                QuickActionCard(
+                    icon = Icons.Default.HealthAndSafety,
+                    title = "健康咨询",
+                    color = Color(0xFFFFE66D),
+                    prompt = "我想咨询一些营养健康问题",
+                    onClick = onAction,
+                    modifier = Modifier.weight(1f),
+                    isDark = isDark
+                )
+            } else {
+                QuickActionCard(Icons.Default.Assessment, "热量评估", Color(0xFFFF6B6B),
+                    "帮我评估一下最近一周的热量摄入是否合理", onAction, Modifier.weight(1f), isDark)
+                QuickActionCard(Icons.Default.RestaurantMenu, "菜谱规划", Color(0xFF4ECDC4),
+                    "帮我规划一下今天的健康菜谱", onAction, Modifier.weight(1f), isDark)
+                QuickActionCard(Icons.Default.HealthAndSafety, "健康咨询", Color(0xFFFFE66D),
+                    "我想咨询一些营养健康问题", onAction, Modifier.weight(1f), isDark)
+            }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -283,7 +425,10 @@ private fun QuickActions(onAction: (String) -> Unit, isDark: Boolean) {
                 Text("你好！我是你的AI助手", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "📊 评估热量消耗\n🍽️ 规划健康菜谱\n💬 解答营养问题",
+                    if (mode == AIWidgetMode.HEALTH_ONLY)
+                        "💬 健康咨询\n📈 近期记录解读\n✅ 可执行建议"
+                    else
+                        "📊 评估热量消耗\n🍽️ 规划健康菜谱\n💬 解答营养问题",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -364,6 +509,21 @@ private fun MessageList(
 @Composable
 private fun MessageItem(message: ChatMessage, isDark: Boolean) {
     val isUser = message.isFromUser
+    val compactMarkdownConfig = MarkdownConfig.Compact
+    val miniMarkdownConfig = remember(compactMarkdownConfig) {
+        compactMarkdownConfig.copy(
+            textStyle = TextStyle(
+                fontSize = 13.sp,
+                lineHeight = 19.sp
+            ),
+            h1Style = TextStyle(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold),
+            h2Style = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold),
+            h3Style = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
+            h4Style = TextStyle(fontSize = 13.sp, lineHeight = 19.sp, fontWeight = FontWeight.SemiBold),
+            paragraphSpacing = 3,
+            headingSpacing = 6
+        )
+    }
 
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start) {
         if (!isUser) {
@@ -378,19 +538,27 @@ private fun MessageItem(message: ChatMessage, isDark: Boolean) {
 
         Box(
             modifier = Modifier
-                .widthIn(max = 280.dp)
+                .widthIn(max = 252.dp)
                 .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp, bottomStart = if (isUser) 14.dp else 4.dp, bottomEnd = if (isUser) 4.dp else 14.dp))
                 .background(if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface.copy(0.6f))
-                .padding(12.dp)
+                .padding(horizontal = 10.dp, vertical = 8.dp)
         ) {
             if (isUser) {
-                Text(message.content, style = MaterialTheme.typography.bodySmall, color = Color.White)
+                Text(
+                    message.content,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    ),
+                    color = Color.White
+                )
             } else {
                 // AI消息使用Markdown渲染提高可读性
                 MarkdownText(
                     text = message.content,
                     isDark = isDark,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    config = miniMarkdownConfig
                 )
             }
         }
@@ -404,6 +572,7 @@ private fun GlassInput(
     onInputChange: (String) -> Unit,
     isLoading: Boolean,
     onSend: () -> Unit,
+    onVoiceClick: () -> Unit,
     isDark: Boolean
 ) {
     val isLocked = isLoading
@@ -417,7 +586,7 @@ private fun GlassInput(
             .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        InputIconButton({ }, Icons.Default.Mic, "语音", MaterialTheme.colorScheme.primary)
+        InputIconButton(onVoiceClick, Icons.Default.Mic, "语音", MaterialTheme.colorScheme.primary)
 
         androidx.compose.foundation.text.BasicTextField(
             value = inputText,
@@ -466,6 +635,28 @@ private fun GlassInput(
     }
 }
 
+private fun startWidgetVoiceInput(
+    context: android.content.Context,
+    voiceHelper: VoiceInputHelper,
+    onStart: () -> Unit,
+    onText: (String) -> Unit
+) {
+    if (!voiceHelper.isRecognitionAvailable(context)) {
+        android.widget.Toast.makeText(context, "设备不支持语音识别", android.widget.Toast.LENGTH_SHORT).show()
+        return
+    }
+
+    onStart()
+    voiceHelper.startListening(
+        context = context,
+        onResult = { result -> onText(result) },
+        onError = { error ->
+            android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
+        },
+        onPartialResult = { partial -> onText(partial) }
+    )
+}
+
 /** 输入图标按钮 */
 @Composable
 private fun InputIconButton(onClick: () -> Unit, icon: ImageVector, desc: String, tint: Color) {
@@ -480,6 +671,8 @@ private fun InputIconButton(onClick: () -> Unit, icon: ImageVector, desc: String
 /** 打字指示器 */
 @Composable
 private fun TypingIndicator(isDark: Boolean) {
+    val transition = rememberInfiniteTransition(label = "widgetTyping")
+
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
         Box(
             Modifier.size(28.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
@@ -497,7 +690,7 @@ private fun TypingIndicator(isDark: Boolean) {
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                 repeat(3) { index ->
-                    val alpha by rememberInfiniteTransition("typing$index").animateFloat(
+                    val alpha by transition.animateFloat(
                         0.3f, 1f, infiniteRepeatable(tween(600, delayMillis = index * 100), RepeatMode.Reverse)
                     )
                     Box(Modifier.size(6.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary.copy(alpha)))

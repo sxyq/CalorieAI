@@ -19,7 +19,7 @@ interface ExerciseRecordDao {
     @Query("SELECT * FROM exercise_records WHERE id = :id")
     suspend fun getRecordById(id: String): ExerciseRecord?
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRecord(record: ExerciseRecord)
 
     @Update
@@ -30,6 +30,9 @@ interface ExerciseRecordDao {
 
     @Query("DELETE FROM exercise_records WHERE id = :id")
     suspend fun deleteRecordById(id: String)
+
+    @Query("DELETE FROM exercise_records")
+    suspend fun deleteAll()
 
     @Query("SELECT SUM(caloriesBurned) FROM exercise_records WHERE recordTime >= :startTime AND recordTime < :endTime")
     suspend fun getTotalCaloriesBurnedBetween(startTime: Long, endTime: Long): Int?

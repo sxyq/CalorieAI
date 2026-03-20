@@ -2,6 +2,7 @@ package com.calorieai.app.ui.components
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -39,12 +40,12 @@ data class HeatmapData(
  * 热力图颜色配置 - Glass 主题
  */
 data class HeatmapColorScheme(
-    val emptyColor: Color = Color.Transparent,
-    val level1Color: Color = GlassLightColors.Primary.copy(alpha = 0.2f),
-    val level2Color: Color = GlassLightColors.Primary.copy(alpha = 0.4f),
-    val level3Color: Color = GlassLightColors.Primary.copy(alpha = 0.6f),
-    val level4Color: Color = GlassLightColors.Primary.copy(alpha = 0.8f),
-    val level5Color: Color = GlassLightColors.Primary
+    val emptyColor: Color,
+    val level1Color: Color,
+    val level2Color: Color,
+    val level3Color: Color,
+    val level4Color: Color,
+    val level5Color: Color
 ) {
     fun getColorForLevel(level: Int): Color {
         return when (level) {
@@ -57,6 +58,30 @@ data class HeatmapColorScheme(
             else -> emptyColor
         }
     }
+
+    companion object {
+        fun forTheme(isDark: Boolean): HeatmapColorScheme {
+            return if (isDark) {
+                HeatmapColorScheme(
+                    emptyColor = Color(0xFF2D3440),
+                    level1Color = Color(0xFF214A67),
+                    level2Color = Color(0xFF1E6F8C),
+                    level3Color = Color(0xFF1F949A),
+                    level4Color = Color(0xFF38B27F),
+                    level5Color = Color(0xFF8BD450)
+                )
+            } else {
+                HeatmapColorScheme(
+                    emptyColor = Color(0xFFE6EAF0),
+                    level1Color = Color(0xFFC7E8F5),
+                    level2Color = Color(0xFF87CDE8),
+                    level3Color = Color(0xFF3FAFD4),
+                    level4Color = Color(0xFF1F8AB6),
+                    level5Color = Color(0xFF0E5A8A)
+                )
+            }
+        }
+    }
 }
 
 /**
@@ -67,13 +92,14 @@ fun MonthHeatmap(
     yearMonth: YearMonth,
     data: List<HeatmapData>,
     modifier: Modifier = Modifier,
-    colorScheme: HeatmapColorScheme = HeatmapColorScheme(),
+    colorScheme: HeatmapColorScheme? = null,
     maxValue: Float? = null,
     onDayClick: ((LocalDate) -> Unit)? = null,
     showWeekdayLabels: Boolean = true,
     title: String? = null,
     isDark: Boolean = false
 ) {
+    val appliedColorScheme = colorScheme ?: HeatmapColorScheme.forTheme(isDark)
     val calculatedMaxValue = maxValue ?: data.maxOfOrNull { it.value }?.takeIf { it > 0 } ?: 1f
     val dataMap = data.associateBy { it.date }
     
@@ -120,7 +146,7 @@ fun MonthHeatmap(
                             date = date,
                             level = if (isCurrentMonth) level else 0,
                             isCurrentMonth = isCurrentMonth,
-                            colorScheme = colorScheme,
+                            colorScheme = appliedColorScheme,
                             onClick = onDayClick?.let { { it(date) } },
                             isDark = isDark
                         )
@@ -138,11 +164,12 @@ fun MonthHeatmap(
 fun CompactHeatmap(
     data: List<HeatmapData>,
     modifier: Modifier = Modifier,
-    colorScheme: HeatmapColorScheme = HeatmapColorScheme(),
+    colorScheme: HeatmapColorScheme? = null,
     maxValue: Float? = null,
     onDayClick: ((LocalDate) -> Unit)? = null,
     isDark: Boolean = false
 ) {
+    val appliedColorScheme = colorScheme ?: HeatmapColorScheme.forTheme(isDark)
     val calculatedMaxValue = maxValue ?: data.maxOfOrNull { it.value }?.takeIf { it > 0 } ?: 1f
     val dataMap = data.associateBy { it.date }
     
@@ -174,7 +201,7 @@ fun CompactHeatmap(
                         
                         CompactHeatmapCell(
                             level = level,
-                            colorScheme = colorScheme,
+                            colorScheme = appliedColorScheme,
                             onClick = onDayClick?.let { { it(date) } },
                             isDark = isDark
                         )
@@ -272,6 +299,11 @@ private fun RowScope.HeatmapDayCell(
             .scale(scale)
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
+            .border(
+                width = if (level == 0 && isCurrentMonth) 0.8.dp else 0.dp,
+                color = if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(8.dp)
+            )
             .then(
                 if (onClick != null && isCurrentMonth) {
                     Modifier.clickable(
@@ -322,6 +354,11 @@ private fun CompactHeatmapCell(
             .scale(scale)
             .clip(RoundedCornerShape(3.dp))
             .background(backgroundColor)
+            .border(
+                width = if (level == 0) 0.8.dp else 0.dp,
+                color = if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(3.dp)
+            )
             .then(
                 if (onClick != null) {
                     Modifier.clickable(
@@ -340,10 +377,11 @@ private fun CompactHeatmapCell(
 @Composable
 fun HeatmapLegend(
     modifier: Modifier = Modifier,
-    colorScheme: HeatmapColorScheme = HeatmapColorScheme(),
+    colorScheme: HeatmapColorScheme? = null,
     labels: List<String> = listOf("无", "少", "中", "多", "很多"),
     isDark: Boolean = false
 ) {
+    val appliedColorScheme = colorScheme ?: HeatmapColorScheme.forTheme(isDark)
     val textColor = if (isDark) GlassDarkColors.OnSurfaceVariant else GlassLightColors.OnSurfaceVariant
     
     Row(
@@ -364,7 +402,12 @@ fun HeatmapLegend(
                     modifier = Modifier
                         .size(12.dp)
                         .clip(RoundedCornerShape(3.dp))
-                        .background(colorScheme.getColorForLevel(level))
+                        .background(appliedColorScheme.getColorForLevel(level))
+                        .border(
+                            width = if (level == 0) 0.8.dp else 0.dp,
+                            color = if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(3.dp)
+                        )
                 )
             }
         }

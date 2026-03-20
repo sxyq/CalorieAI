@@ -53,6 +53,10 @@ class APICallRecordRepository @Inject constructor(
         return apiCallRecordDao.getAllRecords()
     }
 
+    suspend fun getAllRecordsOnce(): List<APICallRecord> {
+        return apiCallRecordDao.getAllRecordsOnce()
+    }
+
     /**
      * 获取指定时间段的调用记录
      */

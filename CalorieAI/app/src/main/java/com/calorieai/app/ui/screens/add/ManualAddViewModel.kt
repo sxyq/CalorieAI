@@ -2,9 +2,11 @@ package com.calorieai.app.ui.screens.add
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calorieai.app.data.model.FavoriteRecipe
 import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.Ingredient
 import com.calorieai.app.data.model.MealType
+import com.calorieai.app.data.repository.FavoriteRecipeRepository
 import com.calorieai.app.data.repository.FoodRecordRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +17,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ManualAddViewModel @Inject constructor(
-    private val foodRecordRepository: FoodRecordRepository
+    private val foodRecordRepository: FoodRecordRepository,
+    private val favoriteRecipeRepository: FavoriteRecipeRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ManualAddUiState())
@@ -23,6 +26,14 @@ class ManualAddViewModel @Inject constructor(
 
     private inline fun updateState(update: (ManualAddUiState) -> ManualAddUiState) {
         _uiState.value = update(_uiState.value)
+    }
+
+    init {
+        viewModelScope.launch {
+            favoriteRecipeRepository.getAllFavorites().collect { favorites ->
+                updateState { it.copy(favoriteRecipes = favorites) }
+            }
+        }
     }
 
     fun updateFoodName(name: String) = updateState { it.copy(foodName = name) }
@@ -39,6 +50,7 @@ class ManualAddViewModel @Inject constructor(
     fun updateIron(iron: String) = updateState { it.copy(iron = iron) }
     fun updateVitaminC(vitaminC: String) = updateState { it.copy(vitaminC = vitaminC) }
     fun updateMealType(mealType: MealType) = updateState { it.copy(mealType = mealType) }
+    fun updateFavoriteMealType(mealType: MealType) = updateState { it.copy(favoriteMealType = mealType) }
     fun updateNotes(notes: String) = updateState { it.copy(notes = notes) }
 
     fun toggleNutritionDetails() = updateState { it.copy(includeNutritionDetails = !it.includeNutritionDetails) }
@@ -82,6 +94,41 @@ class ManualAddViewModel @Inject constructor(
             foodRecordRepository.addRecord(record)
         }
     }
+
+    fun addFavoriteRecipeToToday(recipe: FavoriteRecipe, onDone: () -> Unit = {}) {
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val mealType = _uiState.value.favoriteMealType
+            val record = FoodRecord(
+                foodName = recipe.foodName,
+                userInput = recipe.userInput,
+                totalCalories = recipe.totalCalories,
+                protein = recipe.protein,
+                carbs = recipe.carbs,
+                fat = recipe.fat,
+                fiber = recipe.fiber,
+                sugar = recipe.sugar,
+                sodium = recipe.sodium,
+                cholesterol = recipe.cholesterol,
+                saturatedFat = recipe.saturatedFat,
+                calcium = recipe.calcium,
+                iron = recipe.iron,
+                vitaminC = recipe.vitaminC,
+                vitaminA = recipe.vitaminA,
+                potassium = recipe.potassium,
+                mealType = mealType,
+                recordTime = now
+            )
+            foodRecordRepository.addRecord(record)
+            favoriteRecipeRepository.upsert(
+                recipe.copy(
+                    lastUsedAt = now,
+                    useCount = recipe.useCount + 1
+                )
+            )
+            onDone()
+        }
+    }
 }
 
 data class ManualAddUiState(
@@ -101,5 +148,7 @@ data class ManualAddUiState(
     val includeNutritionDetails: Boolean = true,
     val showExtendedNutrition: Boolean = false,
     val mealType: MealType = MealType.LUNCH,
-    val notes: String = ""
+    val favoriteMealType: MealType = MealType.LUNCH,
+    val notes: String = "",
+    val favoriteRecipes: List<FavoriteRecipe> = emptyList()
 )

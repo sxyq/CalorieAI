@@ -8,7 +8,11 @@ import com.calorieai.app.data.local.AITokenUsageDao
 import com.calorieai.app.data.local.APICallRecordDao
 import com.calorieai.app.data.local.AppDatabase
 import com.calorieai.app.data.local.ExerciseRecordDao
+import com.calorieai.app.data.local.FavoriteRecipeDao
 import com.calorieai.app.data.local.FoodRecordDao
+import com.calorieai.app.data.local.PantryIngredientDao
+import com.calorieai.app.data.local.RecipeGuideDao
+import com.calorieai.app.data.local.RecipePlanDao
 import com.calorieai.app.data.local.UserSettingsDao
 import com.calorieai.app.data.local.dao.WaterRecordDao
 import com.calorieai.app.data.local.dao.WeightRecordDao
@@ -34,7 +38,12 @@ object DatabaseModule {
             .addMigrations(
                 AppDatabase.MIGRATION_12_13, 
                 AppDatabase.MIGRATION_13_14,
-                AppDatabase.MIGRATION_14_15
+                AppDatabase.MIGRATION_14_15,
+                AppDatabase.MIGRATION_15_16,
+                AppDatabase.MIGRATION_16_17,
+                AppDatabase.MIGRATION_17_18,
+                AppDatabase.MIGRATION_18_19,
+                AppDatabase.MIGRATION_19_20
             )
             .fallbackToDestructiveMigration()
             .build()
@@ -83,5 +92,25 @@ object DatabaseModule {
     @Provides
     fun provideAPICallRecordDao(database: AppDatabase): APICallRecordDao {
         return database.apiCallRecordDao()
+    }
+
+    @Provides
+    fun provideFavoriteRecipeDao(database: AppDatabase): FavoriteRecipeDao {
+        return database.favoriteRecipeDao()
+    }
+
+    @Provides
+    fun providePantryIngredientDao(database: AppDatabase): PantryIngredientDao {
+        return database.pantryIngredientDao()
+    }
+
+    @Provides
+    fun provideRecipeGuideDao(database: AppDatabase): RecipeGuideDao {
+        return database.recipeGuideDao()
+    }
+
+    @Provides
+    fun provideRecipePlanDao(database: AppDatabase): RecipePlanDao {
+        return database.recipePlanDao()
     }
 }

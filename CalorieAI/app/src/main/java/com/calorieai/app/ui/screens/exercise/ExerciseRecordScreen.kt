@@ -33,11 +33,16 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExerciseRecordScreen(
+    selectedDate: String? = null,
     onNavigateBack: () -> Unit,
     viewModel: ExerciseRecordViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+
+    LaunchedEffect(selectedDate) {
+        selectedDate?.let { viewModel.setSelectedDateFromString(it) }
+    }
 
     Scaffold(
         topBar = {

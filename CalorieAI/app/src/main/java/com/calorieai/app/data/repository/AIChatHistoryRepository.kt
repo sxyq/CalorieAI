@@ -27,6 +27,10 @@ class AIChatHistoryRepository @Inject constructor(
         }
     }
 
+    suspend fun getAllRawHistory(): List<AIChatHistory> {
+        return aiChatHistoryDao.getAllHistoryOnce()
+    }
+
     suspend fun getHistoryBySessionId(sessionId: String): Pair<AIChatHistory?, List<ChatMessageData>> {
         val history = aiChatHistoryDao.getHistoryBySessionId(sessionId)
         val messages = history?.let {

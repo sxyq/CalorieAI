@@ -27,7 +27,7 @@ interface WaterRecordDao {
     @Query("SELECT * FROM water_records ORDER BY recordTime DESC LIMIT 1")
     suspend fun getLatestRecord(): WaterRecord?
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: WaterRecord): Long
 
     @Update
@@ -38,4 +38,7 @@ interface WaterRecordDao {
 
     @Query("DELETE FROM water_records WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("DELETE FROM water_records")
+    suspend fun deleteAll()
 }

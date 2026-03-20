@@ -1,12 +1,18 @@
 package com.calorieai.app.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 
 object AppColors {
     @Composable
-    fun getColors(darkTheme: Boolean = isSystemInDarkTheme()): GlassColorScheme {
+    private fun currentDarkTheme(): Boolean {
+        return MaterialTheme.colorScheme.background.luminance() < 0.5f
+    }
+
+    @Composable
+    fun getColors(darkTheme: Boolean = currentDarkTheme()): GlassColorScheme {
         return if (darkTheme) GlassDarkColors.toScheme() else GlassLightColors.toScheme()
     }
 
@@ -15,97 +21,97 @@ object AppColors {
     }
 
     @Composable
-    fun primary(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun primary(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.Primary else GlassLightColors.Primary
     }
 
     @Composable
-    fun secondary(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun secondary(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.Secondary else GlassLightColors.Secondary
     }
 
     @Composable
-    fun tertiary(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun tertiary(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.Tertiary else GlassLightColors.Tertiary
     }
 
     @Composable
-    fun surface(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun surface(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.Surface else GlassLightColors.Surface
     }
 
     @Composable
-    fun background(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun background(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.Background else GlassLightColors.Background
     }
 
     @Composable
-    fun onSurface(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun onSurface(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.OnSurface else GlassLightColors.OnSurface
     }
 
     @Composable
-    fun onSurfaceVariant(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun onSurfaceVariant(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.OnSurfaceVariant else GlassLightColors.OnSurfaceVariant
     }
 
     @Composable
-    fun textPrimary(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun textPrimary(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.TextPrimary else GlassLightColors.TextPrimary
     }
 
     @Composable
-    fun textSecondary(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun textSecondary(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.TextSecondary else GlassLightColors.TextSecondary
     }
 
     @Composable
-    fun cardBackground(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun cardBackground(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.CardBackground else GlassLightColors.CardBackground
     }
 
     @Composable
-    fun surfaceContainerHigh(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun surfaceContainerHigh(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.SurfaceContainerHigh else GlassLightColors.SurfaceContainerHigh
     }
 
     @Composable
-    fun outline(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun outline(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.Outline else GlassLightColors.Outline
     }
 
     @Composable
-    fun divider(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun divider(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.Divider else GlassLightColors.Divider
     }
 
     @Composable
-    fun success(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun success(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.Success else GlassLightColors.Success
     }
 
     @Composable
-    fun error(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun error(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.Error else GlassLightColors.Error
     }
 
     @Composable
-    fun warning(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun warning(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.Warning else GlassLightColors.Warning
     }
 
     @Composable
-    fun navigationBarBackground(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun navigationBarBackground(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.NavigationBarBackground else GlassLightColors.NavigationBarBackground
     }
 
     @Composable
-    fun secondaryContainer(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun secondaryContainer(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.SecondaryContainer else GlassLightColors.SecondaryContainer
     }
 
     @Composable
-    fun onPrimary(darkTheme: Boolean = isSystemInDarkTheme()): Color {
+    fun onPrimary(darkTheme: Boolean = currentDarkTheme()): Color {
         return if (darkTheme) GlassDarkColors.OnPrimary else GlassLightColors.OnPrimary
     }
 

@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.calorieai.app.data.model.FavoriteRecipe
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.model.NutritionReference
 import com.calorieai.app.data.model.NutritionCalculator
@@ -98,6 +99,15 @@ fun ManualAddScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
+
+                FavoriteRecipeQuickEntryCard(
+                    favorites = uiState.favoriteRecipes,
+                    selectedMealType = uiState.favoriteMealType,
+                    onMealTypeSelected = viewModel::updateFavoriteMealType,
+                    onQuickAdd = { recipe ->
+                        viewModel.addFavoriteRecipeToToday(recipe, onSaveComplete)
+                    }
+                )
 
                 // 食物名称输入 - 大卡片样式
                 FoodNameInput(
@@ -274,6 +284,137 @@ fun ManualAddScreen(
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun FavoriteRecipeQuickEntryCard(
+    favorites: List<FavoriteRecipe>,
+    selectedMealType: MealType,
+    onMealTypeSelected: (MealType) -> Unit,
+    onQuickAdd: (FavoriteRecipe) -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val displayFavorites = favorites.sortedByDescending { it.lastUsedAt ?: 0L }
+    val mealTypes = listOf(MealType.BREAKFAST, MealType.LUNCH, MealType.DINNER, MealType.SNACK)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .interactiveScale(interactionSource)
+            .liquidGlass(
+                shape = RoundedCornerShape(20.dp),
+                tint = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.35f),
+                blurRadius = 18f,
+                borderAlpha = 0.32f
+            )
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MenuBook,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "收藏菜谱快速录入",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "当前餐次：${getMealTypeName(selectedMealType)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                mealTypes.forEach { mealType ->
+                    FilterChip(
+                        selected = selectedMealType == mealType,
+                        onClick = { onMealTypeSelected(mealType) },
+                        label = { Text(getMealTypeName(mealType)) }
+                    )
+                }
+            }
+
+            if (displayFavorites.isEmpty()) {
+                Text(
+                    text = "暂无收藏菜谱，去菜谱页收藏后可在这里快速录入",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 220.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    displayFavorites.forEachIndexed { index, recipe ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onQuickAdd(recipe) }
+                                .padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = recipe.foodName,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "${recipe.totalCalories} 千卡 · 已使用 ${recipe.useCount} 次",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                text = "录入",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        if (index != displayFavorites.lastIndex) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
+                        }
+                    }
+                }
             }
         }
     }

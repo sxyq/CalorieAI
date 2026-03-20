@@ -3,20 +3,51 @@
     android:id="@+id/widget_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_background"
-    android:gravity="center"
+    android:background="@drawable/widget_bg_medium"
     android:orientation="vertical"
-    android:padding="16dp">
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="今日摄入"
-        android:textColor="@color/white"
-        android:textSize="14sp" />
+    android:padding="14dp">
 
     <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="CalorieAI Brief"
+            android:textColor="#F8FBFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="3月19日"
+            android:textColor="#D0E5FF"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/widget_status_chip"
         android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/widget_chip_accent"
+        android:paddingLeft="8dp"
+        android:paddingTop="3dp"
+        android:paddingRight="8dp"
+        android:paddingBottom="3dp"
+        android:text="进度 0%"
+        android:textColor="#F1F7FF"
+        android:textSize="9sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:gravity="center_vertical"
@@ -27,7 +58,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="0"
-            android:textColor="@color/white"
+            android:textColor="#FFFFFF"
             android:textSize="32sp"
             android:textStyle="bold" />
 
@@ -35,19 +66,113 @@
             android:id="@+id/widget_goal"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:text="/ 2000"
-            android:textColor="@color/white"
-            android:textSize="14sp" />
-
+            android:layout_marginStart="8dp"
+            android:text="/ 2000 千卡"
+            android:textColor="#D9EAFF"
+            android:textSize="12sp" />
     </LinearLayout>
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+    <ProgressBar
+        android:id="@+id/widget_calorie_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="6dp"
         android:layout_marginTop="4dp"
-        android:text="千卡"
-        android:textColor="@color/white"
-        android:textSize="12sp" />
+        android:max="100"
+        android:progress="0"
+        android:progressDrawable="@drawable/widget_progress_medium" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/widget_inner_card"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="饮水"
+                android:textColor="#BDD6FF"
+                android:textSize="9sp" />
+
+            <TextView
+                android:id="@+id/widget_water"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="0 ml"
+                android:textColor="#F7FBFF"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <Space
+            android:layout_width="6dp"
+            android:layout_height="1dp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/widget_inner_card"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="运动"
+                android:textColor="#BDD6FF"
+                android:textSize="9sp" />
+
+            <TextView
+                android:id="@+id/widget_exercise"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="0 千卡"
+                android:textColor="#F7FBFF"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <Space
+            android:layout_width="6dp"
+            android:layout_height="1dp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/widget_inner_card"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="记录"
+                android:textColor="#BDD6FF"
+                android:textSize="9sp" />
+
+            <TextView
+                android:id="@+id/widget_meals"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="0 条"
+                android:textColor="#F7FBFF"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
 
 </LinearLayout>

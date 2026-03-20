@@ -16,6 +16,7 @@ class WaterHistoryViewModel @Inject constructor(
     private val waterRecordRepository: WaterRecordRepository,
     private val userSettingsRepository: UserSettingsRepository
 ) : ViewModel() {
+    private val _selectedDateMillis = MutableStateFlow(System.currentTimeMillis())
 
     private val _waterRecords = MutableStateFlow<List<WaterRecord>>(emptyList())
     val waterRecords: StateFlow<List<WaterRecord>> = _waterRecords.asStateFlow()
@@ -32,7 +33,7 @@ class WaterHistoryViewModel @Inject constructor(
     init {
         loadWaterRecords()
         loadTargetAmount()
-        loadTodayAmount()
+        loadSelectedDateAmount()
         loadWeeklyAverage()
     }
 
@@ -53,46 +54,74 @@ class WaterHistoryViewModel @Inject constructor(
         }
     }
 
-    private fun loadTodayAmount() {
+    private fun loadSelectedDateAmount() {
         viewModelScope.launch {
-            val amount = waterRecordRepository.getTodayTotalAmount()
+            val dateStart = getStartOfDay(_selectedDateMillis.value)
+            val amount = waterRecordRepository.getTotalAmountByDate(dateStart)
             _todayAmount.value = amount
         }
     }
 
     private fun loadWeeklyAverage() {
         viewModelScope.launch {
-            val calendar = Calendar.getInstance()
-            val endOfToday = calendar.timeInMillis
+            val calendar = Calendar.getInstance().apply {
+                timeInMillis = _selectedDateMillis.value
+            }
+            val endOfDay = calendar.timeInMillis
             calendar.add(Calendar.DAY_OF_WEEK, -7)
             val startOfWeek = calendar.timeInMillis
             
-            val records = waterRecordRepository.getRecordsBetweenSync(startOfWeek, endOfToday)
+            val records = waterRecordRepository.getRecordsBetweenSync(startOfWeek, endOfDay)
             val totalAmount = records.sumOf { it.amount }
             val days = 7
             _weeklyAverage.value = if (days > 0) totalAmount.toFloat() / days else 0f
         }
     }
 
+    private fun getStartOfDay(timestamp: Long): Long {
+        val calendar = Calendar.getInstance().apply {
+            timeInMillis = timestamp
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        return calendar.timeInMillis
+    }
+
+    fun setSelectedDateFromString(dateStr: String) {
+        try {
+            val parts = dateStr.split("-")
+            if (parts.size == 3) {
+                val year = parts[0].toInt()
+                val month = parts[1].toInt() - 1
+                val day = parts[2].toInt()
+                val calendar = Calendar.getInstance().apply {
+                    set(year, month, day, 12, 0, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                _selectedDateMillis.value = calendar.timeInMillis
+                loadSelectedDateAmount()
+                loadWeeklyAverage()
+            }
+        } catch (_: Exception) {
+        }
+    }
+
     fun addWaterRecord(amount: Int, note: String?) {
         viewModelScope.launch {
-            val calendar = Calendar.getInstance()
-            val recordDate = calendar.apply {
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }.timeInMillis
+            val recordDate = getStartOfDay(_selectedDateMillis.value)
 
             val record = WaterRecord(
                 amount = amount,
+                recordTime = _selectedDateMillis.value,
                 recordDate = recordDate,
                 note = note
             )
             waterRecordRepository.insert(record)
             
-            // 刷新今日饮水量
-            loadTodayAmount()
+            // 刷新当前选中日期饮水量
+            loadSelectedDateAmount()
             loadWeeklyAverage()
         }
     }
@@ -100,7 +129,7 @@ class WaterHistoryViewModel @Inject constructor(
     fun deleteWaterRecord(record: WaterRecord) {
         viewModelScope.launch {
             waterRecordRepository.delete(record)
-            loadTodayAmount()
+            loadSelectedDateAmount()
             loadWeeklyAverage()
         }
     }

@@ -48,6 +48,30 @@ class UserSettingsRepository @Inject constructor(
     }
 
     /**
+     * 更新AI个性化饮食约束配置
+     */
+    suspend fun updateAIPersonalization(
+        dietaryAllergens: String?,
+        flavorPreferences: String?,
+        budgetPreference: String?,
+        maxCookingMinutes: Int?,
+        specialPopulationMode: String,
+        weeklyRecordGoalDays: Int
+    ) {
+        val settings = getSettingsOnce() ?: UserSettings()
+        saveSettings(
+            settings.copy(
+                dietaryAllergens = dietaryAllergens?.trim()?.ifBlank { null },
+                flavorPreferences = flavorPreferences?.trim()?.ifBlank { null },
+                budgetPreference = budgetPreference?.trim()?.ifBlank { null },
+                maxCookingMinutes = maxCookingMinutes,
+                specialPopulationMode = specialPopulationMode,
+                weeklyRecordGoalDays = weeklyRecordGoalDays.coerceIn(1, 7)
+            )
+        )
+    }
+
+    /**
      * 更新引导完成状态
      */
     suspend fun updateOnboardingCompleted(completed: Boolean) {

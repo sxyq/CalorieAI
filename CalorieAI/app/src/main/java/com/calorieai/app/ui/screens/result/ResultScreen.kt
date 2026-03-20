@@ -39,13 +39,21 @@ fun ResultScreen(
     viewModel: ResultViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(recordId) {
         viewModel.loadRecord(recordId)
     }
+    LaunchedEffect(uiState.favoriteMessage) {
+        uiState.favoriteMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearFavoriteMessage()
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("记录详情") },
@@ -80,9 +88,13 @@ fun ResultScreen(
             else -> {
                 ResultContent(
                     record = uiState.record!!,
+                    isFavoritedRecipe = uiState.isFavoritedRecipe,
                     onSave = { updatedRecord ->
                         viewModel.updateRecord(updatedRecord)
                         onNavigateBack()
+                    },
+                    onToggleFavorite = {
+                        viewModel.toggleFavoriteRecipe()
                     },
                     onRegenerate = { userInput ->
                         // 删除当前记录并返回首页重新分析
@@ -99,7 +111,9 @@ fun ResultScreen(
 @Composable
 fun ResultContent(
     record: FoodRecord,
+    isFavoritedRecipe: Boolean,
     onSave: (FoodRecord) -> Unit,
+    onToggleFavorite: () -> Unit,
     onRegenerate: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -201,6 +215,13 @@ fun ResultContent(
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        FavoriteRecipeButton(
+            isFavorited = isFavoritedRecipe,
+            onClick = onToggleFavorite
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
         // 重新生成数据按钮
         RegenerateButton(
             onClick = {
@@ -210,6 +231,47 @@ fun ResultContent(
         )
 
         Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun FavoriteRecipeButton(
+    isFavorited: Boolean,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(
+                if (isFavorited) {
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f)
+                } else {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                }
+            )
+            .interactiveScale(interactionSource, pressedScale = 0.97f)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = if (isFavorited) Icons.Default.Star else Icons.Default.StarBorder,
+                contentDescription = null
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (isFavorited) "已收藏菜谱（点击取消）" else "收藏菜谱",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 

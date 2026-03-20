@@ -13,8 +13,11 @@ import com.calorieai.app.ui.screens.settings.calculateBMR
 import com.calorieai.app.ui.screens.settings.calculateTDEE
 import com.calorieai.app.utils.DateUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
@@ -34,11 +37,12 @@ class HomeViewModel @Inject constructor(
     // UI状态
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    private var dateDataJob: Job? = null
 
     init {
         // 监听日期变化，加载对应日期的数据
         viewModelScope.launch {
-            _selectedDate.collect { date ->
+            _selectedDate.collectLatest { date ->
                 loadDataForDate(date)
             }
         }
@@ -64,7 +68,8 @@ class HomeViewModel @Inject constructor(
                         bmr = bmr,
                         tdee = tdee,
                         currentWeight = currentWeight,
-                        showAIWidget = it.showAIWidget
+                        showAIWidget = it.showAIWidget,
+                        enableQuickAdd = it.enableQuickAdd
                     )
                 }
             }.collect()
@@ -82,7 +87,8 @@ class HomeViewModel @Inject constructor(
      * 加载指定日期的数据
      */
     private fun loadDataForDate(date: LocalDate) {
-        viewModelScope.launch {
+        dateDataJob?.cancel()
+        dateDataJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             
             // 使用 DateUtils 获取日期范围
@@ -94,29 +100,25 @@ class HomeViewModel @Inject constructor(
                 foodRecordRepository.getTotalCaloriesByDateRange(startOfDay, endOfDay),
                 exerciseRecordRepository.getRecordsBetween(startOfDay, endOfDay)
             ) { records, totalCalories, exerciseRecords ->
-                // 加载最近30天的热量数据用于日历显示
-                val calendarData = loadCalendarData()
-                
+                Triple(records, totalCalories, exerciseRecords)
+            }.collectLatest { (records, totalCalories, exerciseRecords) ->
+                val calendarData = withContext(Dispatchers.Default) {
+                    buildCalendarData(records)
+                }
+
                 // 计算运动消耗和时长
                 val totalExerciseCalories = exerciseRecords.sumOf { it.caloriesBurned }
                 val totalExerciseMinutes = exerciseRecords.sumOf { it.durationMinutes }
-                
-                HomeUiState(
+
+                _uiState.value = _uiState.value.copy(
                     records = records,
                     exerciseRecords = exerciseRecords,
                     totalCalories = totalCalories ?: 0,
                     calorieData = calendarData,
-                    dailyGoal = _uiState.value.dailyGoal,
-                    bmr = _uiState.value.bmr,
                     exerciseCalories = totalExerciseCalories,
                     totalExerciseMinutes = totalExerciseMinutes,
-                    tdee = _uiState.value.tdee,
-                    currentWeight = _uiState.value.currentWeight,
-                    showAIWidget = _uiState.value.showAIWidget,
                     isLoading = false
                 )
-            }.collect { state ->
-                _uiState.value = state
             }
         }
     }
@@ -124,10 +126,9 @@ class HomeViewModel @Inject constructor(
     /**
      * 加载日历数据（最近30天）
      */
-    private suspend fun loadCalendarData(): Map<LocalDate, Int> {
+    private fun buildCalendarData(records: List<FoodRecord>): Map<LocalDate, Int> {
         val (startOfRange, endOfRange) = DateUtils.getDateRange(30)
-        
-        val records = foodRecordRepository.getAllRecordsOnce()
+
         return records
             .filter { it.recordTime in startOfRange..endOfRange }
             .groupBy { 
@@ -217,6 +218,7 @@ data class HomeUiState(
     val totalExerciseMinutes: Int = 0,
     val tdee: Int = 0,
     val currentWeight: Float? = null,
+    val enableQuickAdd: Boolean = false,
     val calorieData: Map<LocalDate, Int> = emptyMap(),
     val isLoading: Boolean = true,
     val showAIWidget: Boolean = true

@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -137,6 +138,17 @@ data class MarkdownConfig(
                 paragraphSpacing = 4,
                 headingSpacing = 8
             )
+
+        val ChatReadable: MarkdownConfig
+            @Composable get() = Default.copy(
+                textStyle = MaterialTheme.typography.bodyMedium.copy(lineHeight = 24.sp),
+                h1Style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                h2Style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                h3Style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                h4Style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                paragraphSpacing = 10,
+                headingSpacing = 14
+            )
     }
 }
 
@@ -151,8 +163,33 @@ fun MarkdownText(
     onLinkClick: ((String) -> Unit)? = null,
     isDark: Boolean = false
 ) {
-    val actualConfig = if (isDark) MarkdownConfig.Dark else config
-    val parsedContent = parseMarkdown(text, actualConfig)
+    val actualConfig = remember(config, isDark) {
+        if (isDark) {
+            config.copy(
+                textStyle = config.textStyle.copy(color = GlassDarkColors.OnSurface),
+                h1Style = config.h1Style.copy(color = GlassDarkColors.OnSurface),
+                h2Style = config.h2Style.copy(color = GlassDarkColors.OnSurface),
+                h3Style = config.h3Style.copy(color = GlassDarkColors.OnSurface),
+                h4Style = config.h4Style.copy(color = GlassDarkColors.OnSurface),
+                codeBlockBackgroundColor = GlassDarkColors.SurfaceContainerHigh.copy(alpha = 0.8f),
+                codeBlockTextColor = GlassDarkColors.OnSurface,
+                inlineCodeBackgroundColor = GlassDarkColors.SurfaceContainer.copy(alpha = 0.6f),
+                inlineCodeTextColor = GlassDarkColors.Primary,
+                quoteBackgroundColor = GlassDarkColors.SurfaceContainerLow.copy(alpha = 0.5f),
+                quoteBorderColor = GlassDarkColors.Primary.copy(alpha = 0.6f),
+                quoteTextColor = GlassDarkColors.OnSurfaceVariant,
+                linkColor = GlassDarkColors.Primary,
+                listBulletColor = GlassDarkColors.Primary,
+                listNumberColor = GlassDarkColors.Primary,
+                dividerColor = GlassDarkColors.OutlineVariant
+            )
+        } else {
+            config
+        }
+    }
+    val parsedContent = remember(text, actualConfig) {
+        parseMarkdown(text, actualConfig)
+    }
     
     Column(modifier = modifier) {
         parsedContent.forEach { element ->
@@ -245,18 +282,18 @@ private fun parseMarkdown(text: String, config: MarkdownConfig): List<MarkdownEl
                 val quoteContent = parseMarkdown(quoteLines.joinToString("\n"), config)
                 elements.add(MarkdownElement.Quote(quoteContent))
             }
-            line.matches(Regex("^\\s*[-*+]\\s+.+")) -> {
+            line.matches(Regex("^\\s*[-*+•●]\\s+.+")) -> {
                 val items = mutableListOf<String>()
-                while (i < lines.size && lines[i].matches(Regex("^\\s*[-*+]\\s+.+"))) {
-                    items.add(lines[i].replaceFirst(Regex("^\\s*[-*+]\\s+"), ""))
+                while (i < lines.size && lines[i].matches(Regex("^\\s*[-*+•●]\\s+.+"))) {
+                    items.add(lines[i].replaceFirst(Regex("^\\s*[-*+•●]\\s+"), ""))
                     i++
                 }
                 elements.add(MarkdownElement.BulletList(items))
             }
-            line.matches(Regex("^\\s*\\d+\\.\\s+.+")) -> {
+            line.matches(Regex("^\\s*\\d+(\\.|\\)|、)\\s*.+")) -> {
                 val items = mutableListOf<String>()
-                while (i < lines.size && lines[i].matches(Regex("^\\s*\\d+\\.\\s+.+"))) {
-                    items.add(lines[i].replaceFirst(Regex("^\\s*\\d+\\.\\s+"), ""))
+                while (i < lines.size && lines[i].matches(Regex("^\\s*\\d+(\\.|\\)|、)\\s*.+"))) {
+                    items.add(lines[i].replaceFirst(Regex("^\\s*\\d+(\\.|\\)|、)\\s*"), ""))
                     i++
                 }
                 elements.add(MarkdownElement.NumberedList(items))
@@ -270,12 +307,12 @@ private fun parseMarkdown(text: String, config: MarkdownConfig): List<MarkdownEl
                        !lines[i].startsWith("#") && 
                        !lines[i].startsWith("```") &&
                        !lines[i].startsWith(">") &&
-                       !lines[i].matches(Regex("^\\s*[-*+]\\s+.+")) &&
-                       !lines[i].matches(Regex("^\\s*\\d+\\.\\s+.+"))) {
+                       !lines[i].matches(Regex("^\\s*[-*+•●]\\s+.+")) &&
+                       !lines[i].matches(Regex("^\\s*\\d+(\\.|\\)|、)\\s*.+"))) {
                     paragraphLines.add(lines[i])
                     i++
                 }
-                elements.add(MarkdownElement.Paragraph(paragraphLines.joinToString(" ")))
+                elements.add(MarkdownElement.Paragraph(paragraphLines.joinToString("\n")))
             }
         }
     }
@@ -288,6 +325,7 @@ private fun parseMarkdown(text: String, config: MarkdownConfig): List<MarkdownEl
  */
 @Composable
 private fun HeadingElement(element: MarkdownElement.Heading, config: MarkdownConfig) {
+    val text = remember(element.text, config) { parseInlineMarkdown(element.text, config) }
     val style = when (element.level) {
         1 -> config.h1Style
         2 -> config.h2Style
@@ -296,7 +334,7 @@ private fun HeadingElement(element: MarkdownElement.Heading, config: MarkdownCon
     }
     
     Text(
-        text = parseInlineMarkdown(element.text, config),
+        text = text,
         style = style
     )
 }
@@ -310,7 +348,9 @@ private fun ParagraphElement(
     config: MarkdownConfig,
     onLinkClick: ((String) -> Unit)?
 ) {
-    val annotatedString = parseInlineMarkdown(element.text, config)
+    val annotatedString = remember(element.text, config) {
+        parseInlineMarkdown(element.text, config)
+    }
     
     if (onLinkClick != null) {
         ClickableText(

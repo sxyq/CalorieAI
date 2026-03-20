@@ -1,6 +1,7 @@
 package com.calorieai.app.service.ai
 
 import com.calorieai.app.data.model.MealPlanResponse
+import com.calorieai.app.data.repository.APICallRecordRepository
 import com.calorieai.app.data.repository.AIConfigRepository
 import com.calorieai.app.data.repository.AITokenUsageRepository
 import com.calorieai.app.service.ai.common.AIApiClient
@@ -18,6 +19,7 @@ import javax.inject.Singleton
 class AIChatService @Inject constructor(
     private val aiApiClient: AIApiClient,
     private val aiConfigRepository: AIConfigRepository,
+    private val apiCallRecordRepository: APICallRecordRepository,
     private val aiTokenUsageRepository: AITokenUsageRepository,
     private val aiRateLimiter: AIRateLimiter,
     private val aiDefaultConfigInitializer: AIDefaultConfigInitializer,
@@ -28,17 +30,23 @@ class AIChatService @Inject constructor(
     companion object {
         const val DEFAULT_DAILY_LIMIT = 50
 
-        private const val SYSTEM_PROMPT = """你是一位专业的营养师和健康顾问。请遵循以下规则：
+        private const val SYSTEM_PROMPT = """你是一位专业的营养师和健康顾问。请严格按以下格式回答：
 
-1. 回答简洁明了，控制在200字以内
-2. 使用Markdown格式增强可读性：
-   - 用**粗体**强调重点
-   - 用列表展示多条建议
-   - 用>引用重要提示
-3. 结构清晰：先给结论，再列要点
-4. 避免冗长的开场白和客套话
-5. 提供具体数据和建议
-6. 不确定时建议咨询专业医生"""
+1. 先给结论，后给步骤，避免寒暄和空话
+2. 使用Markdown并保持结构化，优先使用以下标题：
+   ### 总结
+   ### 执行步骤
+   ### 注意事项
+3. 每个标题下尽量用列表，单条不超过2句
+4. 关键数字、阈值、时间点必须用**粗体**
+5. 语气要直接、可执行，给出可落地动作
+6. 不确定或高风险场景要明确提示“请咨询医生/专业人士”
+7. 默认控制在300字内；如果用户要求详细，再展开
+8. 涉及菜谱与健康建议时，必须结合：
+   - 最近7天和30天的营养缺口分析
+   - 食材缺失时的替代建议，并重算热量与三大营养素
+   - 用户特定人群模式（如控糖/痛风/孕期/儿童/健身）
+   - 用户忌口、口味、预算、烹饪时长约束"""
     }
 
     suspend fun sendMessage(message: String): String {
@@ -55,6 +63,7 @@ class AIChatService @Inject constructor(
             throw Exception("今日API调用次数已用完（限制：${DEFAULT_DAILY_LIMIT}次/天），请明天再试")
         }
 
+        val startTime = System.currentTimeMillis()
         try {
             val (content, rawResponse) = aiApiClient.chatRaw(
                 config = config,
@@ -66,10 +75,47 @@ class AIChatService @Inject constructor(
 
             aiRateLimiter.recordCall(config.id)
             recordTokenUsage(config.id, config.name, rawResponse, config.protocol.name, config.modelId)
+            recordApiCall(
+                configId = config.id,
+                configName = config.name,
+                modelId = config.modelId,
+                inputText = message,
+                outputText = content,
+                rawResponse = rawResponse,
+                protocol = config.protocol.name,
+                duration = System.currentTimeMillis() - startTime,
+                isSuccess = true
+            )
 
             return content
         } catch (e: AIApiException) {
+            recordApiCall(
+                configId = config.id,
+                configName = config.name,
+                modelId = config.modelId,
+                inputText = message,
+                outputText = "",
+                rawResponse = null,
+                protocol = config.protocol.name,
+                duration = System.currentTimeMillis() - startTime,
+                isSuccess = false,
+                errorMessage = e.message
+            )
             throw Exception("API调用失败: ${e.message}")
+        } catch (e: Exception) {
+            recordApiCall(
+                configId = config.id,
+                configName = config.name,
+                modelId = config.modelId,
+                inputText = message,
+                outputText = "",
+                rawResponse = null,
+                protocol = config.protocol.name,
+                duration = System.currentTimeMillis() - startTime,
+                isSuccess = false,
+                errorMessage = e.message
+            )
+            throw e
         }
     }
 
@@ -93,16 +139,61 @@ class AIChatService @Inject constructor(
 
             // 记录调用
             aiRateLimiter.recordCall(config.id)
+            val startTime = System.currentTimeMillis()
+            val outputBuilder = StringBuilder()
 
-            // 使用流式API
-            aiApiClient.chatStream(
-                config = config,
-                systemPrompt = SYSTEM_PROMPT,
-                userMessage = message,
-                temperature = 0.7,
-                maxTokens = 1000
-            ).collect { char ->
-                emit(char)
+            try {
+                // 使用流式API
+                aiApiClient.chatStream(
+                    config = config,
+                    systemPrompt = SYSTEM_PROMPT,
+                    userMessage = message,
+                    temperature = 0.7,
+                    maxTokens = 1000
+                ).collect { char ->
+                    outputBuilder.append(char)
+                    emit(char)
+                }
+
+                recordApiCall(
+                    configId = config.id,
+                    configName = config.name,
+                    modelId = config.modelId,
+                    inputText = message,
+                    outputText = outputBuilder.toString(),
+                    rawResponse = null,
+                    protocol = config.protocol.name,
+                    duration = System.currentTimeMillis() - startTime,
+                    isSuccess = true
+                )
+            } catch (e: AIApiException) {
+                recordApiCall(
+                    configId = config.id,
+                    configName = config.name,
+                    modelId = config.modelId,
+                    inputText = message,
+                    outputText = outputBuilder.toString(),
+                    rawResponse = null,
+                    protocol = config.protocol.name,
+                    duration = System.currentTimeMillis() - startTime,
+                    isSuccess = false,
+                    errorMessage = e.message
+                )
+                throw Exception("API调用失败: ${e.message}")
+            } catch (e: Exception) {
+                recordApiCall(
+                    configId = config.id,
+                    configName = config.name,
+                    modelId = config.modelId,
+                    inputText = message,
+                    outputText = outputBuilder.toString(),
+                    rawResponse = null,
+                    protocol = config.protocol.name,
+                    duration = System.currentTimeMillis() - startTime,
+                    isSuccess = false,
+                    errorMessage = e.message
+                )
+                throw e
             }
         }
     }
@@ -135,6 +226,7 @@ class AIChatService @Inject constructor(
             请基于以上数据回答用户的问题，提供具体的分析和建议。如果数据不足，请说明需要更多记录才能提供准确分析。
         """.trimIndent()
 
+        val startTime = System.currentTimeMillis()
         try {
             val (content, rawResponse) = aiApiClient.chatRaw(
                 config = config,
@@ -146,10 +238,47 @@ class AIChatService @Inject constructor(
 
             aiRateLimiter.recordCall(config.id)
             recordTokenUsage(config.id, config.name, rawResponse, config.protocol.name, config.modelId)
+            recordApiCall(
+                configId = config.id,
+                configName = config.name,
+                modelId = config.modelId,
+                inputText = fullMessage,
+                outputText = content,
+                rawResponse = rawResponse,
+                protocol = config.protocol.name,
+                duration = System.currentTimeMillis() - startTime,
+                isSuccess = true
+            )
 
             return content
         } catch (e: AIApiException) {
+            recordApiCall(
+                configId = config.id,
+                configName = config.name,
+                modelId = config.modelId,
+                inputText = fullMessage,
+                outputText = "",
+                rawResponse = null,
+                protocol = config.protocol.name,
+                duration = System.currentTimeMillis() - startTime,
+                isSuccess = false,
+                errorMessage = e.message
+            )
             throw Exception("API调用失败: ${e.message}")
+        } catch (e: Exception) {
+            recordApiCall(
+                configId = config.id,
+                configName = config.name,
+                modelId = config.modelId,
+                inputText = fullMessage,
+                outputText = "",
+                rawResponse = null,
+                protocol = config.protocol.name,
+                duration = System.currentTimeMillis() - startTime,
+                isSuccess = false,
+                errorMessage = e.message
+            )
+            throw e
         }
     }
 
@@ -157,14 +286,17 @@ class AIChatService @Inject constructor(
      * 评估热量消耗是否合理
      */
     suspend fun assessCalorieIntake(): String {
-        val hasData = aiContextService.hasEnoughDataForAnalysis()
+        val hasData = aiContextService.hasEnoughFoodDataForCalorieAssessment()
         if (!hasData) {
-            return "您最近一周没有饮食记录，无法进行热量评估。请先记录几天的饮食数据，我就能帮您分析热量摄入是否合理了！\n\n建议：每天记录三餐和零食，这样我可以更准确地评估您的饮食习惯。"
+            return "近期可用于热量评估的饮食数据不足（建议至少记录3天且包含主餐）。请先补充近期饮食记录后再评估。\n\n建议：连续记录早餐/午餐/晚餐和加餐，我会基于本地近期数据做更准确分析。"
         }
-        
-        val context = aiContextService.getHealthAssessmentContext()
+
+        val context = aiContextService.getQuickActionContext(
+            action = "热量评估（校验近期热量收支与摄入结构）",
+            recentDays = 14
+        )
         return sendMessageWithContext(
-            message = "请评估我最近一周的热量摄入是否合理，并给出改进建议。",
+            message = "请基于本地近期数据，评估我近期热量摄入是否合理，并给出可执行的改进建议。",
             context = context
         )
     }
@@ -174,31 +306,130 @@ class AIChatService @Inject constructor(
      * 使用缓存机制，避免重复调用AI
      */
     suspend fun planHealthyMeals(): String {
+        val localContext = aiContextService.getAdvancedDietGuidanceContext(
+            action = "菜谱规划（基于近期饮食/运动/体重/饮水与目标生成当日方案）",
+            recentDays = 14
+        )
         val result = mealPlanService.getMealPlan()
         
         return result.fold(
             onSuccess = { response ->
-                formatMealPlanResponse(response)
+                formatMealPlanResponse(response, localContext)
             },
-            onFailure = { error ->
+            onFailure = { _ ->
                 // 如果缓存失败，回退到原来的方式
-                val context = aiContextService.getWeeklyFoodContext()
                 sendMessageWithContext(
-                    message = "请根据我最近的饮食习惯，为我规划今天的健康菜谱，包括早餐、午餐、晚餐和加餐。",
-                    context = context
+                    message = "请基于本地近期数据和个性化约束，为我规划今天的健康菜谱（早餐/午餐/晚餐/加餐），并说明每餐设计理由。需要附带营养缺口补齐策略和食材替代方案。",
+                    context = localContext
                 )
             }
+        )
+    }
+
+    /**
+     * 规划未来7天周菜谱
+     */
+    suspend fun planWeeklyMeals(): String {
+        val context = aiContextService.getAdvancedDietGuidanceContext(
+            action = "周菜谱周计划（未来7天）",
+            recentDays = 30
+        )
+        return sendMessageWithContext(
+            message = """
+请给我制定未来7天的菜谱周计划，要求：
+1) 每天包含早餐/午餐/晚餐/可选加餐
+2) 给出每餐热量与三大营养素估算
+3) 先指出最近7天与30天的营养缺口，再说明本周如何补齐
+4) 结合我的忌口、口味、预算、烹饪时长与特定人群模式
+5) 对每一天给出一个“食材缺失替代方案”，并重算热量与三大营养素
+6) 用Markdown表格输出，便于我直接执行
+            """.trimIndent(),
+            context = context
+        )
+    }
+
+    /**
+     * 下一餐智能推荐
+     */
+    suspend fun recommendNextMeal(): String {
+        val context = aiContextService.getAdvancedDietGuidanceContext(
+            action = "下一餐智能推荐（根据今日已摄入与剩余目标）",
+            recentDays = 14
+        )
+        return sendMessageWithContext(
+            message = """
+请基于我今天已摄入情况推荐“下一餐”：
+1) 给出主推荐（菜名+份量+预计热量与三大营养素）
+2) 给出两个可替代方案（并重算热量与三大营养素）
+3) 说明为什么这样推荐（对应我的营养缺口和目标）
+4) 严格考虑忌口/口味/预算/烹饪时长/特定人群模式
+5) 用可执行清单输出（买什么、做什么、吃多少）
+            """.trimIndent(),
+            context = context
+        )
+    }
+
+    /**
+     * 基于用户库存食材推荐可做菜谱
+     */
+    suspend fun recommendRecipesWithPantry(pantrySummary: String): String {
+        val context = aiContextService.getAdvancedDietGuidanceContext(
+            action = "库存食材可做菜谱推荐（优先消耗临期食材）",
+            recentDays = 14
+        )
+        return sendMessageWithContext(
+            message = """
+请基于我提供的已知信息推荐可做菜谱，并满足：
+1) 如果存在库存食材，优先使用即将过期的食材；如果库存为空，直接给出可执行菜谱并附可选采购清单
+2) 严格结合我的近期健康数据和目标，给出做法与份量
+3) 每道菜输出：食材及克数、步骤、难度、时长、份量、营养信息、厨具要求
+4) 如果某食材不足，给出替代方案并重算营养
+5) 用Markdown分节清晰输出，便于直接下厨
+
+【我的已知信息（可能包含库存与偏好）】
+$pantrySummary
+            """.trimIndent(),
+            context = context
+        )
+    }
+
+    /**
+     * 生成1~N天菜单计划（可按库存和健康数据动态生成）
+     */
+    suspend fun generatePantryMealPlan(pantrySummary: String, days: Int): String {
+        val safeDays = days.coerceIn(1, 14)
+        val context = aiContextService.getAdvancedDietGuidanceContext(
+            action = "菜单计划生成（按天/多天）",
+            recentDays = 30
+        )
+        return sendMessageWithContext(
+            message = """
+请生成一个${safeDays}天的菜单计划，要求：
+1) 每天包含早餐/午餐/晚餐（可选加餐）
+2) 若有库存食材则优先使用；若库存为空则按我的健康目标与偏好直接规划并附采购建议
+3) 输出每天的菜名、份量、预计热量与三大营养素
+4) 给出每餐简要做法和关键火候提醒
+5) 缺失食材提供替代建议并重算营养
+6) 使用Markdown表格+小节展示，便于执行
+
+【我的已知信息（可能包含库存与偏好）】
+$pantrySummary
+            """.trimIndent(),
+            context = context
         )
     }
     
     /**
      * 格式化菜谱响应为可读文本
      */
-    private fun formatMealPlanResponse(response: MealPlanResponse): String {
+    private fun formatMealPlanResponse(response: MealPlanResponse, localContext: String): String {
         val plan = response.plan
         val sb = StringBuilder()
         
-        sb.append("🍽️ 今日健康菜谱推荐\n\n")
+        sb.append("🍽️ 今日健康菜谱推荐（已读取本地近期数据）\n\n")
+        sb.append("### 近期数据摘要\n")
+        sb.append(localContext.lines().take(14).joinToString("\n"))
+        sb.append("\n\n")
         
         // 早餐
         sb.append("☀️ 早餐：${plan.breakfast.name}\n")
@@ -260,13 +491,16 @@ class AIChatService @Inject constructor(
     suspend fun healthConsult(): String {
         val hasData = aiContextService.hasEnoughDataForAnalysis()
         val context = if (hasData) {
-            aiContextService.getHealthAssessmentContext()
+            aiContextService.getAdvancedDietGuidanceContext(
+                action = "健康咨询（结合近期多维健康数据给出改善建议）",
+                recentDays = 14
+            )
         } else {
-            "用户暂无健康数据记录。"
+            "用户暂无可用的本地近期健康记录。请先补充饮食、运动、体重或饮水记录。"
         }
         
         return sendMessageWithContext(
-            message = "请根据我的健康数据，提供一些营养健康建议和改善方向。",
+            message = "请基于本地近期数据给出健康咨询建议，包含优先级、执行步骤、风险提醒，并明确最近7/30天营养缺口与饮食替代策略。",
             context = context
         )
     }
@@ -283,6 +517,12 @@ class AIChatService @Inject constructor(
         return aiRateLimiter.getTodayCallCount(config.id)
     }
 
+    private data class ParsedUsage(
+        val promptTokens: Int,
+        val completionTokens: Int,
+        val cost: Double
+    )
+
     private suspend fun recordTokenUsage(
         configId: String,
         configName: String,
@@ -291,31 +531,71 @@ class AIChatService @Inject constructor(
         modelId: String
     ) {
         try {
-            val usage = when (protocol) {
-                "CLAUDE" -> {
-                    val u = aiApiClient.extractClaudeUsage(rawResponse)
-                    if (u != null) (u.promptTokens ?: 0) to (u.completionTokens ?: 0) else null
-                }
-                else -> {
-                    val u = aiApiClient.extractOpenAIUsage(rawResponse)
-                    if (u != null) (u.promptTokens ?: 0) to (u.completionTokens ?: 0) else null
-                }
-            }
-
-            if (usage != null) {
-                val (promptTokens, completionTokens) = usage
-                val cost = calculateCost(promptTokens, completionTokens, protocol, modelId)
+            val parsedUsage = parseUsage(rawResponse, protocol, modelId)
+            if (parsedUsage.promptTokens > 0 || parsedUsage.completionTokens > 0) {
                 aiTokenUsageRepository.recordTokenUsage(
                     configId = configId,
                     configName = configName,
-                    promptTokens = promptTokens,
-                    completionTokens = completionTokens,
-                    cost = cost
+                    promptTokens = parsedUsage.promptTokens,
+                    completionTokens = parsedUsage.completionTokens,
+                    cost = parsedUsage.cost
                 )
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private suspend fun recordApiCall(
+        configId: String,
+        configName: String,
+        modelId: String,
+        inputText: String,
+        outputText: String,
+        rawResponse: String?,
+        protocol: String,
+        duration: Long,
+        isSuccess: Boolean,
+        errorMessage: String? = null
+    ) {
+        try {
+            val parsedUsage = rawResponse?.let { parseUsage(it, protocol, modelId) }
+                ?: ParsedUsage(promptTokens = 0, completionTokens = 0, cost = 0.0)
+            apiCallRecordRepository.recordCall(
+                configId = configId,
+                configName = configName,
+                modelId = modelId,
+                inputText = inputText,
+                outputText = outputText,
+                promptTokens = parsedUsage.promptTokens,
+                completionTokens = parsedUsage.completionTokens,
+                cost = parsedUsage.cost,
+                duration = duration,
+                isSuccess = isSuccess,
+                errorMessage = errorMessage
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun parseUsage(rawResponse: String, protocol: String, modelId: String): ParsedUsage {
+        val usage = when (protocol) {
+            "CLAUDE" -> aiApiClient.extractClaudeUsage(rawResponse)
+            else -> aiApiClient.extractOpenAIUsage(rawResponse)
+        }
+        val promptTokens = usage?.promptTokens ?: 0
+        val completionTokens = usage?.completionTokens ?: 0
+        val cost = if (usage != null) {
+            calculateCost(promptTokens, completionTokens, protocol, modelId)
+        } else {
+            0.0
+        }
+        return ParsedUsage(
+            promptTokens = promptTokens,
+            completionTokens = completionTokens,
+            cost = cost
+        )
     }
 
     private fun calculateCost(promptTokens: Int, completionTokens: Int, protocol: String, modelId: String): Double {

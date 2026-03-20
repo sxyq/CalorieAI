@@ -13,6 +13,12 @@ import javax.inject.Inject
 class AppearanceSettingsViewModel @Inject constructor(
     private val userSettingsRepository: UserSettingsRepository
 ) : ViewModel() {
+    companion object {
+        const val DEFAULT_GRADIENT_START = "#667eea"
+        const val DEFAULT_GRADIENT_END = "#764ba2"
+        const val DEFAULT_LIGHT_WALLPAPER_COLOR = "#FFFFFF"
+        const val DEFAULT_DARK_WALLPAPER_COLOR = "#000000"
+    }
 
     private val _uiState = MutableStateFlow(AppearanceSettingsUiState())
     val uiState: StateFlow<AppearanceSettingsUiState> = _uiState.asStateFlow()
@@ -30,7 +36,7 @@ class AppearanceSettingsViewModel @Inject constructor(
                         wallpaperType = try {
                             WallpaperType.valueOf(it.wallpaperType)
                         } catch (e: Exception) {
-                            WallpaperType.GRADIENT
+                            WallpaperType.SOLID
                         },
                         wallpaperColor = it.wallpaperColor,
                         wallpaperGradientStart = it.wallpaperGradientStart,
@@ -44,7 +50,27 @@ class AppearanceSettingsViewModel @Inject constructor(
     }
 
     fun updateThemeMode(mode: ThemeMode) {
-        _uiState.value = _uiState.value.copy(themeMode = mode)
+        _uiState.value = when (mode) {
+            ThemeMode.LIGHT -> _uiState.value.copy(
+                themeMode = mode,
+                wallpaperType = WallpaperType.SOLID,
+                wallpaperColor = DEFAULT_LIGHT_WALLPAPER_COLOR,
+                wallpaperGradientStart = null,
+                wallpaperGradientEnd = null,
+                wallpaperImageUri = null
+            )
+
+            ThemeMode.DARK -> _uiState.value.copy(
+                themeMode = mode,
+                wallpaperType = WallpaperType.SOLID,
+                wallpaperColor = DEFAULT_DARK_WALLPAPER_COLOR,
+                wallpaperGradientStart = null,
+                wallpaperGradientEnd = null,
+                wallpaperImageUri = null
+            )
+
+            ThemeMode.SYSTEM -> _uiState.value.copy(themeMode = mode)
+        }
         saveSettings()
     }
 
@@ -72,20 +98,12 @@ class AppearanceSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val currentSettings = userSettingsRepository.getSettingsOnce()
             val currentState = _uiState.value
-            val settings = UserSettings(
-                id = currentSettings?.id ?: 1,
-                dailyCalorieGoal = currentSettings?.dailyCalorieGoal ?: 2000,
-                userWeight = currentSettings?.userWeight ?: 70.0f,
-                userHeight = currentSettings?.userHeight ?: 170.0f,
-                userAge = currentSettings?.userAge ?: 25,
-                userGender = currentSettings?.userGender ?: "MALE",
-                activityLevel = currentSettings?.activityLevel ?: "MODERATE",
+            val settings = (currentSettings ?: UserSettings()).copy(
                 themeMode = currentState.themeMode.name,
                 useDeadlinerStyle = currentState.useDeadlinerStyle,
                 hideDividers = currentState.hideDividers,
                 fontSize = currentState.fontSize.name,
                 enableAnimations = currentState.enableAnimations,
-                enableCloudSync = currentSettings?.enableCloudSync ?: false,
                 showAIWidget = currentState.showAIWidget,
                 wallpaperType = currentState.wallpaperType.name,
                 wallpaperColor = currentState.wallpaperColor,
@@ -120,6 +138,17 @@ class AppearanceSettingsViewModel @Inject constructor(
         saveSettings()
     }
 
+    fun resetWallpaperToDefault() {
+        _uiState.value = _uiState.value.copy(
+            wallpaperType = WallpaperType.SOLID,
+            wallpaperColor = DEFAULT_LIGHT_WALLPAPER_COLOR,
+            wallpaperGradientStart = null,
+            wallpaperGradientEnd = null,
+            wallpaperImageUri = null
+        )
+        saveSettings()
+    }
+
     fun updateShowAIWidget(show: Boolean) {
         _uiState.value = _uiState.value.copy(showAIWidget = show)
         saveSettings()
@@ -132,8 +161,8 @@ data class AppearanceSettingsUiState(
     val hideDividers: Boolean = false,
     val fontSize: FontSize = FontSize.MEDIUM,
     val enableAnimations: Boolean = true,
-    val wallpaperType: WallpaperType = WallpaperType.GRADIENT,
-    val wallpaperColor: String? = null,
+    val wallpaperType: WallpaperType = WallpaperType.SOLID,
+    val wallpaperColor: String? = AppearanceSettingsViewModel.DEFAULT_LIGHT_WALLPAPER_COLOR,
     val wallpaperGradientStart: String? = null,
     val wallpaperGradientEnd: String? = null,
     val wallpaperImageUri: String? = null,

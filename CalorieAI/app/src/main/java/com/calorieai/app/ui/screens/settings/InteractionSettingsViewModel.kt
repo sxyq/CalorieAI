@@ -22,12 +22,18 @@ class InteractionSettingsViewModel @Inject constructor(
             userSettingsRepository.getSettings().collect { settings ->
                 settings?.let {
                     _uiState.value = InteractionSettingsUiState(
-                        feedbackType = FeedbackType.valueOf(it.feedbackType),
+                        feedbackType = runCatching { FeedbackType.valueOf(it.feedbackType) }
+                            .getOrDefault(FeedbackType.BOTH),
                         enableVibration = it.enableVibration,
                         enableSound = it.enableSound,
-                        backgroundBehavior = BackgroundBehavior.valueOf(it.backgroundBehavior),
-                        startupPage = StartupPage.valueOf(it.startupPage),
-                        enableQuickAdd = it.enableQuickAdd
+                        backgroundBehavior = runCatching { BackgroundBehavior.valueOf(it.backgroundBehavior) }
+                            .getOrDefault(BackgroundBehavior.STANDARD),
+                        startupPage = runCatching { StartupPage.valueOf(it.startupPage) }
+                            .getOrDefault(StartupPage.HOME),
+                        enableQuickAdd = it.enableQuickAdd,
+                        enableLongPressHomeToAdd = it.enableLongPressHomeToAdd,
+                        enableLongPressOverviewToStats = it.enableLongPressOverviewToStats,
+                        enableLongPressMyToProfileEdit = it.enableLongPressMyToProfileEdit
                     )
                 }
             }
@@ -64,43 +70,35 @@ class InteractionSettingsViewModel @Inject constructor(
         saveSettings()
     }
 
+    fun updateEnableLongPressHomeToAdd(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(enableLongPressHomeToAdd = enabled)
+        saveSettings()
+    }
+
+    fun updateEnableLongPressOverviewToStats(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(enableLongPressOverviewToStats = enabled)
+        saveSettings()
+    }
+
+    fun updateEnableLongPressMyToProfileEdit(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(enableLongPressMyToProfileEdit = enabled)
+        saveSettings()
+    }
+
     private fun saveSettings() {
         viewModelScope.launch {
             val currentState = _uiState.value
-            // 获取当前数据库设置以保留其他字段
             val existingSettings = userSettingsRepository.getSettings().firstOrNull()
-            val settings = UserSettings(
-                dailyCalorieGoal = existingSettings?.dailyCalorieGoal ?: 2000,
-                userName = existingSettings?.userName,
-                userGender = existingSettings?.userGender,
-                userAge = existingSettings?.userAge,
-                userHeight = existingSettings?.userHeight,
-                userWeight = existingSettings?.userWeight,
-                activityLevel = existingSettings?.activityLevel ?: "MODERATE",
-                dietaryPreference = existingSettings?.dietaryPreference,
-                isNotificationEnabled = existingSettings?.isNotificationEnabled ?: true,
-                isDarkMode = existingSettings?.isDarkMode,
-                themeMode = existingSettings?.themeMode ?: "SYSTEM",
-                useDeadlinerStyle = existingSettings?.useDeadlinerStyle ?: true,
-                hideDividers = existingSettings?.hideDividers ?: false,
-                fontSize = existingSettings?.fontSize ?: "MEDIUM",
-                enableAnimations = existingSettings?.enableAnimations ?: true,
+            val settings = (existingSettings ?: UserSettings()).copy(
                 feedbackType = currentState.feedbackType.name,
                 enableVibration = currentState.enableVibration,
                 enableSound = currentState.enableSound,
                 backgroundBehavior = currentState.backgroundBehavior.name,
                 startupPage = currentState.startupPage.name,
                 enableQuickAdd = currentState.enableQuickAdd,
-                enableGoalReminder = existingSettings?.enableGoalReminder ?: true,
-                enableStreakReminder = existingSettings?.enableStreakReminder ?: true,
-                enableAutoBackup = existingSettings?.enableAutoBackup ?: false,
-                enableCloudSync = existingSettings?.enableCloudSync ?: false,
-                showAIWidget = existingSettings?.showAIWidget ?: true,
-                wallpaperType = existingSettings?.wallpaperType ?: "GRADIENT",
-                wallpaperColor = existingSettings?.wallpaperColor,
-                wallpaperGradientStart = existingSettings?.wallpaperGradientStart,
-                wallpaperGradientEnd = existingSettings?.wallpaperGradientEnd,
-                wallpaperImageUri = existingSettings?.wallpaperImageUri
+                enableLongPressHomeToAdd = currentState.enableLongPressHomeToAdd,
+                enableLongPressOverviewToStats = currentState.enableLongPressOverviewToStats,
+                enableLongPressMyToProfileEdit = currentState.enableLongPressMyToProfileEdit
             )
             userSettingsRepository.saveSettings(settings)
         }
@@ -113,5 +111,8 @@ data class InteractionSettingsUiState(
     val enableSound: Boolean = false,
     val backgroundBehavior: BackgroundBehavior = BackgroundBehavior.STANDARD,
     val startupPage: StartupPage = StartupPage.HOME,
-    val enableQuickAdd: Boolean = false
+    val enableQuickAdd: Boolean = false,
+    val enableLongPressHomeToAdd: Boolean = true,
+    val enableLongPressOverviewToStats: Boolean = true,
+    val enableLongPressMyToProfileEdit: Boolean = true
 )

@@ -51,6 +51,25 @@ fun LineChartView(
 
             chart.xAxis.valueFormatter = IndexAxisValueFormatter(data.map { it.first })
             chart.data = LineData(dataSet)
+
+            val pointCount = data.size
+            if (pointCount > 0) {
+                val maxVisible = when {
+                    pointCount <= 7 -> pointCount.toFloat()
+                    pointCount <= 30 -> 14f
+                    else -> 20f
+                }
+                chart.setVisibleXRangeMaximum(maxVisible)
+                chart.isDragEnabled = pointCount > maxVisible
+                chart.setScaleXEnabled(pointCount > maxVisible)
+                chart.setScaleYEnabled(false)
+                chart.moveViewToX((pointCount - 1).toFloat())
+            } else {
+                chart.isDragEnabled = false
+                chart.setScaleXEnabled(false)
+                chart.setScaleYEnabled(false)
+            }
+
             chart.invalidate()
         }
     )

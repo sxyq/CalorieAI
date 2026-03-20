@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.calorieai.app">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- 网络权限 -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -28,6 +27,7 @@
     <application
         android:name=".CalorieAIApplication"
         android:allowBackup="true"
+        android:enableOnBackInvokedCallback="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -58,11 +58,24 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- WorkManager: 使用 on-demand 初始化时，移除默认初始化器 -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
         
         <!-- 桌面小组件 -->
         <receiver
             android:name=".service.widget.CalorieWidget"
-            android:exported="false">
+            android:exported="false"
+            android:label="@string/widget_label_medium">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -74,7 +87,8 @@
         <!-- 小尺寸插件 -->
         <receiver
             android:name=".service.widget.CalorieWidgetSmall"
-            android:exported="false">
+            android:exported="false"
+            android:label="@string/widget_label_small_food">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -82,11 +96,51 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/calorie_widget_small_info" />
         </receiver>
+
+        <!-- 小尺寸插件 - 饮水 -->
+        <receiver
+            android:name=".service.widget.WaterWidgetSmall"
+            android:exported="false"
+            android:label="@string/widget_label_small_water">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/calorie_widget_small_water_info" />
+        </receiver>
+
+        <!-- 小尺寸插件 - 运动 -->
+        <receiver
+            android:name=".service.widget.ExerciseWidgetSmall"
+            android:exported="false"
+            android:label="@string/widget_label_small_exercise">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/calorie_widget_small_exercise_info" />
+        </receiver>
+
+        <!-- 小尺寸插件 - 营养 -->
+        <receiver
+            android:name=".service.widget.NutritionWidgetSmall"
+            android:exported="false"
+            android:label="@string/widget_label_small_nutrition">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/calorie_widget_small_nutrition_info" />
+        </receiver>
         
         <!-- 中等尺寸插件 -->
         <receiver
             android:name=".service.widget.CalorieWidgetMedium"
-            android:exported="false">
+            android:exported="false"
+            android:label="@string/widget_label_medium">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -98,7 +152,8 @@
         <!-- 大尺寸插件 -->
         <receiver
             android:name=".service.widget.CalorieWidgetLarge"
-            android:exported="false">
+            android:exported="false"
+            android:label="@string/widget_label_large">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

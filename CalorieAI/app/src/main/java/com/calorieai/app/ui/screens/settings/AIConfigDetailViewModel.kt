@@ -2,24 +2,29 @@ package com.calorieai.app.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calorieai.app.data.model.APICallRecord
 import com.calorieai.app.data.model.AIConfig
 import com.calorieai.app.data.model.AIConfigPresets
 import com.calorieai.app.data.model.AIProtocol
+import com.calorieai.app.data.repository.APICallRecordRepository
 import com.calorieai.app.data.repository.AIConfigRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class AIConfigDetailViewModel @Inject constructor(
-    private val aiConfigRepository: AIConfigRepository
+    private val aiConfigRepository: AIConfigRepository,
+    private val apiCallRecordRepository: APICallRecordRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AIConfigDetailUiState())
     val uiState: StateFlow<AIConfigDetailUiState> = _uiState.asStateFlow()
 
     private var configId: String? = null
+    private var recordsJob: Job? = null
 
     fun loadConfig(id: String?) {
         configId = id
@@ -37,10 +42,21 @@ class AIConfigDetailViewModel @Inject constructor(
                         isEditing = true,
                         isPreset = config.isPreset
                     )
+                    observeCallRecords(id)
                 }
             }
         } else {
+            recordsJob?.cancel()
             _uiState.value = AIConfigDetailUiState()
+        }
+    }
+
+    private fun observeCallRecords(id: String) {
+        recordsJob?.cancel()
+        recordsJob = viewModelScope.launch {
+            apiCallRecordRepository.getRecordsByConfig(id).collect { records ->
+                _uiState.update { it.copy(recentCallRecords = records.take(20)) }
+            }
         }
     }
 
@@ -166,7 +182,8 @@ data class AIConfigDetailUiState(
     val isPreset: Boolean = false,
     val isTesting: Boolean = false,
     val testResult: TestResult? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val recentCallRecords: List<APICallRecord> = emptyList()
 )
 
 sealed class TestResult {

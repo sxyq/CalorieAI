@@ -1,5 +1,6 @@
 package com.calorieai.app.ui.screens.ai
 
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.ChatMessageData
@@ -17,6 +18,11 @@ class AIChatViewModel @Inject constructor(
     private val aiChatService: AIChatService,
     private val aiChatHistoryRepository: AIChatHistoryRepository
 ) : ViewModel() {
+    companion object {
+        // 保留流式打字观感，同时降低每字符重组造成的主线程压力
+        private const val STREAM_UI_UPDATE_INTERVAL_MS = 48L
+        private const val STREAM_UI_UPDATE_CHUNK_SIZE = 20
+    }
 
     private val _uiState = MutableStateFlow(AIChatUiState())
     val uiState: StateFlow<AIChatUiState> = _uiState.asStateFlow()
@@ -109,6 +115,10 @@ class AIChatViewModel @Inject constructor(
         }
     }
 
+    fun persistCurrentSession() {
+        saveCurrentSession()
+    }
+
     fun onInputChange(text: String) {
         _uiState.value = _uiState.value.copy(inputText = text)
     }
@@ -159,17 +169,27 @@ class AIChatViewModel @Inject constructor(
 
                 // 使用流式API接收响应
                 val fullResponse = StringBuilder()
-                aiChatService.sendMessageStream(message).collect { char ->
-                    fullResponse.append(char)
-                    // 实时更新消息内容
-                    val updatedMessages = _uiState.value.messages.map { msg ->
-                        if (msg.id == aiMessageId) {
-                            msg.copy(content = fullResponse.toString())
-                        } else {
-                            msg
-                        }
+                var pendingLength = 0
+                var lastUiUpdateAt = 0L
+
+                aiChatService.sendMessageStream(message).collect { chunk ->
+                    val piece = chunk.toString()
+                    fullResponse.append(piece)
+                    pendingLength += piece.length
+
+                    val now = SystemClock.elapsedRealtime()
+                    val shouldUpdate = pendingLength >= STREAM_UI_UPDATE_CHUNK_SIZE ||
+                        (now - lastUiUpdateAt) >= STREAM_UI_UPDATE_INTERVAL_MS ||
+                        piece.contains('\n')
+
+                    if (shouldUpdate) {
+                        updateStreamingAssistantMessage(aiMessageId, fullResponse.toString())
+                        pendingLength = 0
+                        lastUiUpdateAt = now
                     }
-                    _uiState.value = _uiState.value.copy(messages = updatedMessages)
+                }
+                if (pendingLength > 0) {
+                    updateStreamingAssistantMessage(aiMessageId, fullResponse.toString())
                 }
 
                 // 完成后更新状态
@@ -313,6 +333,104 @@ class AIChatViewModel @Inject constructor(
         }
     }
 
+    fun startWeeklyMealPlanning() {
+        val userMessage = "请帮我制定未来7天菜谱周计划"
+        val displayMessage = ChatMessage(
+            content = userMessage,
+            isFromUser = true
+        )
+
+        _uiState.value = _uiState.value.copy(
+            messages = _uiState.value.messages + displayMessage,
+            inputText = "",
+            isLoading = true,
+            isTyping = true
+        )
+
+        if (_uiState.value.currentSessionTitle.isBlank()) {
+            _uiState.value = _uiState.value.copy(
+                currentSessionTitle = userMessage.take(30)
+            )
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = aiChatService.planWeeklyMeals()
+                val aiMessage = ChatMessage(
+                    content = response,
+                    isFromUser = false
+                )
+
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + aiMessage,
+                    isLoading = false,
+                    isTyping = false
+                )
+                updateRemainingCalls()
+                saveCurrentSession()
+            } catch (e: Exception) {
+                val errorMessage = ChatMessage(
+                    content = "抱歉，周计划生成失败：${e.message}",
+                    isFromUser = false
+                )
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + errorMessage,
+                    isLoading = false,
+                    isTyping = false
+                )
+            }
+        }
+    }
+
+    fun startNextMealRecommendation() {
+        val userMessage = "请给我下一餐智能推荐"
+        val displayMessage = ChatMessage(
+            content = userMessage,
+            isFromUser = true
+        )
+
+        _uiState.value = _uiState.value.copy(
+            messages = _uiState.value.messages + displayMessage,
+            inputText = "",
+            isLoading = true,
+            isTyping = true
+        )
+
+        if (_uiState.value.currentSessionTitle.isBlank()) {
+            _uiState.value = _uiState.value.copy(
+                currentSessionTitle = userMessage.take(30)
+            )
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = aiChatService.recommendNextMeal()
+                val aiMessage = ChatMessage(
+                    content = response,
+                    isFromUser = false
+                )
+
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + aiMessage,
+                    isLoading = false,
+                    isTyping = false
+                )
+                updateRemainingCalls()
+                saveCurrentSession()
+            } catch (e: Exception) {
+                val errorMessage = ChatMessage(
+                    content = "抱歉，下一餐推荐失败：${e.message}",
+                    isFromUser = false
+                )
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + errorMessage,
+                    isLoading = false,
+                    isTyping = false
+                )
+            }
+        }
+    }
+
     fun startHealthConsult() {
         val userMessage = "我想咨询一些营养健康问题"
         val displayMessage = ChatMessage(
@@ -369,6 +487,19 @@ class AIChatViewModel @Inject constructor(
             messages = emptyList(),
             currentSessionTitle = ""
         )
+    }
+
+    private fun updateStreamingAssistantMessage(messageId: String, content: String) {
+        val currentMessages = _uiState.value.messages
+        val targetIndex = currentMessages.indexOfLast { it.id == messageId }
+        if (targetIndex < 0) return
+
+        val updatedMessages = currentMessages.toMutableList()
+        val old = updatedMessages[targetIndex]
+        if (old.content == content) return
+
+        updatedMessages[targetIndex] = old.copy(content = content)
+        _uiState.value = _uiState.value.copy(messages = updatedMessages)
     }
 
     private fun ChatMessage.toChatMessageData(): ChatMessageData {

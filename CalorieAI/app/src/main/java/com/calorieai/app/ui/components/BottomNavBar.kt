@@ -5,8 +5,11 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,6 +30,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +39,9 @@ import androidx.compose.ui.unit.sp
 import com.calorieai.app.ui.animation.AnimationEasing
 import com.calorieai.app.ui.animation.AnimationSpecs
 import com.calorieai.app.ui.theme.*
+import kotlinx.coroutines.withTimeoutOrNull
+
+private const val BOTTOM_NAV_LONG_PRESS_MS = 220L
 
 /**
  * 底部导航栏数据类
@@ -58,6 +65,7 @@ fun BottomNavBar(
     items: List<NavItem>,
     selectedRoute: String,
     onItemSelected: (String) -> Unit,
+    onItemLongPressed: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
     isDark: Boolean = false
 ) {
@@ -125,6 +133,9 @@ fun BottomNavBar(
                     item = item,
                     isSelected = item.route == selectedRoute,
                     onClick = { onItemSelected(item.route) },
+                    onLongClick = onItemLongPressed?.let { handler ->
+                        { handler(item.route) }
+                    },
                     isDark = isDark
                 )
             }
@@ -140,10 +151,10 @@ private fun NavBarItem(
     item: NavItem,
     isSelected: Boolean,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     isDark: Boolean
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
 
     val context = LocalContext.current
     val isLowEnd = remember { GlassDeviceUtils.isLowEndDevice(context) }
@@ -213,10 +224,34 @@ private fun NavBarItem(
         modifier = Modifier
             .widthIn(min = 48.dp)
             .heightIn(min = 48.dp)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = ripple,
-                onClick = onClick
+            .then(
+                if (onLongClick != null) {
+                    Modifier
+                        .indication(interactionSource = interactionSource, indication = ripple)
+                        .pointerInput(onLongClick, onClick) {
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false)
+                                val releasedInTime = withTimeoutOrNull(BOTTOM_NAV_LONG_PRESS_MS) {
+                                    waitForUpOrCancellation() != null
+                                }
+
+                                when (releasedInTime) {
+                                    true -> onClick()
+                                    null -> {
+                                        onLongClick()
+                                        waitForUpOrCancellation()
+                                    }
+                                    else -> Unit
+                                }
+                            }
+                        }
+                } else {
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = ripple,
+                        onClick = onClick
+                    )
+                }
             ),
         contentAlignment = Alignment.Center
     ) {

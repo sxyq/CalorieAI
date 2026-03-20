@@ -43,6 +43,10 @@ class ExerciseRecordRepository @Inject constructor(
         exerciseRecordDao.deleteRecordById(id)
     }
 
+    suspend fun deleteAll() {
+        exerciseRecordDao.deleteAll()
+    }
+
     suspend fun getTotalCaloriesBurnedBetween(startTime: Long, endTime: Long): Int {
         return exerciseRecordDao.getTotalCaloriesBurnedBetween(startTime, endTime) ?: 0
     }

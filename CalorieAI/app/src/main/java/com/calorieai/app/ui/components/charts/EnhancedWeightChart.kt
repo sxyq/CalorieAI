@@ -102,6 +102,7 @@ fun EnhancedWeightChart(
                     val minDate = allData.minOf { it.date.time }
                     val maxDate = allData.maxOf { it.date.time }
                     val dateRange = maxDate - minDate
+                    val safeDateRange = if (dateRange <= 0L) 1L else dateRange
                     
                     drawGridLines(
                         canvasWidth,
@@ -148,7 +149,7 @@ fun EnhancedWeightChart(
                             minWeight,
                             weightRange,
                             minDate,
-                            dateRange,
+                            safeDateRange,
                             primaryColor
                         )
                     }
@@ -158,14 +159,14 @@ fun EnhancedWeightChart(
                             actualData,
                             canvasWidth,
                             canvasHeight,
-                            padding,
-                            minWeight,
-                            weightRange,
-                            minDate,
-                            dateRange,
-                            color = primaryColor,
-                            strokeWidth = 3f
-                        )
+                                padding,
+                                minWeight,
+                                weightRange,
+                                minDate,
+                                safeDateRange,
+                                color = primaryColor,
+                                strokeWidth = 3f
+                            )
                     }
                     
                     if (showPrediction && prediction != null && weightRange != 0f) {
@@ -182,7 +183,7 @@ fun EnhancedWeightChart(
                                 minWeight,
                                 weightRange,
                                 minDate,
-                                dateRange,
+                                safeDateRange,
                                 color = primaryColor.copy(alpha = 0.4f),
                                 strokeWidth = 2f,
                                 isDashed = true
@@ -190,9 +191,9 @@ fun EnhancedWeightChart(
                         }
                     }
                     
-                    if (weightRange != 0f && dateRange != 0L) {
+                    if (weightRange != 0f) {
                         actualData.forEach { point ->
-                            val x = padding + ((point.date.time - minDate).toFloat() / dateRange) * (canvasWidth - 2 * padding)
+                            val x = padding + ((point.date.time - minDate).toFloat() / safeDateRange) * (canvasWidth - 2 * padding)
                             val y = canvasHeight - padding - ((point.weight - minWeight) / weightRange) * (canvasHeight - 2 * padding)
                             
                             drawCircle(

@@ -53,11 +53,11 @@ val SurfaceVariantLight = Color(0xFFE0E0E0)   // 变体表面
 val OnSurfaceVariantLight = Color(0xFF49454F)
 
 // 深色主题背景
-val BackgroundDark = Color(0xFF121212)        // 深色背景
+val BackgroundDark = Color(0xFF000000)        // 纯黑背景
 val OnBackgroundDark = Color(0xFFE0E0E0)      // 浅色文字
-val SurfaceDark = Color(0xFF1E1E1E)           // 深灰表面
+val SurfaceDark = Color(0xFF000000)           // 纯黑表面
 val OnSurfaceDark = Color(0xFFE0E0E0)
-val SurfaceVariantDark = Color(0xFF2C2C2C)    // 变体表面
+val SurfaceVariantDark = Color(0xFF141414)    // 变体表面
 val OnSurfaceVariantDark = Color(0xFFCAC4D0)
 
 // 表面容器色（用于卡片等）
@@ -67,11 +67,11 @@ val SurfaceContainerLight = Color(0xFFF0F0F0)
 val SurfaceContainerHighLight = Color(0xFFE8E8E8)
 val SurfaceContainerHighestLight = Color(0xFFE0E0E0)
 
-val SurfaceContainerLowestDark = Color(0xFF0D0D0D)
-val SurfaceContainerLowDark = Color(0xFF1A1A1A)
-val SurfaceContainerDark = Color(0xFF1E1E1E)
-val SurfaceContainerHighDark = Color(0xFF252525)
-val SurfaceContainerHighestDark = Color(0xFF2C2C2C)
+val SurfaceContainerLowestDark = Color(0xFF000000)
+val SurfaceContainerLowDark = Color(0xFF0A0A0A)
+val SurfaceContainerDark = Color(0xFF101010)
+val SurfaceContainerHighDark = Color(0xFF161616)
+val SurfaceContainerHighestDark = Color(0xFF1E1E1E)
 
 // ============================================
 // 错误与轮廓色

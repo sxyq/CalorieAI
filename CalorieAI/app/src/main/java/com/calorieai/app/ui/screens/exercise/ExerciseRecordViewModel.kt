@@ -8,6 +8,7 @@ import com.calorieai.app.data.repository.ExerciseRecordRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import java.util.*
 import javax.inject.Inject
 
@@ -15,25 +16,31 @@ import javax.inject.Inject
 class ExerciseRecordViewModel @Inject constructor(
     private val exerciseRecordRepository: ExerciseRecordRepository
 ) : ViewModel() {
+    private var recordsJob: Job? = null
 
     private val _uiState = MutableStateFlow(ExerciseRecordUiState())
     val uiState: StateFlow<ExerciseRecordUiState> = _uiState.asStateFlow()
 
     init {
-        loadTodayRecords()
+        loadRecordsForSelectedDate()
     }
 
-    private fun loadTodayRecords() {
-        viewModelScope.launch {
-            val calendar = Calendar.getInstance()
-            calendar.set(Calendar.HOUR_OF_DAY, 0)
-            calendar.set(Calendar.MINUTE, 0)
-            calendar.set(Calendar.SECOND, 0)
-            calendar.set(Calendar.MILLISECOND, 0)
-            val startOfDay = calendar.timeInMillis
-            
-            calendar.add(Calendar.DAY_OF_MONTH, 1)
-            val endOfDay = calendar.timeInMillis
+    private fun getDayRange(timestamp: Long): Pair<Long, Long> {
+        val calendar = Calendar.getInstance().apply { timeInMillis = timestamp }
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val startOfDay = calendar.timeInMillis
+        calendar.add(Calendar.DAY_OF_MONTH, 1)
+        val endOfDay = calendar.timeInMillis
+        return startOfDay to endOfDay
+    }
+
+    private fun loadRecordsForSelectedDate() {
+        recordsJob?.cancel()
+        recordsJob = viewModelScope.launch {
+            val (startOfDay, endOfDay) = getDayRange(_uiState.value.selectedDateMillis)
 
             exerciseRecordRepository.getRecordsBetween(startOfDay, endOfDay)
                 .collect { records ->
@@ -54,6 +61,24 @@ class ExerciseRecordViewModel @Inject constructor(
                         todayExerciseCount = records.size
                     )
                 }
+        }
+    }
+
+    fun setSelectedDateFromString(dateStr: String) {
+        try {
+            val parts = dateStr.split("-")
+            if (parts.size == 3) {
+                val year = parts[0].toInt()
+                val month = parts[1].toInt() - 1
+                val day = parts[2].toInt()
+                val calendar = Calendar.getInstance().apply {
+                    set(year, month, day, 12, 0, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                _uiState.value = _uiState.value.copy(selectedDateMillis = calendar.timeInMillis)
+                loadRecordsForSelectedDate()
+            }
+        } catch (_: Exception) {
         }
     }
 
@@ -128,7 +153,7 @@ class ExerciseRecordViewModel @Inject constructor(
                 durationMinutes = duration,
                 caloriesBurned = calories,
                 notes = _uiState.value.noteInput.takeIf { it.isNotBlank() },
-                recordTime = System.currentTimeMillis()
+                recordTime = _uiState.value.selectedDateMillis
             )
             exerciseRecordRepository.addRecord(record)
 
@@ -150,6 +175,7 @@ class ExerciseRecordViewModel @Inject constructor(
 
 data class ExerciseRecordUiState(
     val selectedExerciseType: ExerciseType = ExerciseType.RUNNING,
+    val selectedDateMillis: Long = System.currentTimeMillis(),
     val durationInput: String = "",
     val caloriesInput: String = "",
     val noteInput: String = "",

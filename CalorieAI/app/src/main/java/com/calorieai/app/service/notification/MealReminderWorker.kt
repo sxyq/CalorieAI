@@ -17,15 +17,21 @@ class MealReminderWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         val mealTypeName = inputData.getString(KEY_MEAL_TYPE) ?: return Result.failure()
+        val reminderTime = inputData.getString(KEY_REMINDER_TIME) ?: return Result.failure()
+        val workTag = inputData.getString(KEY_WORK_TAG) ?: return Result.failure()
         val mealType = MealType.valueOf(mealTypeName)
 
         notificationHelper.showMealReminderNotification(mealType)
+        // 每次触发后续约下一次提醒，保证按天循环。
+        scheduleReminder(applicationContext, mealType, reminderTime, workTag)
 
         return Result.success()
     }
 
     companion object {
         const val KEY_MEAL_TYPE = "meal_type"
+        const val KEY_REMINDER_TIME = "reminder_time"
+        const val KEY_WORK_TAG = "work_tag"
 
         private const val WORK_TAG_BREAKFAST = "breakfast_reminder"
         private const val WORK_TAG_LUNCH = "lunch_reminder"
@@ -62,7 +68,11 @@ class MealReminderWorker @AssistedInject constructor(
 
             val delay = targetTime.timeInMillis - currentTime.timeInMillis
 
-            val inputData = workDataOf(KEY_MEAL_TYPE to mealType.name)
+            val inputData = workDataOf(
+                KEY_MEAL_TYPE to mealType.name,
+                KEY_REMINDER_TIME to time,
+                KEY_WORK_TAG to tag
+            )
 
             val reminderWork = OneTimeWorkRequestBuilder<MealReminderWorker>()
                 .setInitialDelay(delay, TimeUnit.MILLISECONDS)
@@ -71,15 +81,19 @@ class MealReminderWorker @AssistedInject constructor(
                 .build()
 
             WorkManager.getInstance(context).enqueueUniqueWork(
-                "${tag}_${System.currentTimeMillis()}",
+                tag,
                 ExistingWorkPolicy.REPLACE,
                 reminderWork
             )
         }
 
         private fun parseTime(time: String): Pair<Int, Int> {
-            val parts = time.split(":")
-            return Pair(parts[0].toInt(), parts[1].toInt())
+            return try {
+                val parts = time.split(":")
+                Pair(parts[0].toInt(), parts[1].toInt())
+            } catch (_: Exception) {
+                Pair(8, 0)
+            }
         }
     }
 }

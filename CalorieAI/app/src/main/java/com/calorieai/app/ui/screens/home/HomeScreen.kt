@@ -2,10 +2,12 @@ package com.calorieai.app.ui.screens.home
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -23,10 +25,9 @@ import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.model.ExerciseType
 import com.calorieai.app.ui.components.AIChatWidget
+import com.calorieai.app.ui.components.AIWidgetMode
 import com.calorieai.app.ui.components.ExerciseDialog
 import com.calorieai.app.ui.components.ExpandableCalendarView
-import com.calorieai.app.ui.components.MenuScreen
-import com.calorieai.app.ui.components.TopMenuButton
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.LocalDate
@@ -40,15 +41,16 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.ui.components.interactiveScale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
-    onNavigateToAdd: () -> Unit,
+    onNavigateToAdd: (String) -> Unit,
+    onNavigateToAIAdd: (String) -> Unit = {},
     onNavigateToStats: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToResult: (String) -> Unit,
-    onNavigateToAIChat: () -> Unit = {},
+    onNavigateToAIChat: (String) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -78,28 +80,21 @@ fun HomeScreen(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
-                title = { Text("CalorieAI") },
-                actions = {
-                    // 统计按钮
-                    IconButton(onClick = onNavigateToStats) {
-                        Icon(Icons.Default.BarChart, contentDescription = "统计")
-                    }
-                    // 顶部菜单按钮（三个点）
-                    TopMenuButton(
-                        onMenuItemClick = { menuScreen ->
-                            when (menuScreen) {
-                                MenuScreen.Settings -> onNavigateToSettings()
-                                MenuScreen.Overview -> onNavigateToStats()
-                                MenuScreen.EditProfile -> onNavigateToProfile()
-                            }
-                        }
-                    )
-                }
+                title = { Text("CalorieAI") }
             )
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onNavigateToAdd,
+                onClick = { onNavigateToAdd(selectedDate.toString()) },
+                modifier = Modifier.pointerInput(uiState.enableQuickAdd, selectedDate) {
+                    detectTapGestures(
+                        onLongPress = {
+                            if (uiState.enableQuickAdd) {
+                                onNavigateToAIAdd(selectedDate.toString())
+                            }
+                        }
+                    )
+                },
                 containerColor = MaterialTheme.colorScheme.primaryContainer
             ) {
                 Icon(Icons.Default.Add, contentDescription = "添加")
@@ -222,6 +217,7 @@ fun HomeScreen(
             ) {
                 AIChatWidget(
                     onExpandToFullScreen = onNavigateToAIChat,
+                    mode = AIWidgetMode.RECIPE_ASSISTANT,
                     widgetState = aiWidgetState,
                     onWidgetStateChange = { aiWidgetState = it },
                     modifier = Modifier
@@ -251,6 +247,7 @@ fun TodayOverviewCard(
     exerciseCalories: Int,
     selectedDate: java.time.LocalDate
 ) {
+    val isDark = isSystemInDarkTheme()
     val progress = (totalCalories.toFloat() / dailyGoal).coerceIn(0f, 1f)
     val remaining = dailyGoal - totalCalories
     val netCalories = totalCalories - bmr - exerciseCalories // 热量差值（正为盈余，负为缺口）
@@ -270,7 +267,11 @@ fun TodayOverviewCard(
             .padding(16.dp)
             .liquidGlass(
                 shape = MaterialTheme.shapes.extraLarge,
-                tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
+                tint = if (isDark) {
+                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f)
+                } else {
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)
+                },
                 blurRadius = 40f
             )
     ) {
@@ -281,7 +282,7 @@ fun TodayOverviewCard(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isDark) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
             )
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -294,18 +295,21 @@ fun TodayOverviewCard(
                 CalorieInfo(
                     value = totalCalories.toString(),
                     label = "已摄入",
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    highlighted = true
                 )
                 CalorieInfo(
                     value = dailyGoal.toString(),
                     label = "目标",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface,
+                    highlighted = false
                 )
                 CalorieInfo(
                     value = remaining.toString(),
                     label = "剩余",
                     color = if (remaining < 0) MaterialTheme.colorScheme.error 
-                            else MaterialTheme.colorScheme.secondary
+                            else MaterialTheme.colorScheme.secondary,
+                    highlighted = true
                 )
             }
             
@@ -344,7 +348,7 @@ fun TodayOverviewCard(
                 Text(
                     text = encouragement.message,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isDark) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -362,12 +366,14 @@ fun TodayOverviewCard(
                     CalorieInfoSmall(
                         value = bmr.toString(),
                         label = "基础代谢",
-                        icon = "🔥"
+                        icon = "🔥",
+                        highlighted = false
                     )
                     CalorieInfoSmall(
                         value = "+${exerciseCalories}",
                         label = "运动消耗",
-                        icon = "💪"
+                        icon = "💪",
+                        highlighted = true
                     )
                     CalorieInfoSmall(
                         value = "${if (netCalories >= 0) "+" else ""}$netCalories",
@@ -377,7 +383,8 @@ fun TodayOverviewCard(
                             netCalories > 500 -> MaterialTheme.colorScheme.error
                             netCalories < -500 -> MaterialTheme.colorScheme.tertiary
                             else -> MaterialTheme.colorScheme.primary
-                        }
+                        },
+                        highlighted = true
                     )
                 }
             }
@@ -389,20 +396,36 @@ fun TodayOverviewCard(
 fun CalorieInfo(
     value: String,
     label: String,
-    color: androidx.compose.ui.graphics.Color
+    color: androidx.compose.ui.graphics.Color,
+    highlighted: Boolean
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = color
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+    val isDark = isSystemInDarkTheme()
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(
+                when {
+                    isDark && highlighted -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f)
+                    isDark -> MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.94f)
+                    highlighted -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.58f)
+                    else -> MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.82f)
+                }
+            )
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isDark) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
@@ -411,24 +434,40 @@ fun CalorieInfoSmall(
     value: String,
     label: String,
     icon: String,
-    color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface
+    color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
+    highlighted: Boolean
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = icon,
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = color
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+    val isDark = isSystemInDarkTheme()
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                when {
+                    isDark && highlighted -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                    isDark -> MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.9f)
+                    highlighted -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+                    else -> MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.8f)
+                }
+            )
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = icon,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (isDark) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
@@ -440,6 +479,7 @@ fun FoodRecordItem(
     onStarClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
     val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     var showDeleteDialog by remember { mutableStateOf(false) }
     
@@ -537,7 +577,11 @@ fun FoodRecordItem(
                 .interactiveScale(interactionSource)
                 .liquidGlass(
                     shape = MaterialTheme.shapes.large,
-                    tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)
+                    tint = if (isDark) {
+                        MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.86f)
+                    } else {
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)
+                    }
                 )
                 .clickable(
                     interactionSource = interactionSource,
@@ -664,6 +708,7 @@ fun ExerciseRecordItem(
     record: ExerciseRecord,
     onDeleteClick: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
     var showDeleteDialog by remember { mutableStateOf(false) }
     
     // 解析自定义运动名称
@@ -681,7 +726,11 @@ fun ExerciseRecordItem(
             .interactiveScale(interactionSource)
             .liquidGlass(
                 shape = MaterialTheme.shapes.large,
-                tint = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                tint = if (isDark) {
+                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.86f)
+                } else {
+                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                }
             )
             .combinedClickable(
                 interactionSource = interactionSource,

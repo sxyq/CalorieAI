@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.outlined.Close
@@ -30,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,18 +42,18 @@ import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.ui.components.interactiveScale
 import com.calorieai.app.ui.theme.GlassLightColors
 import com.calorieai.app.ui.theme.GlassDarkColors
-import androidx.compose.foundation.isSystemInDarkTheme
 
 @Composable
 fun AddMethodSelectorScreen(
     onNavigateBack: () -> Unit,
     onNavigateToManual: () -> Unit,
     onNavigateToAI: () -> Unit,
+    onNavigateToFavoriteRecipes: () -> Unit = {},
     onNavigateToWeight: () -> Unit = {},
     onNavigateToExercise: () -> Unit = {},
     onNavigateToWaterHistory: () -> Unit = {}
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     var visible by remember { mutableStateOf(false) }
     val primaryColor = if (isDark) GlassDarkColors.Primary else GlassLightColors.Primary
     val surfaceColor = if (isDark) GlassDarkColors.Surface else GlassLightColors.Surface
@@ -76,14 +78,7 @@ fun AddMethodSelectorScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp)
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) {
-                    visible = false
-                    onNavigateBack()
-                },
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(60.dp))
@@ -168,31 +163,48 @@ fun AddMethodSelectorScreen(
                 enter = fadeIn(tween(400, delayMillis = 250)),
                 exit = fadeOut(tween(150))
             ) {
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    SecondaryMethodCard(
-                        icon = Icons.Default.Scale,
-                        title = "体重",
-                        subtitle = "记录体重",
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToWeight
-                    )
-                    SecondaryMethodCard(
-                        icon = Icons.Default.FitnessCenter,
-                        title = "运动",
-                        subtitle = "添加运动",
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToExercise
-                    )
-                    SecondaryMethodCard(
-                        icon = Icons.Default.WaterDrop,
-                        title = "饮水",
-                        subtitle = "记录饮水",
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToWaterHistory
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        SecondaryMethodCard(
+                            icon = Icons.Default.MenuBook,
+                            title = "菜谱库",
+                            subtitle = "美食参考",
+                            modifier = Modifier.weight(1f),
+                            onClick = onNavigateToFavoriteRecipes
+                        )
+                        SecondaryMethodCard(
+                            icon = Icons.Default.Scale,
+                            title = "体重",
+                            subtitle = "记录体重",
+                            modifier = Modifier.weight(1f),
+                            onClick = onNavigateToWeight
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        SecondaryMethodCard(
+                            icon = Icons.Default.FitnessCenter,
+                            title = "运动",
+                            subtitle = "添加运动",
+                            modifier = Modifier.weight(1f),
+                            onClick = onNavigateToExercise
+                        )
+                        SecondaryMethodCard(
+                            icon = Icons.Default.WaterDrop,
+                            title = "饮水",
+                            subtitle = "记录饮水",
+                            modifier = Modifier.weight(1f),
+                            onClick = onNavigateToWaterHistory
+                        )
+                    }
                 }
             }
 
@@ -313,7 +325,7 @@ private fun SecondaryMethodCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val surfaceVariant = if (isDark)
         Color(0xFF2A2A2A)
     else

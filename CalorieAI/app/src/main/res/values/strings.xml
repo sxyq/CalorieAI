@@ -77,7 +77,16 @@
     <string name="permission_notification_required">需要通知权限来发送餐次提醒</string>
     
     <!-- 桌面插件 -->
-    <string name="widget_small_description">小尺寸热量插件</string>
-    <string name="widget_medium_description">中等尺寸热量插件</string>
-    <string name="widget_large_description">大尺寸热量插件</string>
+    <string name="widget_label_small_food">今日饮食摄入</string>
+    <string name="widget_label_small_water">今日饮水记录</string>
+    <string name="widget_label_small_exercise">今日运动消耗</string>
+    <string name="widget_label_small_nutrition">今日营养摄入</string>
+    <string name="widget_label_medium">健康概览</string>
+    <string name="widget_label_large">多维健康看板</string>
+    <string name="widget_small_description">小尺寸 - 今日饮食摄入</string>
+    <string name="widget_small_water_description">小尺寸 - 今日饮水记录</string>
+    <string name="widget_small_exercise_description">小尺寸 - 今日运动消耗</string>
+    <string name="widget_small_nutrition_description">小尺寸 - 今日营养摄入</string>
+    <string name="widget_medium_description">中尺寸 - 健康概览</string>
+    <string name="widget_large_description">大尺寸 - 多维健康看板</string>
 </resources>

@@ -42,3 +42,7 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Python scan scripts
+__tmp_scan.py
+__tmp_scan2.py
