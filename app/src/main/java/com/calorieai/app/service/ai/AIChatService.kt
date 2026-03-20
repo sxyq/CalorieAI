@@ -6,6 +6,7 @@ import com.calorieai.app.data.repository.AIConfigRepository
 import com.calorieai.app.data.repository.AITokenUsageRepository
 import com.calorieai.app.service.ai.common.AIApiClient
 import com.calorieai.app.service.ai.common.AIApiException
+import com.calorieai.app.utils.SecureLogger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
@@ -28,7 +29,12 @@ class AIChatService @Inject constructor(
 ) {
 
     companion object {
+        private const val TAG = "AIChatService"
         const val DEFAULT_DAILY_LIMIT = 50
+        private const val MAX_CONTEXT_CHARS = 12000
+        private const val MAX_RECENT_MESSAGES = 8
+        private const val MAX_EARLIER_MESSAGES = 24
+        private const val MAX_SUMMARY_ITEM_CHARS = 160
 
         private const val SYSTEM_PROMPT = """你是一位专业的营养师和健康顾问。请严格按以下格式回答：
 
@@ -49,7 +55,16 @@ class AIChatService @Inject constructor(
    - 用户忌口、口味、预算、烹饪时长约束"""
     }
 
-    suspend fun sendMessage(message: String): String {
+    data class ConversationMessage(
+        val role: String,
+        val content: String,
+        val timestamp: Long = System.currentTimeMillis()
+    )
+
+    suspend fun sendMessage(
+        message: String,
+        conversationHistory: List<ConversationMessage> = emptyList()
+    ): String {
         // 确保默认配置已初始化
         var config = aiConfigRepository.getDefaultConfig().firstOrNull()
         if (config == null) {
@@ -63,12 +78,13 @@ class AIChatService @Inject constructor(
             throw Exception("今日API调用次数已用完（限制：${DEFAULT_DAILY_LIMIT}次/天），请明天再试")
         }
 
+        val fullMessage = buildChatPromptWithContext(message, conversationHistory)
         val startTime = System.currentTimeMillis()
         try {
             val (content, rawResponse) = aiApiClient.chatRaw(
                 config = config,
                 systemPrompt = SYSTEM_PROMPT,
-                userMessage = message,
+                userMessage = fullMessage,
                 temperature = 0.7,
                 maxTokens = 1000
             )
@@ -79,7 +95,7 @@ class AIChatService @Inject constructor(
                 configId = config.id,
                 configName = config.name,
                 modelId = config.modelId,
-                inputText = message,
+                inputText = fullMessage,
                 outputText = content,
                 rawResponse = rawResponse,
                 protocol = config.protocol.name,
@@ -93,7 +109,7 @@ class AIChatService @Inject constructor(
                 configId = config.id,
                 configName = config.name,
                 modelId = config.modelId,
-                inputText = message,
+                inputText = fullMessage,
                 outputText = "",
                 rawResponse = null,
                 protocol = config.protocol.name,
@@ -107,7 +123,7 @@ class AIChatService @Inject constructor(
                 configId = config.id,
                 configName = config.name,
                 modelId = config.modelId,
-                inputText = message,
+                inputText = fullMessage,
                 outputText = "",
                 rawResponse = null,
                 protocol = config.protocol.name,
@@ -122,7 +138,10 @@ class AIChatService @Inject constructor(
     /**
      * 流式发送消息 - 返回Flow<String>实现打字机效果
      */
-    fun sendMessageStream(message: String): Flow<String> {
+    fun sendMessageStream(
+        message: String,
+        conversationHistory: List<ConversationMessage> = emptyList()
+    ): Flow<String> {
         return kotlinx.coroutines.flow.flow {
             // 确保默认配置已初始化
             var config = aiConfigRepository.getDefaultConfig().firstOrNull()
@@ -141,13 +160,14 @@ class AIChatService @Inject constructor(
             aiRateLimiter.recordCall(config.id)
             val startTime = System.currentTimeMillis()
             val outputBuilder = StringBuilder()
+            val fullMessage = buildChatPromptWithContext(message, conversationHistory)
 
             try {
                 // 使用流式API
                 aiApiClient.chatStream(
                     config = config,
                     systemPrompt = SYSTEM_PROMPT,
-                    userMessage = message,
+                    userMessage = fullMessage,
                     temperature = 0.7,
                     maxTokens = 1000
                 ).collect { char ->
@@ -159,7 +179,7 @@ class AIChatService @Inject constructor(
                     configId = config.id,
                     configName = config.name,
                     modelId = config.modelId,
-                    inputText = message,
+                    inputText = fullMessage,
                     outputText = outputBuilder.toString(),
                     rawResponse = null,
                     protocol = config.protocol.name,
@@ -171,7 +191,7 @@ class AIChatService @Inject constructor(
                     configId = config.id,
                     configName = config.name,
                     modelId = config.modelId,
-                    inputText = message,
+                    inputText = fullMessage,
                     outputText = outputBuilder.toString(),
                     rawResponse = null,
                     protocol = config.protocol.name,
@@ -185,7 +205,7 @@ class AIChatService @Inject constructor(
                     configId = config.id,
                     configName = config.name,
                     modelId = config.modelId,
-                    inputText = message,
+                    inputText = fullMessage,
                     outputText = outputBuilder.toString(),
                     rawResponse = null,
                     protocol = config.protocol.name,
@@ -195,6 +215,94 @@ class AIChatService @Inject constructor(
                 )
                 throw e
             }
+        }
+    }
+
+    private fun buildChatPromptWithContext(
+        message: String,
+        conversationHistory: List<ConversationMessage>
+    ): String {
+        val normalizedHistory = conversationHistory
+            .filter { it.content.isNotBlank() }
+            .map {
+                it.copy(
+                    role = when (it.role.lowercase()) {
+                        "assistant", "ai", "model" -> "assistant"
+                        else -> "user"
+                    },
+                    content = it.content.trim()
+                )
+            }
+
+        if (normalizedHistory.isEmpty()) {
+            SecureLogger.event(TAG, "chat_context_bypassed", "reason" to "empty_history")
+            return message.trim()
+        }
+
+        val recentMessages = normalizedHistory.takeLast(MAX_RECENT_MESSAGES)
+        val earlierMessages = normalizedHistory
+            .dropLast(recentMessages.size)
+            .takeLast(MAX_EARLIER_MESSAGES)
+
+        val earlierSummary = buildEarlierSummary(earlierMessages)
+        val recentTranscript = buildRecentTranscript(recentMessages)
+
+        val fullPrompt = buildString {
+            appendLine("请结合以下多轮对话上下文继续回答。若历史信息与本轮最新要求冲突，以最新用户消息为准。")
+            appendLine()
+            if (earlierSummary.isNotBlank()) {
+                appendLine("【更早对话摘要】")
+                appendLine(earlierSummary)
+                appendLine()
+            }
+            appendLine("【最近对话原文】")
+            appendLine(recentTranscript)
+            appendLine()
+            appendLine("【当前用户消息】")
+            append(message.trim())
+        }
+
+        val finalPrompt = if (fullPrompt.length > MAX_CONTEXT_CHARS) {
+            buildString {
+                appendLine("请结合以下最近对话继续回答。较早历史已因长度受限被进一步压缩；若信息不足，请主动说明。")
+                appendLine()
+                appendLine("【最近对话原文】")
+                appendLine(recentTranscript.takeLast(MAX_CONTEXT_CHARS.coerceAtLeast(2048)))
+                appendLine()
+                appendLine("【当前用户消息】")
+                append(message.trim())
+            }
+        } else {
+            fullPrompt
+        }
+
+        SecureLogger.event(
+            TAG,
+            "chat_context_built",
+            "historyCount" to normalizedHistory.size,
+            "recentCount" to recentMessages.size,
+            "earlierCount" to earlierMessages.size,
+            "promptLength" to finalPrompt.length,
+            "compressed" to (normalizedHistory.size > recentMessages.size)
+        )
+        return finalPrompt
+    }
+
+    private fun buildEarlierSummary(messages: List<ConversationMessage>): String {
+        if (messages.isEmpty()) return ""
+        return messages.joinToString("\n") { item ->
+            val speaker = if (item.role == "assistant") "助手" else "用户"
+            val compact = item.content
+                .replace(Regex("\\s+"), " ")
+                .take(MAX_SUMMARY_ITEM_CHARS)
+            "$speaker: $compact"
+        }
+    }
+
+    private fun buildRecentTranscript(messages: List<ConversationMessage>): String {
+        return messages.joinToString("\n\n") { item ->
+            val speaker = if (item.role == "assistant") "助手" else "用户"
+            "$speaker：${item.content}"
         }
     }
 
@@ -380,6 +488,8 @@ class AIChatService @Inject constructor(
         return sendMessageWithContext(
             message = """
 请基于我提供的已知信息推荐可做菜谱，并满足：
+0) 开头先汇报最近7天与30天的有效记录天数（例如：2/7天、5/30天）
+0.1) 若任一窗口有效记录天数<3天，禁止输出“缺口持续加大/恶化”等趋势结论，改为冷启动基线建议
 1) 如果存在库存食材，优先使用即将过期的食材；如果库存为空，直接给出可执行菜谱并附可选采购清单
 2) 严格结合我的近期健康数据和目标，给出做法与份量
 3) 每道菜输出：食材及克数、步骤、难度、时长、份量、营养信息、厨具要求

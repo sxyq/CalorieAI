@@ -3,7 +3,6 @@ package com.calorieai.app.ui.screens.onboarding
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -17,6 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -46,7 +47,7 @@ fun OnboardingScreen6(
 ) {
     var isCompleting by remember { mutableStateOf(false) }
 
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     // 完成动画
     val scale by animateFloatAsState(
@@ -111,13 +112,8 @@ fun OnboardingScreen6(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .glassCard(
-                        backgroundColor = surfaceColor,
-                        blurRadius = GlassUtils.BlurRadius.CARD_LARGE,
-                        cornerRadius = GlassUtils.CornerRadius.XLARGE,
-                        borderColor = if (isDark) Color.White.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.25f),
-                        alpha = GlassAlpha.CARD_BACKGROUND
-                    )
+                    .clip(RoundedCornerShape(GlassUtils.CornerRadius.XLARGE))
+                    .background(surfaceColor.copy(alpha = GlassAlpha.CARD_BACKGROUND))
                     .padding(20.dp)
             ) {
                 Column(
@@ -233,13 +229,8 @@ fun OnboardingScreen6(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .glassCard(
-                        backgroundColor = primaryContainerColor,
-                        blurRadius = GlassUtils.BlurRadius.CARD,
-                        cornerRadius = GlassUtils.CornerRadius.LARGE,
-                        borderColor = if (isDark) Color.White.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.25f),
-                        alpha = 0.7f
-                    )
+                    .clip(RoundedCornerShape(GlassUtils.CornerRadius.LARGE))
+                    .background(primaryContainerColor.copy(alpha = 0.7f))
                     .padding(16.dp)
             ) {
                 Row(

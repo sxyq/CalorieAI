@@ -30,28 +30,41 @@ import java.time.LocalDate
 
 private data class OverviewHeatmapPalette(
     val empty: Color,
-    val level1: Color,
-    val level2: Color,
-    val level3: Color,
-    val level4: Color
+    val levels: List<Color>
 )
 
 private fun overviewHeatmapPalette(isDark: Boolean): OverviewHeatmapPalette {
     return if (isDark) {
         OverviewHeatmapPalette(
             empty = Color(0xFF2D3440),
-            level1 = Color(0xFF1E566D),
-            level2 = Color(0xFF1E7C96),
-            level3 = Color(0xFF23A38B),
-            level4 = Color(0xFF8AD850)
+            levels = listOf(
+                Color(0xFF2C455C),
+                Color(0xFF1E566D),
+                Color(0xFF1D6B83),
+                Color(0xFF1E7C96),
+                Color(0xFF218AA3),
+                Color(0xFF2397A0),
+                Color(0xFF23A38B),
+                Color(0xFF3CB276),
+                Color(0xFF62C261),
+                Color(0xFF8AD850)
+            )
         )
     } else {
         OverviewHeatmapPalette(
             empty = Color(0xFFE6EAF0),
-            level1 = Color(0xFFBEE4F5),
-            level2 = Color(0xFF7CC8E6),
-            level3 = Color(0xFF3EA6D0),
-            level4 = Color(0xFF0E5A8A)
+            levels = listOf(
+                Color(0xFFD7EEF8),
+                Color(0xFFBEE4F5),
+                Color(0xFFA8DBF2),
+                Color(0xFF8FD1ED),
+                Color(0xFF7CC8E6),
+                Color(0xFF63BCDE),
+                Color(0xFF4EAFD8),
+                Color(0xFF3EA6D0),
+                Color(0xFF238BC0),
+                Color(0xFF0E5A8A)
+            )
         )
     }
 }
@@ -161,8 +174,12 @@ private fun HeatmapCard(
     }
     
     val activeDays = uiState.monthlyActiveDays
-    val todayStats = uiState.todayStats
-    val totalRecords = todayStats?.recordCount ?: 0
+    val totalRecords = remember(dailyMealRecords) {
+        dailyMealRecords.firstOrNull { it.date == LocalDate.now() }?.recordCount ?: 0
+    }
+    val displayActivityData = remember(activityData, totalRecords) {
+        mergeTodayRecordToHeatmap(activityData, totalRecords)
+    }
     val daysElapsed = LocalDate.now().dayOfMonth.coerceAtLeast(1)
     val activityRate = if (activeDays > 0) {
         (activeDays * 100 / daysElapsed).coerceIn(0, 100)
@@ -211,7 +228,7 @@ private fun HeatmapCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            HeatmapGrid(isDark, activityData)
+            HeatmapGrid(isDark, displayActivityData)
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -227,8 +244,25 @@ private fun HeatmapCard(
     }
 }
 
+private fun mergeTodayRecordToHeatmap(
+    baseData: List<List<Int>>,
+    todayRecordCount: Int
+): List<List<Int>> {
+    if (baseData.isEmpty() || todayRecordCount <= 0) return baseData
+    if (baseData.size < 7 || baseData.any { it.size < 20 }) return baseData
+
+    val today = LocalDate.now()
+    val dayIndex = today.dayOfWeek.value % 7
+    val weekIndex = 19 // 20周热力图的最后一列即当前周
+
+    val targetLevel = todayRecordCount.coerceIn(1, 10)
+    val mutable = baseData.map { it.toMutableList() }.toMutableList()
+    mutable[dayIndex][weekIndex] = maxOf(mutable[dayIndex][weekIndex], targetLevel)
+    return mutable
+}
+
 // 从真实的每日餐次记录数据生成活跃度数据
-// level: 0=无记录, 1=1个餐次, 2=2个餐次, 3=3个餐次, 4=4个及以上餐次
+// level: 0=无记录, 1~10=记录强度
 // 返回的矩阵是 [dayIndex][weekIndex] 格式，即每行是一周中的同一天（如所有周一），每列是一周
 private fun generateActivityDataFromDailyRecords(
     dailyMealRecords: List<com.calorieai.app.ui.screens.stats.DailyMealRecord>
@@ -267,15 +301,8 @@ private fun generateActivityDataFromDailyRecords(
 @Composable
 private fun HeatmapLegend(isDark: Boolean) {
     val palette = overviewHeatmapPalette(isDark)
-    // 4种颜色表示不同的餐次记录情况：
-    // 0=无记录(灰色), 1=1个餐次(浅色), 2=2个餐次(中浅色), 3=3个餐次(中深色), 4=4个及以上(深色)
-    val colors = listOf(
-        palette.empty,
-        palette.level1,
-        palette.level2,
-        palette.level3,
-        palette.level4
-    )
+    // 0=无记录，1~10逐级增强
+    val colors = listOf(palette.empty) + palette.levels
 
     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         colors.forEach { color ->
@@ -317,14 +344,10 @@ private fun HeatmapGrid(
 @Composable
 private fun HeatmapCell(intensity: Int, isDark: Boolean) {
     val palette = overviewHeatmapPalette(isDark)
-    // 根据餐次记录数量显示不同颜色：
-    // 0=无记录(灰色), 1=1个餐次(浅色), 2=2个餐次(中浅色), 3=3个餐次(中深色), 4=4个及以上(深色)
-    val backgroundColor = when (intensity) {
-        0 -> palette.empty
-        1 -> palette.level1
-        2 -> palette.level2
-        3 -> palette.level3
-        else -> palette.level4
+    val backgroundColor = if (intensity <= 0) {
+        palette.empty
+    } else {
+        palette.levels[(intensity - 1).coerceIn(0, palette.levels.lastIndex)]
     }
 
     Box(

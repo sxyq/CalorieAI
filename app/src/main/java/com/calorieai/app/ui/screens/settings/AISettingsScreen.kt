@@ -115,7 +115,7 @@ fun AISettingsScreen(
                         config = config,
                         isDefault = isDefault,
                         isPreset = config.isPreset,
-                        onClick = { if (!config.isPreset) onNavigateToDetail(config.id) },
+                        onClick = { onNavigateToDetail(config.id) },
                         onSetDefault = { viewModel.setDefaultConfig(config.id) },
                         onDelete = { viewModel.deleteConfig(config) }
                     )
@@ -372,13 +372,7 @@ fun AIConfigItem(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
-            .then(
-                if (!isPreset) {
-                    Modifier.interactiveScale(interactionSource)
-                } else {
-                    Modifier
-                }
-            )
+            .interactiveScale(interactionSource)
             .liquidGlass(
                 shape = RoundedCornerShape(24.dp),
                 tint = if (isPreset) {
@@ -387,16 +381,10 @@ fun AIConfigItem(
                     MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
                 }
             )
-            .then(
-                if (!isPreset) {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = androidx.compose.foundation.LocalIndication.current,
-                        onClick = onClick
-                    )
-                } else {
-                    Modifier
-                }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
+                onClick = onClick
             )
     ) {
         Column(

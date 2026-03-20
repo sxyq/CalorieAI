@@ -20,38 +20,40 @@ object SecureLogger {
     /**
      * 调试日志
      */
-    fun d(tag: String, message: String) {
-        if (BuildConfig.DEBUG) {
-            Log.d(tag, sanitizeMessage(message))
-        }
-    }
+    fun d(tag: String, message: String) = log(Log.DEBUG, tag, message)
     
     /**
      * 信息日志
      */
-    fun i(tag: String, message: String) {
-        if (BuildConfig.DEBUG) {
-            Log.i(tag, sanitizeMessage(message))
-        }
-    }
+    fun i(tag: String, message: String) = log(Log.INFO, tag, message)
     
     /**
      * 警告日志
      */
-    fun w(tag: String, message: String) {
-        Log.w(tag, sanitizeMessage(message))
-    }
+    fun w(tag: String, message: String) = log(Log.WARN, tag, message)
     
     /**
      * 错误日志
      */
-    fun e(tag: String, message: String, throwable: Throwable? = null) {
-        if (BuildConfig.DEBUG) {
-            Log.e(tag, sanitizeMessage(message), throwable)
-        } else {
-            // 生产环境只记录简短错误信息
-            Log.e(tag, message.take(100), throwable)
+    fun e(tag: String, message: String, throwable: Throwable? = null) =
+        log(Log.ERROR, tag, message, throwable)
+
+    /**
+     * 结构化事件日志，便于故障精确定位
+     */
+    fun event(tag: String, event: String, vararg fields: Pair<String, Any?>) {
+        val payload = buildString {
+            append(event)
+            if (fields.isNotEmpty()) {
+                append(" | ")
+                append(
+                    fields.joinToString(" | ") { (key, value) ->
+                        "$key=${value ?: "null"}"
+                    }
+                )
+            }
         }
+        i(tag, payload)
     }
     
     /**
@@ -60,10 +62,10 @@ object SecureLogger {
     fun logApiError(tag: String, code: Int, errorBody: String?) {
         if (BuildConfig.DEBUG) {
             // 调试模式显示完整错误
-            Log.e(tag, "API错误($code): ${errorBody?.take(MAX_ERROR_BODY_LENGTH)}")
+            e(tag, "API错误($code): ${errorBody?.take(MAX_ERROR_BODY_LENGTH)}")
         } else {
             // 生产环境只显示状态码
-            Log.e(tag, "API请求失败，错误码: $code")
+            e(tag, "API请求失败，错误码: $code")
         }
     }
     
@@ -89,15 +91,43 @@ object SecureLogger {
         
         return sanitized
     }
-    
-    /**
-     * 截断长消息
-     */
-    private fun truncateMessage(message: String): String {
-        return if (message.length > MAX_LOG_LENGTH) {
-            message.take(MAX_LOG_LENGTH) + "...[截断]"
-        } else {
-            message
+
+    private fun log(priority: Int, tag: String, message: String, throwable: Throwable? = null) {
+        val sanitized = sanitizeMessage(message)
+        val normalized = if (BuildConfig.DEBUG) sanitized else sanitized.take(MAX_LOG_LENGTH)
+        val chunks = normalized.chunked(MAX_LOG_LENGTH)
+
+        if (chunks.isEmpty()) {
+            logInternal(priority, tag, "", throwable)
+            return
+        }
+
+        chunks.forEachIndexed { index, chunk ->
+            val withIndex = if (chunks.size > 1) {
+                "(${index + 1}/${chunks.size}) $chunk"
+            } else {
+                chunk
+            }
+            val shouldAttachThrowable = throwable != null && index == chunks.lastIndex
+            logInternal(priority, tag, withIndex, throwable.takeIf { shouldAttachThrowable })
+        }
+    }
+
+    private fun logInternal(priority: Int, tag: String, message: String, throwable: Throwable?) {
+        when (priority) {
+            Log.ERROR -> Log.e(tag, message, throwable)
+            Log.WARN -> Log.w(tag, message, throwable)
+            Log.INFO -> Log.i(tag, message, throwable)
+            Log.DEBUG -> {
+                if (BuildConfig.DEBUG) {
+                    Log.d(tag, message, throwable)
+                }
+            }
+            else -> {
+                if (BuildConfig.DEBUG) {
+                    Log.v(tag, message, throwable)
+                }
+            }
         }
     }
 }

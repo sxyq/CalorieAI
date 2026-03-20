@@ -143,6 +143,25 @@ class AIApiClient @Inject constructor(
         temperature: Double = 0.3,
         maxTokens: Int = 1000
     ): String = withContext(Dispatchers.IO) {
+        val (content, _) = visionRaw(
+            config = config,
+            systemPrompt = systemPrompt,
+            userMessage = userMessage,
+            base64Image = base64Image,
+            temperature = temperature,
+            maxTokens = maxTokens
+        )
+        content
+    }
+
+    suspend fun visionRaw(
+        config: AIConfig,
+        systemPrompt: String,
+        userMessage: String,
+        base64Image: String,
+        temperature: Double = 0.3,
+        maxTokens: Int = 1000
+    ): Pair<String, String> = withContext(Dispatchers.IO) {
         // Vision 使用 Map 构建复杂结构
         val userContent = listOf(
             mapOf("type" to "text", "text" to userMessage),
@@ -175,7 +194,8 @@ class AIApiClient @Inject constructor(
             
             val responseBody = response.body?.string() ?: throw AIApiException("API返回空")
             val chatResponse = gson.fromJson(responseBody, ChatResponse::class.java)
-            chatResponse.choices.firstOrNull()?.message?.content ?: throw AIApiException("响应内容为空")
+            val content = chatResponse.choices.firstOrNull()?.message?.content ?: throw AIApiException("响应内容为空")
+            content to responseBody
         }
     }
 

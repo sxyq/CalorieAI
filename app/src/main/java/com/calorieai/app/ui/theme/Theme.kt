@@ -379,6 +379,10 @@ fun CalorieAITheme(
 
             // 导航栏使用与状态栏一致的表面色
             window.navigationBarColor = systemBarColor
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // 关闭系统自动对比度着色，避免浅色模式下导航栏被系统改成灰色。
+                window.isNavigationBarContrastEnforced = false
+            }
 
             // 根据主题设置状态栏文字颜色
             // 浅色主题：黑色文字
@@ -469,6 +473,9 @@ fun GlassTheme(
 
             // 导航栏使用Glass导航栏背景色
             window.navigationBarColor = glassColors.navigationBarBackground.toArgb()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                window.isNavigationBarContrastEnforced = false
+            }
 
             // 根据主题设置状态栏文字颜色
             WindowCompat.getInsetsController(window, view).apply {

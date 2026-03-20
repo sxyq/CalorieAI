@@ -33,4 +33,39 @@ object MetabolicConstants {
         val multiplier = getMultiplier(activityLevel)
         return (tdee / multiplier).toInt()
     }
+
+    fun calculateDailyWaterGoal(
+        weight: Float?,
+        activityLevel: String,
+        age: Int? = null,
+        gender: String? = null
+    ): Int {
+        val baseMl = when {
+            weight != null && weight > 0f -> (weight * 35f).toInt()
+            else -> 2000
+        }
+
+        val activityBonus = when (activityLevel) {
+            "LIGHT" -> 150
+            "MODERATE" -> 300
+            "ACTIVE" -> 450
+            "VERY_ACTIVE" -> 600
+            else -> 0
+        }
+
+        val ageAdjustment = when {
+            age != null && age >= 55 -> 150
+            age != null && age <= 18 -> 100
+            else -> 0
+        }
+
+        val genderAdjustment = when (gender) {
+            "MALE" -> 100
+            "FEMALE" -> 0
+            else -> 50
+        }
+
+        return (baseMl + activityBonus + ageAdjustment + genderAdjustment)
+            .coerceIn(1500, 4500)
+    }
 }

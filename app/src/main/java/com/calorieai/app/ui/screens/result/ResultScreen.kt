@@ -50,6 +50,12 @@ fun ResultScreen(
             viewModel.clearFavoriteMessage()
         }
     }
+    LaunchedEffect(uiState.regenerateMessage) {
+        uiState.regenerateMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearRegenerateMessage()
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -96,11 +102,10 @@ fun ResultScreen(
                     onToggleFavorite = {
                         viewModel.toggleFavoriteRecipe()
                     },
-                    onRegenerate = { userInput ->
-                        // 删除当前记录并返回首页重新分析
-                        viewModel.deleteRecord(uiState.record!!.id)
-                        onNavigateBack()
+                    onRegenerate = {
+                        viewModel.regenerateCurrentRecord()
                     },
+                    isRegenerating = uiState.isRegenerating,
                     modifier = Modifier.padding(paddingValues)
                 )
             }
@@ -114,7 +119,8 @@ fun ResultContent(
     isFavoritedRecipe: Boolean,
     onSave: (FoodRecord) -> Unit,
     onToggleFavorite: () -> Unit,
-    onRegenerate: (String) -> Unit = {},
+    onRegenerate: () -> Unit = {},
+    isRegenerating: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     // 基础营养素状态
@@ -134,6 +140,23 @@ fun ResultContent(
     var vitaminC by remember { mutableStateOf(record.vitaminC.toString()) }
     var vitaminA by remember { mutableStateOf(record.vitaminA.toString()) }
     var potassium by remember { mutableStateOf(record.potassium.toString()) }
+
+    LaunchedEffect(record) {
+        calories = record.totalCalories.toString()
+        protein = record.protein.toString()
+        carbs = record.carbs.toString()
+        fat = record.fat.toString()
+        fiber = record.fiber.toString()
+        sugar = record.sugar.toString()
+        sodium = record.sodium.toString()
+        cholesterol = record.cholesterol.toString()
+        saturatedFat = record.saturatedFat.toString()
+        calcium = record.calcium.toString()
+        iron = record.iron.toString()
+        vitaminC = record.vitaminC.toString()
+        vitaminA = record.vitaminA.toString()
+        potassium = record.potassium.toString()
+    }
 
     Column(
         modifier = modifier
@@ -223,12 +246,7 @@ fun ResultContent(
         Spacer(modifier = Modifier.height(12.dp))
 
         // 重新生成数据按钮
-        RegenerateButton(
-            onClick = {
-                // 使用原始输入重新调用AI分析
-                onRegenerate(record.userInput)
-            }
-        )
+        RegenerateButton(onClick = onRegenerate, isLoading = isRegenerating)
 
         Spacer(modifier = Modifier.height(16.dp))
     }
@@ -805,7 +823,10 @@ private fun SaveButton(onClick: () -> Unit) {
  * 重新生成数据按钮
  */
 @Composable
-private fun RegenerateButton(onClick: () -> Unit) {
+private fun RegenerateButton(
+    onClick: () -> Unit,
+    isLoading: Boolean
+) {
     val interactionSource = remember { MutableInteractionSource() }
 
     Box(
@@ -818,6 +839,7 @@ private fun RegenerateButton(onClick: () -> Unit) {
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
+                enabled = !isLoading,
                 onClick = onClick
             ),
         contentAlignment = Alignment.Center
@@ -825,19 +847,34 @@ private fun RegenerateButton(onClick: () -> Unit) {
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.Refresh,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "重新生成数据",
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = FontWeight.Medium
-                ),
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "重新生成中...",
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Medium
+                    ),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "重新生成数据",
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Medium
+                    ),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
         }
     }
 }

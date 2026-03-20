@@ -8,6 +8,7 @@ import com.calorieai.app.data.local.UserSettingsDao
 import com.calorieai.app.data.model.GoalType
 import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.model.WeightLossStrategy
+import com.calorieai.app.utils.MetabolicConstants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -209,11 +210,18 @@ class UserSettingsRepository @Inject constructor(
         // 计算BMI
         val heightInMeters = height / 100f
         val bmi = weight / (heightInMeters * heightInMeters)
+        val dailyWaterGoal = MetabolicConstants.calculateDailyWaterGoal(
+            weight = weight,
+            activityLevel = activityLevel,
+            age = age,
+            gender = gender
+        )
         
         saveSettings(settings.copy(
             bmr = bmr,
             tdee = tdee,
-            bmi = bmi
+            bmi = bmi,
+            dailyWaterGoal = dailyWaterGoal
         ))
     }
 

@@ -60,7 +60,17 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.DARK.name -> true
                 else -> isSystemInDarkTheme()
             }
-            val wallpaperEnabled = themeMode == ThemeMode.SYSTEM.name
+            val wallpaperType = settings?.wallpaperType ?: "SOLID"
+            val wallpaperColor = settings?.wallpaperColor
+            val hasGradientWallpaper = wallpaperType == "GRADIENT" &&
+                !settings?.wallpaperGradientStart.isNullOrBlank() &&
+                !settings?.wallpaperGradientEnd.isNullOrBlank()
+            val hasImageWallpaper = wallpaperType == "IMAGE" && !settings?.wallpaperImageUri.isNullOrBlank()
+            val isDefaultSolidWallpaper = wallpaperType == "SOLID" && (
+                wallpaperColor.isNullOrBlank() ||
+                    wallpaperColor.equals("#FFFFFF", ignoreCase = true)
+            )
+            val wallpaperEnabled = hasGradientWallpaper || hasImageWallpaper || !isDefaultSolidWallpaper
             val backgroundOverride = remember(
                 wallpaperEnabled,
                 settings?.wallpaperType,
@@ -206,9 +216,10 @@ private fun AppWallpaperLayer(
         }
 
         else -> {
-            GradientWallpaperLayer(
-                startColor = wallpaperGradientStart,
-                endColor = wallpaperGradientEnd
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(DefaultSolidWallpaperColor)
             )
         }
     }

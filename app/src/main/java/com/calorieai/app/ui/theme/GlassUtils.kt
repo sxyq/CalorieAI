@@ -100,17 +100,8 @@ fun Modifier.glassBlur(
     radius: Dp = GlassUtils.BlurRadius.MEDIUM,
     enabled: Boolean = true
 ): Modifier = composed {
-    val context = LocalContext.current
-    val isLowEnd = remember { GlassDeviceUtils.isLowEndDevice(context) }
-    val supportsBlur = GlassDeviceUtils.supportsBlur()
-
-    if (enabled && supportsBlur && !isLowEnd && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        this.then(
-            blur(radius)
-        )
-    } else {
-        this
-    }
+    // 全局禁用毛玻璃模糊效果：保留布局与交互，不再叠加高斯模糊。
+    this
 }
 
 fun Modifier.glassCard(
@@ -146,21 +137,8 @@ fun Modifier.topHighlight(
     highlightColor: Color = Color.White.copy(alpha = 0.2f),
     height: Dp = 1.dp
 ): Modifier = composed {
-    val density = LocalDensity.current
-    val heightPx = with(density) { height.toPx() }
-    this.then(
-        Modifier.drawBehind {
-            drawRect(
-                brush = Brush.verticalGradient(
-                    colors = listOf(highlightColor, Color.Transparent),
-                    startY = 0f,
-                    endY = heightPx
-                ),
-                topLeft = Offset(0f, 0f),
-                size = androidx.compose.ui.geometry.Size(size.width, heightPx)
-            )
-        }
-    )
+    // 同步关闭毛玻璃高光层，避免“玻璃边缘”观感。
+    this
 }
 
 fun Modifier.glassBackground(

@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -19,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -46,7 +46,7 @@ fun OnboardingScreen2(
     var weightUnit by remember { mutableStateOf(initialWeightUnit) }
     var heightUnit by remember { mutableStateOf(initialHeightUnit) }
 
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     // 验证状态
     var weightError by remember { mutableStateOf<String?>(null) }
@@ -216,13 +216,8 @@ fun OnboardingScreen2(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 16.dp)
-                            .glassCard(
-                                backgroundColor = primaryContainerColor,
-                                blurRadius = GlassUtils.BlurRadius.CARD,
-                                cornerRadius = GlassUtils.CornerRadius.MEDIUM,
-                                borderColor = if (isDark) Color.White.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.25f),
-                                alpha = 0.7f
-                            )
+                            .clip(RoundedCornerShape(GlassUtils.CornerRadius.MEDIUM))
+                            .background(primaryContainerColor.copy(alpha = 0.7f))
                             .padding(16.dp)
                     ) {
                         Row(
@@ -297,13 +292,8 @@ private fun BodyDataInputCard(
 
     Box(
         modifier = modifier
-            .glassCard(
-                backgroundColor = surfaceColor,
-                blurRadius = GlassUtils.BlurRadius.CARD,
-                cornerRadius = GlassUtils.CornerRadius.LARGE,
-                borderColor = if (isDark) Color.White.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.25f),
-                alpha = GlassAlpha.CARD_BACKGROUND
-            )
+            .clip(RoundedCornerShape(GlassUtils.CornerRadius.LARGE))
+            .background(surfaceColor.copy(alpha = GlassAlpha.CARD_BACKGROUND))
             .padding(20.dp)
     ) {
         Column {

@@ -100,50 +100,48 @@ fun HomeScreen(
                 Icon(Icons.Default.Add, contentDescription = "添加")
             }
         }
-    ) { paddingValues ->
+        ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // 可展开日历
-            ExpandableCalendarView(
-                selectedDate = selectedDate,
-                onDateSelected = { date ->
-                    viewModel.selectDate(date)
-                },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                calorieData = uiState.calorieData,
-                targetCalories = uiState.dailyGoal
-            )
-            
-            // 今日概览（优化布局）
-            TodayOverviewCard(
-                totalCalories = uiState.totalCalories,
-                dailyGoal = uiState.dailyGoal,
-                bmr = uiState.bmr,
-                exerciseCalories = uiState.exerciseCalories,
-                selectedDate = selectedDate
-            )
-            
-            // 记录列表
-            if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    ExpandableCalendarView(
+                        selectedDate = selectedDate,
+                        onDateSelected = { date -> viewModel.selectDate(date) },
+                        calorieData = uiState.calorieData,
+                        targetCalories = uiState.dailyGoal
+                    )
                 }
-            } else if (uiState.records.isEmpty() && uiState.exerciseRecords.isEmpty()) {
-                EmptyState()
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // 饮食记录
+
+                item {
+                    TodayOverviewCard(
+                        totalCalories = uiState.totalCalories,
+                        dailyGoal = uiState.dailyGoal,
+                        bmr = uiState.bmr,
+                        exerciseCalories = uiState.exerciseCalories,
+                        selectedDate = selectedDate
+                    )
+                }
+
+                if (uiState.isLoading) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                } else if (uiState.records.isEmpty() && uiState.exerciseRecords.isEmpty()) {
+                    item { EmptyState() }
+                } else {
                     if (uiState.records.isNotEmpty()) {
                         item {
                             Text(
@@ -155,7 +153,7 @@ fun HomeScreen(
                         }
                         itemsIndexed(
                             items = uiState.records,
-                            key = { _, record -> "food_" + record.id } // 使用key优化列表性能
+                            key = { _, record -> "food_" + record.id }
                         ) { index, record ->
                             com.calorieai.app.ui.components.AnimatedListItem(index = index) {
                                 FoodRecordItem(
@@ -167,8 +165,7 @@ fun HomeScreen(
                             }
                         }
                     }
-                    
-                    // 运动记录
+
                     if (uiState.exerciseRecords.isNotEmpty()) {
                         item {
                             Spacer(modifier = Modifier.height(16.dp))
@@ -193,7 +190,6 @@ fun HomeScreen(
                     }
                 }
             }
-        }
         
         // AI聊天小窗口（根据设置显示/隐藏）- 固定在右下角
         // 注意：FAB 高度约为 56dp + 16dp margin = 72dp，所以底部 padding 设置为 88dp 避免重叠

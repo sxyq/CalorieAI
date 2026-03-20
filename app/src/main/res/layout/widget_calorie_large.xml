@@ -148,13 +148,10 @@
                 android:progressDrawable="@drawable/widget_progress_water" />
         </LinearLayout>
 
-        <Space
-            android:layout_width="8dp"
-            android:layout_height="1dp" />
-
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:background="@drawable/widget_inner_card"
             android:orientation="vertical"
@@ -197,13 +194,10 @@
                 android:progressDrawable="@drawable/widget_progress_exercise" />
         </LinearLayout>
 
-        <Space
-            android:layout_width="8dp"
-            android:layout_height="1dp" />
-
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:background="@drawable/widget_inner_card"
             android:orientation="vertical"

@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,7 +22,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,20 +52,34 @@ fun OnboardingScreen1(
     var selectedMonth by remember { mutableStateOf<Int?>(null) }
     var showYearPicker by remember { mutableStateOf(false) }
     var showMonthPicker by remember { mutableStateOf(false) }
+    var ageInput by remember { mutableStateOf("") }
     var selectedHeight by remember { mutableStateOf("170") }
-    var selectedWeight by remember { mutableStateOf("65") }
+    var selectedWeight by remember { mutableStateOf("65.0") }
 
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     LaunchedEffect(initialBirthDate) {
         initialBirthDate?.let { timestamp ->
             val calendar = Calendar.getInstance().apply { timeInMillis = timestamp }
             selectedYear = calendar.get(Calendar.YEAR)
             selectedMonth = calendar.get(Calendar.MONTH) + 1
+            val birthDate = java.time.Instant.ofEpochMilli(timestamp)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate()
+            val today = LocalDate.now()
+            val computedAge = today.year - birthDate.year -
+                if (today.dayOfYear < birthDate.dayOfYear) 1 else 0
+            if (computedAge in 1..120) {
+                ageInput = computedAge.toString()
+            }
         }
     }
 
-    val isFormValid = selectedGender != null && selectedYear != null && selectedMonth != null
+    val parsedAge = ageInput.toIntOrNull()
+    val ageValid = parsedAge != null && parsedAge in 10..100
+    val heightValid = selectedHeight.toFloatOrNull()?.let { it in 100f..220f } == true
+    val weightValid = selectedWeight.toFloatOrNull()?.let { it in 30f..200f } == true
+    val isFormValid = selectedGender != null && ageValid && heightValid && weightValid
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -152,6 +168,38 @@ fun OnboardingScreen1(
                 )
             }
 
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OutlinedTextField(
+                value = ageInput,
+                onValueChange = { value ->
+                    ageInput = value.filter { it.isDigit() }.take(3)
+                    val manualAge = ageInput.toIntOrNull()
+                    if (manualAge != null && manualAge in 10..100) {
+                        val now = LocalDate.now()
+                        selectedYear = now.year - manualAge
+                        selectedMonth = selectedMonth ?: 1
+                    }
+                },
+                label = { Text("年龄（可输入）") },
+                placeholder = { Text("例如 25") },
+                singleLine = true,
+                isError = ageInput.isNotBlank() && !ageValid,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            if (ageInput.isNotBlank() && !ageValid) {
+                Text(
+                    text = "年龄范围建议 10-100 岁",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .align(Alignment.Start)
+                        .padding(top = 4.dp)
+                )
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             // 出生日期
@@ -219,6 +267,7 @@ fun OnboardingScreen1(
                     onValueChange = { selectedWeight = it },
                     minValue = "30",
                     maxValue = "200",
+                    allowDecimal = true,
                     isDark = isDark,
                     modifier = Modifier.weight(1f)
                 )
@@ -229,9 +278,13 @@ fun OnboardingScreen1(
             Button(
                 onClick = {
                     if (isFormValid) {
+                        val now = LocalDate.now()
+                        val age = parsedAge ?: 25
+                        val resolvedYear = selectedYear ?: (now.year - age)
+                        val resolvedMonth = selectedMonth ?: 1
                         val calendar = Calendar.getInstance().apply {
-                            set(Calendar.YEAR, selectedYear!!)
-                            set(Calendar.MONTH, selectedMonth!! - 1)
+                            set(Calendar.YEAR, resolvedYear)
+                            set(Calendar.MONTH, resolvedMonth - 1)
                             set(Calendar.DAY_OF_MONTH, 1)
                             set(Calendar.HOUR_OF_DAY, 0)
                             set(Calendar.MINUTE, 0)
@@ -304,7 +357,8 @@ private fun GenderOption(
     Box(
         modifier = modifier
             .scale(scale)
-            .glassCardThemed(isDark = isDark, cornerRadius = 16.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -342,7 +396,8 @@ private fun DateSelectorCard(
 ) {
     Box(
         modifier = modifier
-            .glassCardThemed(isDark = isDark, cornerRadius = 12.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .clickable(onClick = onClick)
             .padding(16.dp)
     ) {
@@ -370,12 +425,35 @@ private fun NumberSelectorCard(
     onValueChange: (String) -> Unit,
     minValue: String,
     maxValue: String,
+    allowDecimal: Boolean = false,
     isDark: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val min = minValue.toFloatOrNull() ?: 0f
+    val max = maxValue.toFloatOrNull() ?: 999f
+    val step = if (allowDecimal) 0.1f else 1f
+
+    fun formatValue(v: Float): String {
+        return if (allowDecimal) String.format(Locale.US, "%.1f", v) else v.toInt().toString()
+    }
+
+    fun sanitizeInput(input: String): String {
+        if (!allowDecimal) return input.filter { it.isDigit() }
+        val filtered = input.filter { it.isDigit() || it == '.' }
+        val firstDot = filtered.indexOf('.')
+        return if (firstDot >= 0) {
+            val before = filtered.substring(0, firstDot + 1)
+            val after = filtered.substring(firstDot + 1).replace(".", "")
+            (before + after).take(8)
+        } else {
+            filtered.take(8)
+        }
+    }
+
     Box(
         modifier = modifier
-            .glassCardThemed(isDark = isDark, cornerRadius = 12.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .padding(16.dp)
     ) {
         Column {
@@ -385,17 +463,28 @@ private fun NumberSelectorCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = value,
+                onValueChange = { input ->
+                    val sanitized = sanitizeInput(input)
+                    onValueChange(sanitized)
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (allowDecimal) KeyboardType.Decimal else KeyboardType.Number
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 IconButton(
                     onClick = {
-                        val current = value.toIntOrNull() ?: minValue.toInt()
-                        val min = minValue.toInt()
-                        if (current > min) {
-                            onValueChange((current - 1).toString())
-                        }
+                        val current = value.toFloatOrNull() ?: min
+                        val next = (current - step).coerceAtLeast(min)
+                        onValueChange(formatValue(next))
                     },
                     modifier = Modifier.size(32.dp)
                 ) {
@@ -410,17 +499,20 @@ private fun NumberSelectorCard(
                 )
                 IconButton(
                     onClick = {
-                        val current = value.toIntOrNull() ?: minValue.toInt()
-                        val max = maxValue.toInt()
-                        if (current < max) {
-                            onValueChange((current + 1).toString())
-                        }
+                        val current = value.toFloatOrNull() ?: min
+                        val next = (current + step).coerceAtMost(max)
+                        onValueChange(formatValue(next))
                     },
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "增加")
                 }
             }
+            Text(
+                text = if (allowDecimal) "范围: ${min.toInt()}-$max kg，可输入小数" else "范围: ${min.toInt()}-${max.toInt()}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

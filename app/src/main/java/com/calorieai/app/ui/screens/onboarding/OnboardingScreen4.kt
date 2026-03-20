@@ -7,7 +7,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +22,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -40,7 +40,7 @@ fun OnboardingScreen4(
 ) {
     var selectedGoalType by remember { mutableStateOf<GoalType?>(initialGoalType?.let { GoalType.fromString(it) }) }
 
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     val isFormValid = selectedGoalType != null
 
@@ -209,7 +209,10 @@ private fun GoalTypeCard(
                     Modifier
                 }
             )
-            .glassCardThemed(isDark = isDark, cornerRadius = 16.dp)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = RoundedCornerShape(16.dp)
+            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,

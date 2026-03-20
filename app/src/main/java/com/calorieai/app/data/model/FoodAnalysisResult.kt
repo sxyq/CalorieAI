@@ -23,3 +23,9 @@ data class FoodAnalysisResult(
     val promptTokens: Int = 0,
     val completionTokens: Int = 0
 )
+
+data class FoodBatchAnalysisResult(
+    val items: List<FoodAnalysisResult> = emptyList(),
+    val promptTokens: Int = 0,
+    val completionTokens: Int = 0
+)

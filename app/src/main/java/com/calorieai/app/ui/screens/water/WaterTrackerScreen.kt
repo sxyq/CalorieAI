@@ -20,9 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.ui.components.WaterProgressCard
 import com.calorieai.app.ui.theme.*
 import java.text.SimpleDateFormat
@@ -31,12 +33,13 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WaterTrackerScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: WaterTrackerViewModel = hiltViewModel()
 ) {
     val isDark = isSystemInDarkTheme()
-    
-    var currentWater by remember { mutableIntStateOf(0) }
-    val dailyGoal = 2000
+    val uiState by viewModel.uiState.collectAsState()
+    var customAmount by remember { mutableStateOf("") }
+    var customGoal by remember(uiState.dailyGoal) { mutableStateOf(uiState.dailyGoal.toString()) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -66,19 +69,37 @@ fun WaterTrackerScreen(
 
             // 今日饮水进度
             WaterProgressCard(
-                currentAmount = currentWater,
-                targetAmount = dailyGoal,
+                currentAmount = uiState.currentWater,
+                targetAmount = uiState.dailyGoal,
+                isDark = isDark
+            )
+
+            WaterGoalCard(
+                goalInput = customGoal,
+                onGoalInputChange = { customGoal = it },
+                onApplyGoal = {
+                    viewModel.updateDailyGoal(customGoal.toIntOrNull() ?: uiState.dailyGoal)
+                },
                 isDark = isDark
             )
 
             // 快捷添加
             QuickAddCard(
-                onAddWater = { ml -> currentWater += ml },
+                customInput = customAmount,
+                onCustomInputChange = { customAmount = it },
+                onAddWater = { ml -> viewModel.addWater(ml) },
+                onAddCustomWater = {
+                    val amount = customAmount.toIntOrNull()
+                    if (amount != null && amount > 0) {
+                        viewModel.addWater(amount)
+                        customAmount = ""
+                    }
+                },
                 isDark = isDark
             )
 
             // 今日记录
-            TodayRecordsCard(isDark = isDark)
+            TodayRecordsCard(records = uiState.records, isDark = isDark)
 
             // 饮水提醒
             WaterReminderCard(isDark = isDark)
@@ -90,7 +111,10 @@ fun WaterTrackerScreen(
 
 @Composable
 private fun QuickAddCard(
+    customInput: String,
+    onCustomInputChange: (String) -> Unit,
     onAddWater: (Int) -> Unit,
+    onAddCustomWater: () -> Unit,
     isDark: Boolean
 ) {
     val quickAmounts = listOf(100, 200, 250, 300, 500)
@@ -130,13 +154,13 @@ private fun QuickAddCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedTextField(
-                    value = "",
-                    onValueChange = {},
+                    value = customInput,
+                    onValueChange = onCustomInputChange,
                     label = { Text("自定义 (ml)") },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        keyboardType = KeyboardType.Number
                     ),
                     leadingIcon = {
                         Icon(Icons.Default.Add, contentDescription = null)
@@ -150,7 +174,7 @@ private fun QuickAddCard(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 FilledIconButton(
-                    onClick = {},
+                    onClick = onAddCustomWater,
                     modifier = Modifier.size(56.dp),
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = Color(0xFF26C6DA)
@@ -162,6 +186,42 @@ private fun QuickAddCard(
                         tint = Color.White
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WaterGoalCard(
+    goalInput: String,
+    onGoalInputChange: (String) -> Unit,
+    onApplyGoal: () -> Unit,
+    isDark: Boolean
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .glassCardThemed(isDark = isDark, cornerRadius = 20.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = goalInput,
+                onValueChange = onGoalInputChange,
+                label = { Text("参考饮水目标 (ml)") },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardType = KeyboardType.Number
+                )
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Button(onClick = onApplyGoal) {
+                Text("更新目标")
             }
         }
     }
@@ -207,7 +267,10 @@ private fun QuickAddButton(
 }
 
 @Composable
-private fun TodayRecordsCard(isDark: Boolean) {
+private fun TodayRecordsCard(
+    records: List<com.calorieai.app.data.model.WaterRecord>,
+    isDark: Boolean
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -224,25 +287,37 @@ private fun TodayRecordsCard(isDark: Boolean) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 空状态
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    imageVector = Icons.Default.History,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "暂无饮水记录",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            if (records.isEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.History,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "暂无饮水记录",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                records.take(10).forEach { record ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(record.recordTime))}")
+                        Text("${record.amount} ml", fontWeight = FontWeight.SemiBold)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
         }
     }

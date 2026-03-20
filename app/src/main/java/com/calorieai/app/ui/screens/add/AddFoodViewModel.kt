@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import java.util.Calendar
 import javax.inject.Inject
 
@@ -78,100 +80,112 @@ class AddFoodViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                // 调用AI服务分析食物，带重试机制
-                val analysisResult = foodTextAnalysisService.analyzeFoodText(
-                    foodDescription = description,
-                    maxRetries = 2,
-                    onRetry = { attempt, maxAttempts ->
+                // 使用 NonCancellable 确保切后台时分析不中断
+                withContext(NonCancellable) {
+                    // 调用AI服务分析食物，带重试机制
+                    val analysisResult = foodTextAnalysisService.analyzeFoodText(
+                        foodDescription = description,
+                        maxRetries = 2,
+                        onRetry = { attempt, maxAttempts ->
+                            _uiState.value = _uiState.value.copy(
+                                retryMessage = "AI分析失败，正在进行第${attempt}次重试...",
+                                retryAttempt = attempt
+                            )
+                        }
+                    )
+
+                    if (analysisResult.isFailure) {
+                        val error = analysisResult.exceptionOrNull()
                         _uiState.value = _uiState.value.copy(
-                            retryMessage = "AI分析失败，正在进行第${attempt}次重试...",
-                            retryAttempt = attempt
+                            isLoading = false,
+                            errorMessage = error?.message ?: "AI分析失败，请检查网络连接或AI配置",
+                            retryMessage = null
                         )
+                        onError(error?.message ?: "AI分析失败")
+                        return@withContext
                     }
-                )
 
-                if (analysisResult.isFailure) {
-                    val error = analysisResult.exceptionOrNull()
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = error?.message ?: "AI分析失败，请检查网络连接或AI配置",
-                        retryMessage = null
-                    )
-                    onError(error?.message ?: "AI分析失败")
-                    return@launch
-                }
+                    val batchResult = analysisResult.getOrNull()
+                    val parsedItems = batchResult?.items ?: emptyList()
+                    if (parsedItems.isEmpty()) {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = "AI返回数据为空",
+                            retryMessage = null
+                        )
+                        onError("AI返回数据为空")
+                        return@withContext
+                    }
 
-                val result = analysisResult.getOrNull()
-                if (result == null) {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = "AI返回数据为空",
-                        retryMessage = null
-                    )
-                    onError("AI返回数据为空")
-                    return@launch
-                }
+                    // 过滤无效条目，确保多食材拆分后每条都可入库
+                    val validItems = parsedItems.filter { item ->
+                        item.foodName.isNotBlank() || item.calories > 0
+                    }
+                    if (validItems.isEmpty()) {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = "无法识别食物，请尝试更详细的描述",
+                            retryMessage = null
+                        )
+                        onError("无法识别食物")
+                        return@withContext
+                    }
 
-                // 检查AI返回的结果是否有效
-                if (result.foodName.isBlank() && result.calories <= 0) {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = "无法识别食物，请尝试更详细的描述",
-                        retryMessage = null
-                    )
-                    onError("无法识别食物")
-                    return@launch
-                }
-                
-                val foodName = result.foodName.takeIf { it.isNotBlank() } ?: extractFoodName(description)
-                val promptTokens = result.promptTokens
-                val completionTokens = result.completionTokens
+                    val promptTokens = batchResult?.promptTokens ?: 0
+                    val completionTokens = batchResult?.completionTokens ?: 0
 
-                // 记录Token使用情况（在单独的协程中，避免阻塞主流程）
-                if (promptTokens > 0 || completionTokens > 0) {
-                    viewModelScope.launch {
-                        try {
-                            aiConfigRepository.getDefaultConfig().firstOrNull()?.let { config ->
-                                // 估算成本（简化计算，实际应根据模型价格）
-                                val cost = (promptTokens + completionTokens) * 0.000002 // 假设每1000 tokens $0.002
-                                aiTokenUsageRepository.recordTokenUsage(
-                                    configId = config.id,
-                                    configName = config.name,
-                                    promptTokens = promptTokens,
-                                    completionTokens = completionTokens,
-                                    cost = cost
-                                )
+                    // 记录Token使用情况（在单独的协程中，避免阻塞主流程）
+                    if (promptTokens > 0 || completionTokens > 0) {
+                        viewModelScope.launch {
+                            try {
+                                aiConfigRepository.getDefaultConfig().firstOrNull()?.let { config ->
+                                    // 估算成本（简化计算，实际应根据模型价格）
+                                    val cost = (promptTokens + completionTokens) * 0.000002 // 假设每1000 tokens $0.002
+                                    aiTokenUsageRepository.recordTokenUsage(
+                                        configId = config.id,
+                                        configName = config.name,
+                                        promptTokens = promptTokens,
+                                        completionTokens = completionTokens,
+                                        cost = cost
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                // 记录token失败不影响主流程
                             }
-                        } catch (e: Exception) {
-                            // 记录token失败不影响主流程
                         }
                     }
+
+                    // 多食材逐条保存，首页将展示分开的记录
+                    val records = validItems.mapIndexed { index, item ->
+                        FoodRecord(
+                            foodName = item.foodName.takeIf { it.isNotBlank() } ?: extractFoodName(description, index),
+                            userInput = description,
+                            totalCalories = item.calories.toInt().coerceAtLeast(0),
+                            protein = item.protein,
+                            carbs = item.carbs,
+                            fat = item.fat,
+                            fiber = item.fiber,
+                            sugar = item.sugar,
+                            sodium = item.sodium,
+                            cholesterol = item.cholesterol,
+                            saturatedFat = item.saturatedFat,
+                            calcium = item.calcium,
+                            iron = item.iron,
+                            vitaminC = item.vitaminC,
+                            vitaminA = item.vitaminA,
+                            potassium = item.potassium,
+                            mealType = _uiState.value.selectedMealType,
+                            recordTime = _uiState.value.selectedDate + index
+                        )
+                    }
+
+                    records.forEach { record ->
+                        foodRecordRepository.addRecord(record)
+                    }
+
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    onSuccess(records.first().id)
                 }
-
-                val record = FoodRecord(
-                    foodName = foodName,
-                    userInput = description,
-                    totalCalories = result.calories.toInt(),
-                    protein = result.protein,
-                    carbs = result.carbs,
-                    fat = result.fat,
-                    fiber = result.fiber,
-                    sugar = result.sugar,
-                    sodium = result.sodium,
-                    cholesterol = result.cholesterol,
-                    saturatedFat = result.saturatedFat,
-                    calcium = result.calcium,
-                    iron = result.iron,
-                    vitaminC = result.vitaminC,
-                    vitaminA = result.vitaminA,
-                    potassium = result.potassium,
-                    mealType = _uiState.value.selectedMealType,
-                    recordTime = _uiState.value.selectedDate
-                )
-
-                foodRecordRepository.addRecord(record)
-                _uiState.value = _uiState.value.copy(isLoading = false)
-                onSuccess(record.id)
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -184,7 +198,7 @@ class AddFoodViewModel @Inject constructor(
 
 
 
-    private fun extractFoodName(description: String): String {
+    private fun extractFoodName(description: String, index: Int = 0): String {
         // 尝试从描述中提取食物名称
         // 1. 首先尝试按逗号、顿号分割，取可能包含食物的部分
         val separators = listOf("，", ",", "、", " ")
@@ -213,7 +227,7 @@ class AddFoodViewModel @Inject constructor(
         val finalName = cleanedName.trim().takeIf { it.isNotBlank() } ?: name.trim()
         
         // 4. 截取前20个字符，如果为空返回默认名称
-        return finalName.take(20).takeIf { it.isNotBlank() } ?: "未命名食物"
+        return finalName.take(20).takeIf { it.isNotBlank() } ?: "未命名食物${index + 1}"
     }
 }
 
