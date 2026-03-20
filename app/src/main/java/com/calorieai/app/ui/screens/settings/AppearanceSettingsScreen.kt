@@ -78,22 +78,6 @@ fun AppearanceSettingsScreen(
                 )
             }
 
-            // 壁纸设置
-            SettingsSection(title = "壁纸") {
-                WallpaperSelector(
-                    selectedType = uiState.wallpaperType,
-                    wallpaperColor = uiState.wallpaperColor,
-                    gradientStart = uiState.wallpaperGradientStart,
-                    gradientEnd = uiState.wallpaperGradientEnd,
-                    imageUri = uiState.wallpaperImageUri,
-                    onTypeSelected = viewModel::updateWallpaperType,
-                    onColorSelected = viewModel::updateWallpaperColor,
-                    onGradientSelected = viewModel::updateWallpaperGradient,
-                    onImageSelected = viewModel::updateWallpaperImage,
-                    onResetWallpaper = viewModel::resetWallpaperToDefault
-                )
-            }
-
             // AI助手设置
             SettingsSection(title = "AI助手") {
                 AIWidgetToggle(
