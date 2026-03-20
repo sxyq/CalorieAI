@@ -32,12 +32,28 @@ object GlassDeviceUtils {
 
     private const val LOW_END_MEMORY_THRESHOLD = 2048
 
+    private fun isEmulator(): Boolean {
+        val fingerprint = Build.FINGERPRINT.lowercase()
+        val model = Build.MODEL.lowercase()
+        val brand = Build.BRAND.lowercase()
+        val device = Build.DEVICE.lowercase()
+        val product = Build.PRODUCT.lowercase()
+        return fingerprint.contains("generic") ||
+            fingerprint.contains("emulator") ||
+            model.contains("emulator") ||
+            model.contains("sdk") ||
+            brand.startsWith("generic") ||
+            device.startsWith("generic") ||
+            product.contains("sdk")
+    }
+
     fun isLowEndDevice(context: Context): Boolean {
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val memoryInfo = ActivityManager.MemoryInfo()
         activityManager.getMemoryInfo(memoryInfo)
         val totalMemory = memoryInfo.totalMem / (1024 * 1024)
-        return totalMemory < LOW_END_MEMORY_THRESHOLD ||
+        return isEmulator() ||
+                totalMemory < LOW_END_MEMORY_THRESHOLD ||
                 activityManager.isLowRamDevice ||
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.S
     }

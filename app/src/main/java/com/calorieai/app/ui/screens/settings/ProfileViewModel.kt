@@ -93,6 +93,14 @@ class ProfileViewModel @Inject constructor(
                 bmr = bmr,
                 activityLevel = currentState.activityLevel
             )
+            val bmi = currentState.height
+                ?.takeIf { it > 0f }
+                ?.let { heightCm ->
+                    currentState.weight?.let { weightKg ->
+                        val heightM = heightCm / 100f
+                        if (heightM > 0f) weightKg / (heightM * heightM) else null
+                    }
+                }
             val settings = (existing ?: UserSettings()).copy(
                 id = existing?.id ?: 1,
                 userName = currentState.userName,
@@ -104,7 +112,8 @@ class ProfileViewModel @Inject constructor(
                 activityLevel = currentState.activityLevel,
                 dailyCalorieGoal = currentState.calorieGoal,
                 bmr = bmr,
-                tdee = tdee
+                tdee = tdee,
+                bmi = bmi
             )
             userSettingsRepository.saveSettings(settings)
         }

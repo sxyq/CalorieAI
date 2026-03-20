@@ -102,8 +102,8 @@ object GlassLightColors {
 // ============================================
 
 object GlassDarkColors {
-    // 导航栏背景 #211F26 (95%透明)
-    val NavigationBarBackground = Color(0xFF211F26)
+    // 导航栏背景（纯黑）
+    val NavigationBarBackground = Color(0xFF000000)
 
     // 指示器背景 #4A4458
     val IndicatorBackground = Color(0xFF4A4458)
@@ -119,8 +119,8 @@ object GlassDarkColors {
     // 按下状态 #E6E0E9
     val PressedState = Color(0xFFE6E0E9)
 
-    // 卡片背景 #1C1B1F (90%透明)
-    val CardBackground = Color(0xFF1C1B1F)
+    // 卡片背景（纯黑风格下略微抬升层级）
+    val CardBackground = Color(0xFF0D0D0D)
 
     // 主色调 #D0BCFF
     val Primary = Color(0xFFD0BCFF)
@@ -137,21 +137,21 @@ object GlassDarkColors {
     val OnSecondaryContainer = Color(0xFFE8DEF8)
 
     // 背景色
-    val Background = Color(0xFF141218)
+    val Background = Color(0xFF000000)
     val OnBackground = Color(0xFFE6E0E9)
 
     // 表面色
-    val Surface = Color(0xFF141218)
+    val Surface = Color(0xFF000000)
     val OnSurface = Color(0xFFE6E0E9)
-    val SurfaceVariant = Color(0xFF49454F)
+    val SurfaceVariant = Color(0xFF1B1B1F)
     val OnSurfaceVariant = Color(0xFFCAC4D0)
 
     // 表面容器色
-    val SurfaceContainerLowest = Color(0xFF0F0D13)
-    val SurfaceContainerLow = Color(0xFF1D1B20)
-    val SurfaceContainer = Color(0xFF211F26)
-    val SurfaceContainerHigh = Color(0xFF2B2930)
-    val SurfaceContainerHighest = Color(0xFF36343B)
+    val SurfaceContainerLowest = Color(0xFF000000)
+    val SurfaceContainerLow = Color(0xFF0A0A0C)
+    val SurfaceContainer = Color(0xFF101014)
+    val SurfaceContainerHigh = Color(0xFF17171C)
+    val SurfaceContainerHighest = Color(0xFF222229)
 
     // 轮廓色
     val Outline = Color(0xFF938F99)

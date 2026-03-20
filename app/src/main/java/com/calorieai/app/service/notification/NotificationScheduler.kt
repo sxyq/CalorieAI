@@ -10,7 +10,22 @@ import javax.inject.Singleton
 class NotificationScheduler @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
+    @Volatile
+    private var lastSyncSignature: String? = null
+
     fun syncMealReminders(settings: UserSettings) {
+        val signature = buildString {
+            append(settings.isNotificationEnabled)
+            append("|")
+            append(settings.breakfastReminderTime)
+            append("|")
+            append(settings.lunchReminderTime)
+            append("|")
+            append(settings.dinnerReminderTime)
+        }
+        if (signature == lastSyncSignature) return
+        lastSyncSignature = signature
+
         if (!settings.isNotificationEnabled) {
             MealReminderWorker.cancelAllReminders(context)
             return
@@ -23,4 +38,3 @@ class NotificationScheduler @Inject constructor(
         )
     }
 }
-

@@ -224,13 +224,110 @@ private fun OverviewStatsContent(
             }
         }
 
+        // 菜谱相关统计
+        item {
+            AnimatedListItem(index = 6) {
+                RecipeDataStatsCard(recipeStats = uiState.recipeStats)
+            }
+        }
+
         // 详细营养素统计表
         item {
             uiState.todayStats?.let { stats ->
-                AnimatedListItem(index = 6) {
+                AnimatedListItem(index = 7) {
                     DetailedNutritionStatsCard(stats = stats)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun RecipeDataStatsCard(recipeStats: RecipeStats) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "菜谱数据统计",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                StatItem(
+                    label = "已有食材",
+                    value = recipeStats.pantryCount.toString(),
+                    unit = "项",
+                    color = MaterialTheme.colorScheme.primary
+                )
+                StatItem(
+                    label = "收藏菜谱",
+                    value = recipeStats.favoriteCount.toString(),
+                    unit = "条",
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+                StatItem(
+                    label = "使用总次数",
+                    value = recipeStats.favoriteUseCount.toString(),
+                    unit = "次",
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+
+            HorizontalDivider()
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                StatItem(
+                    label = "即将过期",
+                    value = recipeStats.pantryExpiringSoonCount.toString(),
+                    unit = "项",
+                    color = if (recipeStats.pantryExpiringSoonCount > 0) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+                StatItem(
+                    label = "已使用收藏",
+                    value = recipeStats.usedFavoriteCount.toString(),
+                    unit = "条",
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                StatItem(
+                    label = "菜单计划",
+                    value = recipeStats.recipePlanCount.toString(),
+                    unit = "个",
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            val mostUsedText = recipeStats.mostUsedFavoriteName
+                ?.takeIf { it.isNotBlank() }
+                ?.let { "$it（${recipeStats.mostUsedFavoriteUseCount}次）" }
+                ?: "暂无使用记录"
+            Text(
+                text = "最常用收藏菜谱：$mostUsedText",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -1326,6 +1423,13 @@ private fun TrendAnalysisContent(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
 
+        BMITrendChart(
+            data = uiState.trendChartData,
+            timeDimension = uiState.trendTimeDimension,
+            userHeight = uiState.userHeight,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+
         // 饮水趋势图表
         WaterTrendChart(
             waterData = uiState.waterTrendData,
@@ -1798,7 +1902,7 @@ private fun WeightTrendChart(
 
                 // 提示
                 Text(
-                    text = "功能开发中",
+                    text = "单位: kg",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1849,11 +1953,127 @@ private fun WeightTrendChart(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "体重记录功能即将上线",
+                            text = "请先在记录页添加体重",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * BMI趋势图表（由体重趋势 + 身高计算）
+ */
+@Composable
+private fun BMITrendChart(
+    data: com.calorieai.app.ui.components.charts.TrendChartData,
+    timeDimension: TimeDimension,
+    userHeight: Float?,
+    modifier: Modifier = Modifier
+) {
+    val heightM = (userHeight ?: 0f) / 100f
+    val hasHeight = heightM > 0f
+
+    val bmiPoints = if (hasHeight) {
+        data.dates.zip(data.weightData).mapNotNull { (date, weight) ->
+            weight?.let {
+                val bmi = it / (heightM * heightM)
+                val label = when (timeDimension) {
+                    TimeDimension.DAY -> date.format(DateTimeFormatter.ofPattern("MM/dd"))
+                    TimeDimension.WEEK -> "${date.monthValue}/${date.dayOfMonth}"
+                    TimeDimension.MONTH -> date.format(DateTimeFormatter.ofPattern("yyyy/MM"))
+                }
+                label to bmi
+            }
+        }
+    } else {
+        emptyList()
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(
+                                color = Color(0xFF9C27B0),
+                                shape = RoundedCornerShape(2.dp)
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "BMI趋势",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                val latestBmi = bmiPoints.lastOrNull()?.second
+                Text(
+                    text = latestBmi?.let { "最新: ${String.format("%.1f", it)}" } ?: "暂无数据",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            when {
+                !hasHeight -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "请先在个人信息中设置身高后查看BMI趋势",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                bmiPoints.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "暂无体重记录，无法计算BMI",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                else -> {
+                    LineChartView(
+                        data = bmiPoints,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp),
+                        lineColor = android.graphics.Color.parseColor("#9C27B0")
+                    )
                 }
             }
         }

@@ -3,7 +3,6 @@ package com.calorieai.app.ui.screens.profile
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -17,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,7 +43,7 @@ fun BodyProfileScreen(
     modifier: Modifier = Modifier,
     viewModel: MyViewModel = hiltViewModel()
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val userSettings by viewModel.userSettings.collectAsState()
 
     // 页面获得焦点时刷新数据
@@ -173,7 +173,16 @@ private fun GlassBodyOverviewCard(userSettings: UserSettings?, isDark: Boolean) 
  */
 @Composable
 private fun GlassBMICard(userSettings: UserSettings?, isDark: Boolean) {
-    val bmi = userSettings?.bmi
+    val bmi = remember(userSettings?.userHeight, userSettings?.userWeight, userSettings?.bmi) {
+        val heightCm = userSettings?.userHeight
+        val weightKg = userSettings?.userWeight
+        if (heightCm != null && weightKg != null && heightCm > 0f) {
+            val heightM = heightCm / 100f
+            weightKg / (heightM * heightM)
+        } else {
+            userSettings?.bmi
+        }
+    }
     val bmiCategory = getBMICategory(bmi)
     val bmiColor = getGlassBMIColor(bmi, isDark)
 
@@ -196,7 +205,7 @@ private fun GlassBMICard(userSettings: UserSettings?, isDark: Boolean) {
                 modifier = Modifier
                     .size(80.dp)
                     .clip(CircleShape)
-                    .background(bmiColor.copy(alpha = 0.15f)),
+                    .background(bmiColor.copy(alpha = if (isDark) 0.28f else 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -209,7 +218,11 @@ private fun GlassBMICard(userSettings: UserSettings?, isDark: Boolean) {
                     Text(
                         text = "BMI",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (isDark) {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
                     )
                 }
             }
@@ -233,7 +246,11 @@ private fun GlassBMICard(userSettings: UserSettings?, isDark: Boolean) {
                 Text(
                     text = getBMIAdvice(bmi),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isDark) {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 )
             }
         }
@@ -273,13 +290,15 @@ private fun GlassMetabolismCard(userSettings: UserSettings?, isDark: Boolean) {
                 GlassMetabolismItem(
                     label = "基础代谢率 (BMR)",
                     value = "${userSettings?.bmr ?: "--"} 千卡/天",
-                    description = "静息状态下的能量消耗"
+                    description = "静息状态下的能量消耗",
+                    isDark = isDark
                 )
 
                 GlassMetabolismItem(
                     label = "每日总消耗 (TDEE)",
                     value = "${userSettings?.tdee ?: "--"} 千卡/天",
-                    description = "包含活动的总能量消耗"
+                    description = "包含活动的总能量消耗",
+                    isDark = isDark
                 )
             }
         }
@@ -338,7 +357,8 @@ private fun GlassGoalsCard(
                     icon = Icons.Default.Flag,
                     label = "主要目标",
                     value = it.displayName,
-                    color = getGlassGoalColor(it, isDark)
+                    color = getGlassGoalColor(it, isDark),
+                    isDark = isDark
                 )
             }
 
@@ -350,7 +370,8 @@ private fun GlassGoalsCard(
                     icon = Icons.Default.MonitorWeight,
                     label = "目标体重",
                     value = "${target.roundToInt()} kg",
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    isDark = isDark
                 )
             }
 
@@ -362,7 +383,8 @@ private fun GlassGoalsCard(
                     icon = Icons.Default.TrendingUp,
                     label = "执行策略",
                     value = it.displayName,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = MaterialTheme.colorScheme.secondary,
+                    isDark = isDark
                 )
             }
 
@@ -374,7 +396,8 @@ private fun GlassGoalsCard(
                     icon = Icons.Default.CalendarMonth,
                     label = "预计达成",
                     value = "约 $weeks 周",
-                    color = MaterialTheme.colorScheme.tertiary
+                    color = MaterialTheme.colorScheme.tertiary,
+                    isDark = isDark
                 )
             }
         }
@@ -415,7 +438,8 @@ private fun GlassLifestyleCard(userSettings: UserSettings?, isDark: Boolean) {
                     icon = Icons.Default.DirectionsRun,
                     label = "活动水平",
                     value = it.displayName,
-                    description = it.description
+                    description = it.description,
+                    isDark = isDark
                 )
             }
 
@@ -426,7 +450,8 @@ private fun GlassLifestyleCard(userSettings: UserSettings?, isDark: Boolean) {
                 icon = Icons.Default.LocalFireDepartment,
                 label = "每日热量目标",
                 value = "${userSettings?.dailyCalorieGoal ?: "--"} 千卡",
-                description = "根据您的目标计算的建议摄入量"
+                description = "根据您的目标计算的建议摄入量",
+                isDark = isDark
             )
         }
     }
@@ -456,7 +481,7 @@ private fun GlassHistoryCard(onNavigateToWeightHistory: () -> Unit, isDark: Bool
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.24f else 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -477,7 +502,11 @@ private fun GlassHistoryCard(onNavigateToWeightHistory: () -> Unit, isDark: Bool
                 Text(
                     text = "查看完整的体重变化趋势",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isDark) {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 )
             }
 
@@ -498,6 +527,7 @@ private fun GlassBodyStatItem(
     value: String,
     label: String
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(
             imageVector = icon,
@@ -514,7 +544,11 @@ private fun GlassBodyStatItem(
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = if (isDark) {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
         )
     }
 }
@@ -523,13 +557,18 @@ private fun GlassBodyStatItem(
 private fun GlassMetabolismItem(
     label: String,
     value: String,
-    description: String
+    description: String,
+    isDark: Boolean
 ) {
     Column {
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = if (isDark) {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
         )
         Text(
             text = value,
@@ -539,7 +578,11 @@ private fun GlassMetabolismItem(
         Text(
             text = description,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            color = if (isDark) {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.86f)
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            }
         )
     }
 }
@@ -549,14 +592,15 @@ private fun GlassGoalItem(
     icon: ImageVector,
     label: String,
     value: String,
-    color: Color
+    color: Color,
+    isDark: Boolean
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(color.copy(alpha = 0.1f)),
+                .background(color.copy(alpha = if (isDark) 0.24f else 0.1f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -573,7 +617,11 @@ private fun GlassGoalItem(
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isDark) {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
             Text(
                 text = value,
@@ -590,14 +638,21 @@ private fun GlassLifestyleItem(
     icon: ImageVector,
     label: String,
     value: String,
-    description: String
+    description: String,
+    isDark: Boolean
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+                .background(
+                    if (isDark) {
+                        MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.88f)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    }
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -614,7 +669,11 @@ private fun GlassLifestyleItem(
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isDark) {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
             Text(
                 text = value,
@@ -624,7 +683,11 @@ private fun GlassLifestyleItem(
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                color = if (isDark) {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.86f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                }
             )
         }
     }

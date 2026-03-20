@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -69,6 +70,7 @@ fun ProfileScreen(
     val tdee = calculateTDEE(bmr, uiState.activityLevel)
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             SettingsTopAppBar(
                 title = "个人信息编辑",
@@ -116,7 +118,7 @@ fun ProfileScreen(
                     onAgeChange = viewModel::updateAge,
                     onHeightChange = viewModel::updateHeight,
                     onWeightChange = viewModel::updateWeight,
-                    showWeight = false
+                    showWeight = true
                 )
             }
 
@@ -170,12 +172,17 @@ private fun ProfileHeroCard(
     onUserNameChange: (String) -> Unit,
     onUserIdChange: (String) -> Unit
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .liquidGlass(
                 shape = RoundedCornerShape(24.dp),
-                tint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                tint = if (isDark) {
+                    MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.94f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.9f)
+                }
             )
     ) {
         Column(
@@ -214,7 +221,13 @@ private fun ProfileHeroCard(
                         .align(Alignment.BottomEnd)
                         .size(30.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface)
+                        .background(
+                            if (isDark) {
+                                MaterialTheme.colorScheme.surfaceContainerHighest
+                            } else {
+                                MaterialTheme.colorScheme.surface
+                            }
+                        )
                         .padding(6.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -235,7 +248,21 @@ private fun ProfileHeroCard(
             Text(
                 text = if (userId.isBlank()) "ID 未设置" else "ID: $userId",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isDark) {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.94f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(
+                        if (isDark) {
+                            MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f)
+                        } else {
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)
+                        }
+                    )
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
             )
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -282,12 +309,17 @@ private fun ProfileSectionCard(
     subtitle: String,
     content: @Composable () -> Unit
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .liquidGlass(
                 shape = RoundedCornerShape(22.dp),
-                tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)
+                tint = if (isDark) {
+                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.88f)
+                }
             )
     ) {
         Column(
@@ -303,7 +335,11 @@ private fun ProfileSectionCard(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isDark) {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
             Spacer(modifier = Modifier.height(14.dp))
             content()
@@ -323,11 +359,16 @@ private fun BodyDataSection(
     onWeightChange: (Float?) -> Unit,
     showWeight: Boolean = true
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             text = "性别",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = if (isDark) {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f)
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("👨 男" to "MALE", "👩 女" to "FEMALE").forEach { (label, value) ->
@@ -393,6 +434,7 @@ private fun MetabolismSection(
     activityLevel: String,
     onActivityLevelChange: (String) -> Unit
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val activityLevels = listOf(
         "SEDENTARY" to "久坐",
         "LIGHT" to "轻度",
@@ -405,7 +447,11 @@ private fun MetabolismSection(
         Text(
             text = "活动水平",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = if (isDark) {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f)
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
         )
 
         activityLevels.chunked(3).forEach { row ->
@@ -447,7 +493,11 @@ private fun MetabolismSection(
         Text(
             text = "说明：基础代谢(BMR)由性别/年龄/身高/体重决定，不会因活动水平变化；活动水平影响的是 TDEE。",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = if (isDark) {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
         )
     }
 }
@@ -459,10 +509,17 @@ private fun MetabolismCard(
     description: String,
     modifier: Modifier = Modifier
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
+            .background(
+                if (isDark) {
+                    MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.96f)
+                } else {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                }
+            )
     ) {
         Column(
             modifier = Modifier
@@ -473,19 +530,36 @@ private fun MetabolismCard(
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isDark) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = "$value kcal",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        if (isDark) {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.44f)
+                        } else {
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.86f)
+                        }
+                    )
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = "$value kcal",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
             Text(
                 text = description,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isDark) {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.88f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
         }
     }
@@ -497,6 +571,7 @@ private fun CalorieGoalSection(
     tdee: Int,
     onCalorieGoalChange: (Int) -> Unit
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val clampedGoal = calorieGoal.coerceIn(1200, 4000)
     val diff = clampedGoal - tdee
     val diffText = when {
@@ -529,7 +604,11 @@ private fun CalorieGoalSection(
         Text(
             text = "区间 1200 - 4000 kcal",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = if (isDark) {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
         )
 
         Row(
@@ -549,13 +628,22 @@ private fun CalorieGoalSection(
                         .weight(1f)
                         .clip(RoundedCornerShape(12.dp))
                         .background(
-                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+                            if (isDark) {
+                                MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.94f)
+                            } else {
+                                MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.62f)
+                            }
                         )
                 ) {
                     Text(
                         text = label,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isDark) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
                     )
                 }
             }
@@ -564,7 +652,11 @@ private fun CalorieGoalSection(
         Text(
             text = diffText,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = if (isDark) {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
         )
     }
 }

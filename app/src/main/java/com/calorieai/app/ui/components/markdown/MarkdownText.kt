@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -162,29 +163,33 @@ fun MarkdownText(
     onLinkClick: ((String) -> Unit)? = null,
     isDark: Boolean = false
 ) {
-    val actualConfig = if (isDark) {
-        config.copy(
-            textStyle = config.textStyle.copy(color = GlassDarkColors.OnSurface),
-            h1Style = config.h1Style.copy(color = GlassDarkColors.OnSurface),
-            h2Style = config.h2Style.copy(color = GlassDarkColors.OnSurface),
-            h3Style = config.h3Style.copy(color = GlassDarkColors.OnSurface),
-            h4Style = config.h4Style.copy(color = GlassDarkColors.OnSurface),
-            codeBlockBackgroundColor = GlassDarkColors.SurfaceContainerHigh.copy(alpha = 0.8f),
-            codeBlockTextColor = GlassDarkColors.OnSurface,
-            inlineCodeBackgroundColor = GlassDarkColors.SurfaceContainer.copy(alpha = 0.6f),
-            inlineCodeTextColor = GlassDarkColors.Primary,
-            quoteBackgroundColor = GlassDarkColors.SurfaceContainerLow.copy(alpha = 0.5f),
-            quoteBorderColor = GlassDarkColors.Primary.copy(alpha = 0.6f),
-            quoteTextColor = GlassDarkColors.OnSurfaceVariant,
-            linkColor = GlassDarkColors.Primary,
-            listBulletColor = GlassDarkColors.Primary,
-            listNumberColor = GlassDarkColors.Primary,
-            dividerColor = GlassDarkColors.OutlineVariant
-        )
-    } else {
-        config
+    val actualConfig = remember(config, isDark) {
+        if (isDark) {
+            config.copy(
+                textStyle = config.textStyle.copy(color = GlassDarkColors.OnSurface),
+                h1Style = config.h1Style.copy(color = GlassDarkColors.OnSurface),
+                h2Style = config.h2Style.copy(color = GlassDarkColors.OnSurface),
+                h3Style = config.h3Style.copy(color = GlassDarkColors.OnSurface),
+                h4Style = config.h4Style.copy(color = GlassDarkColors.OnSurface),
+                codeBlockBackgroundColor = GlassDarkColors.SurfaceContainerHigh.copy(alpha = 0.8f),
+                codeBlockTextColor = GlassDarkColors.OnSurface,
+                inlineCodeBackgroundColor = GlassDarkColors.SurfaceContainer.copy(alpha = 0.6f),
+                inlineCodeTextColor = GlassDarkColors.Primary,
+                quoteBackgroundColor = GlassDarkColors.SurfaceContainerLow.copy(alpha = 0.5f),
+                quoteBorderColor = GlassDarkColors.Primary.copy(alpha = 0.6f),
+                quoteTextColor = GlassDarkColors.OnSurfaceVariant,
+                linkColor = GlassDarkColors.Primary,
+                listBulletColor = GlassDarkColors.Primary,
+                listNumberColor = GlassDarkColors.Primary,
+                dividerColor = GlassDarkColors.OutlineVariant
+            )
+        } else {
+            config
+        }
     }
-    val parsedContent = parseMarkdown(text, actualConfig)
+    val parsedContent = remember(text, actualConfig) {
+        parseMarkdown(text, actualConfig)
+    }
     
     Column(modifier = modifier) {
         parsedContent.forEach { element ->
@@ -320,6 +325,7 @@ private fun parseMarkdown(text: String, config: MarkdownConfig): List<MarkdownEl
  */
 @Composable
 private fun HeadingElement(element: MarkdownElement.Heading, config: MarkdownConfig) {
+    val text = remember(element.text, config) { parseInlineMarkdown(element.text, config) }
     val style = when (element.level) {
         1 -> config.h1Style
         2 -> config.h2Style
@@ -328,7 +334,7 @@ private fun HeadingElement(element: MarkdownElement.Heading, config: MarkdownCon
     }
     
     Text(
-        text = parseInlineMarkdown(element.text, config),
+        text = text,
         style = style
     )
 }
@@ -342,7 +348,9 @@ private fun ParagraphElement(
     config: MarkdownConfig,
     onLinkClick: ((String) -> Unit)?
 ) {
-    val annotatedString = parseInlineMarkdown(element.text, config)
+    val annotatedString = remember(element.text, config) {
+        parseInlineMarkdown(element.text, config)
+    }
     
     if (onLinkClick != null) {
         ClickableText(

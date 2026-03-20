@@ -4,6 +4,7 @@ import android.content.Context
 import com.calorieai.app.data.model.MealPlan
 import com.calorieai.app.data.model.MealPlanResponse
 import com.calorieai.app.data.model.MealSuggestion
+import com.calorieai.app.data.repository.APICallRecordRepository
 import com.calorieai.app.data.repository.AIConfigRepository
 import com.calorieai.app.data.repository.FoodRecordRepository
 import com.calorieai.app.data.repository.UserSettingsRepository
@@ -26,12 +27,19 @@ class MealPlanService @Inject constructor(
     @ApplicationContext private val context: Context,
     private val aiApiClient: AIApiClient,
     private val aiConfigRepository: AIConfigRepository,
+    private val apiCallRecordRepository: APICallRecordRepository,
     private val foodRecordRepository: FoodRecordRepository,
     private val userSettingsRepository: UserSettingsRepository,
     private val aiContextService: AIContextService
 ) {
     private val gson = Gson()
     private val cacheDir = File(context.cacheDir, "meal_plans")
+
+    private data class ParsedUsage(
+        val promptTokens: Int,
+        val completionTokens: Int,
+        val cost: Double
+    )
     
     companion object {
         private const val CACHE_DURATION_HOURS = 24L
@@ -169,14 +177,43 @@ $dataContext
 
 请根据以上数据生成个性化的菜谱计划。只返回JSON，不要有其他文字。
 """
-            
+
+            val startTime = System.currentTimeMillis()
             // 调用AI
-            val (content, _) = aiApiClient.chatRaw(
-                config = config,
-                systemPrompt = "你是一位专业的营养师，擅长根据用户的饮食习惯规划健康菜谱。请只返回JSON格式的数据，不要有其他文字。",
-                userMessage = fullPrompt,
-                temperature = 0.7,
-                maxTokens = 2000
+            val (content, rawResponse) = try {
+                aiApiClient.chatRaw(
+                    config = config,
+                    systemPrompt = "你是一位专业的营养师，擅长根据用户的饮食习惯规划健康菜谱。请只返回JSON格式的数据，不要有其他文字。",
+                    userMessage = fullPrompt,
+                    temperature = 0.7,
+                    maxTokens = 2000
+                )
+            } catch (e: Exception) {
+                recordApiCall(
+                    configId = config.id,
+                    configName = config.name,
+                    modelId = config.modelId,
+                    inputText = fullPrompt,
+                    outputText = "",
+                    rawResponse = null,
+                    protocol = config.protocol.name,
+                    duration = System.currentTimeMillis() - startTime,
+                    isSuccess = false,
+                    errorMessage = e.message
+                )
+                throw e
+            }
+
+            recordApiCall(
+                configId = config.id,
+                configName = config.name,
+                modelId = config.modelId,
+                inputText = fullPrompt,
+                outputText = content,
+                rawResponse = rawResponse,
+                protocol = config.protocol.name,
+                duration = System.currentTimeMillis() - startTime,
+                isSuccess = true
             )
             
             // 解析响应
@@ -197,6 +234,74 @@ $dataContext
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    private suspend fun recordApiCall(
+        configId: String,
+        configName: String,
+        modelId: String,
+        inputText: String,
+        outputText: String,
+        rawResponse: String?,
+        protocol: String,
+        duration: Long,
+        isSuccess: Boolean,
+        errorMessage: String? = null
+    ) {
+        try {
+            val parsedUsage = rawResponse?.let { parseUsage(it, protocol, modelId) }
+                ?: ParsedUsage(promptTokens = 0, completionTokens = 0, cost = 0.0)
+            apiCallRecordRepository.recordCall(
+                configId = configId,
+                configName = configName,
+                modelId = modelId,
+                inputText = inputText,
+                outputText = outputText,
+                promptTokens = parsedUsage.promptTokens,
+                completionTokens = parsedUsage.completionTokens,
+                cost = parsedUsage.cost,
+                duration = duration,
+                isSuccess = isSuccess,
+                errorMessage = errorMessage
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun parseUsage(rawResponse: String, protocol: String, modelId: String): ParsedUsage {
+        val usage = when (protocol) {
+            "CLAUDE" -> aiApiClient.extractClaudeUsage(rawResponse)
+            else -> aiApiClient.extractOpenAIUsage(rawResponse)
+        }
+        val promptTokens = usage?.promptTokens ?: 0
+        val completionTokens = usage?.completionTokens ?: 0
+        val cost = if (usage != null) {
+            calculateCost(promptTokens, completionTokens, protocol, modelId)
+        } else {
+            0.0
+        }
+        return ParsedUsage(
+            promptTokens = promptTokens,
+            completionTokens = completionTokens,
+            cost = cost
+        )
+    }
+
+    private fun calculateCost(promptTokens: Int, completionTokens: Int, protocol: String, modelId: String): Double {
+        val rates = when (protocol) {
+            "OPENAI" -> when {
+                modelId.contains("gpt-4") -> 0.03 to 0.06
+                modelId.contains("gpt-3.5") -> 0.0015 to 0.002
+                else -> 0.001 to 0.002
+            }
+            "CLAUDE" -> 0.008 to 0.024
+            "KIMI" -> 0.006 to 0.006
+            else -> 0.001 to 0.002
+        }
+
+        val (inputRate, outputRate) = rates
+        return (promptTokens * inputRate + completionTokens * outputRate) / 1000.0
     }
     
     /**

@@ -32,16 +32,25 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 fun AISettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToDetail: (String?) -> Unit,
+    onNavigateToCallStats: () -> Unit,
     viewModel: AISettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
     val visibleConfigs = remember(uiState.configs) {
         uiState.configs.filterNot { config ->
             config.isPreset && config.protocol != AIProtocol.LONGCAT
         }
     }
 
+    LaunchedEffect(uiState.saveMessage) {
+        val message = uiState.saveMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.clearSaveMessage()
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("AI配置") },
@@ -53,72 +62,247 @@ fun AISettingsScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            // 调用限制提示卡片
-            RateLimitInfoCard()
+            item { RateLimitInfoCard() }
+            item { TokenUsageCard(stats = uiState.tokenUsageStats) }
+            item {
+                ModelCallStatsEntryCard(
+                    onClick = onNavigateToCallStats
+                )
+            }
+            item {
+                AddConfigButton(
+                    onClick = { onNavigateToDetail(null) }
+                )
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Token使用统计
-            TokenUsageCard(stats = uiState.tokenUsageStats)
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 添加新配置按钮
-            AddConfigButton(
-                onClick = { onNavigateToDetail(null) }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 配置列表
             if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
             } else if (visibleConfigs.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    EmptyConfigState()
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        EmptyConfigState()
+                    }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(
-                        items = visibleConfigs,
-                        key = { it.id }
-                    ) { config ->
-                        val isDefault = config.id == uiState.defaultConfigId
-                        AIConfigItem(
-                            config = config,
-                            isDefault = isDefault,
-                            isPreset = config.isPreset,
-                            onClick = { if (!config.isPreset) onNavigateToDetail(config.id) },
-                            onSetDefault = { viewModel.setDefaultConfig(config.id) },
-                            onDelete = { viewModel.deleteConfig(config) }
-                        )
-                    }
+                items(
+                    items = visibleConfigs,
+                    key = { it.id }
+                ) { config ->
+                    val isDefault = config.id == uiState.defaultConfigId
+                    AIConfigItem(
+                        config = config,
+                        isDefault = isDefault,
+                        isPreset = config.isPreset,
+                        onClick = { if (!config.isPreset) onNavigateToDetail(config.id) },
+                        onSetDefault = { viewModel.setDefaultConfig(config.id) },
+                        onDelete = { viewModel.deleteConfig(config) }
+                    )
                 }
             }
         }
     }
 
+}
+
+@Composable
+private fun ModelCallStatsEntryCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .interactiveScale(interactionSource)
+            .liquidGlass(
+                shape = RoundedCornerShape(16.dp),
+                tint = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
+                onClick = onClick
+            )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Analytics,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "模型调用统计",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    text = "查看 Prompt 与回复的调用数据",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.9f)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AIPersonalizationCard(
+    uiState: AISettingsUiState,
+    onDietaryAllergensChange: (String) -> Unit,
+    onFlavorPreferencesChange: (String) -> Unit,
+    onBudgetPreferenceChange: (String) -> Unit,
+    onMaxCookingMinutesChange: (String) -> Unit,
+    onSpecialPopulationModeChange: (String) -> Unit,
+    onWeeklyRecordGoalDaysChange: (String) -> Unit,
+    onSave: () -> Unit
+) {
+    var modeExpanded by remember { mutableStateOf(false) }
+    val modeOptions = listOf(
+        "GENERAL" to "通用健康",
+        "DIABETES" to "控糖",
+        "GOUT" to "痛风",
+        "PREGNANCY" to "孕期",
+        "CHILD" to "儿童",
+        "FITNESS" to "健身"
+    )
+    val selectedModeLabel = modeOptions.firstOrNull { it.first == uiState.specialPopulationMode }?.second ?: "通用健康"
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .liquidGlass(
+                shape = RoundedCornerShape(16.dp),
+                tint = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+            )
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                text = "AI个性化忌口系统",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "这些配置会作为AI提示词的一部分，用于周计划、下一餐推荐和健康咨询。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            OutlinedTextField(
+                value = uiState.dietaryAllergens,
+                onValueChange = onDietaryAllergensChange,
+                label = { Text("过敏原/忌口（逗号分隔）") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = uiState.flavorPreferences,
+                onValueChange = onFlavorPreferencesChange,
+                label = { Text("口味偏好（逗号分隔）") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = uiState.budgetPreference,
+                onValueChange = onBudgetPreferenceChange,
+                label = { Text("预算偏好（如：经济/均衡/高品质）") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = uiState.maxCookingMinutes,
+                    onValueChange = onMaxCookingMinutesChange,
+                    label = { Text("烹饪时长上限(分钟)") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = uiState.weeklyRecordGoalDays,
+                    onValueChange = onWeeklyRecordGoalDaysChange,
+                    label = { Text("每周记录目标(天)") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+            }
+
+            ExposedDropdownMenuBox(
+                expanded = modeExpanded,
+                onExpandedChange = { modeExpanded = !modeExpanded }
+            ) {
+                OutlinedTextField(
+                    value = selectedModeLabel,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("特定人群模式") },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth(),
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = modeExpanded)
+                    }
+                )
+                ExposedDropdownMenu(
+                    expanded = modeExpanded,
+                    onDismissRequest = { modeExpanded = false }
+                ) {
+                    modeOptions.forEach { (mode, label) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = {
+                                onSpecialPopulationModeChange(mode)
+                                modeExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Button(
+                onClick = onSave,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("保存个性化约束")
+            }
+        }
+    }
 }
 
 /**

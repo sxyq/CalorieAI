@@ -85,6 +85,27 @@ fun InteractionSettingsScreen(
                 )
             }
 
+            SettingsSection(title = "底栏长按跳转") {
+                SettingsSwitchItem(
+                    title = "长按首页进入添加",
+                    subtitle = "长按底栏“首页”直接进入添加界面",
+                    checked = uiState.enableLongPressHomeToAdd,
+                    onCheckedChange = viewModel::updateEnableLongPressHomeToAdd
+                )
+                SettingsSwitchItem(
+                    title = "长按概览进入详细概览",
+                    subtitle = "长按底栏“概览”跳转到详细概览页面",
+                    checked = uiState.enableLongPressOverviewToStats,
+                    onCheckedChange = viewModel::updateEnableLongPressOverviewToStats
+                )
+                SettingsSwitchItem(
+                    title = "长按我的进入个人信息编辑",
+                    subtitle = "长按底栏“我的”跳转到个人信息编辑页",
+                    checked = uiState.enableLongPressMyToProfileEdit,
+                    onCheckedChange = viewModel::updateEnableLongPressMyToProfileEdit
+                )
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
         }
     }

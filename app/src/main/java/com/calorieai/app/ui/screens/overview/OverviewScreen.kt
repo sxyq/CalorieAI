@@ -2,12 +2,10 @@ package com.calorieai.app.ui.screens.overview
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -17,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -27,6 +26,7 @@ import com.calorieai.app.ui.screens.stats.StatsViewModel
 import com.calorieai.app.ui.screens.stats.StatsUiState
 import com.calorieai.app.utils.HistoryStats
 import com.calorieai.app.utils.TodayStats
+import java.time.LocalDate
 
 private data class OverviewHeatmapPalette(
     val empty: Color,
@@ -64,7 +64,7 @@ fun OverviewScreen(
     onNavigateToGoals: () -> Unit = {},
     viewModel: StatsViewModel = hiltViewModel()
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
@@ -85,45 +85,64 @@ fun OverviewScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 月度热力图卡片 - 使用真实数据
-            HeatmapCard(isDark, uiState)
-
-            // 月度总结卡片
-            MonthlySummaryCard(
-                isDark = isDark,
-                totalCalories = uiState.lastMonthSummary?.totalCalories ?: 0,
-                exerciseCalories = uiState.lastMonthSummary?.totalExerciseCalories ?: 0,
-                weightChange = null
-            )
-
-            // 数据概览网格
-            DataOverviewGrid(
-                isDark = isDark,
-                avgCalories = uiState.todayStats?.totalCalories ?: 0,
-                avgWater = uiState.todayWaterAmount,
-                currentWeight = uiState.userWeight,
-                avgExercise = uiState.todayStats?.exerciseMinutes ?: 0
-            )
-
-            // 快捷入口
-            QuickAccessCard(
-                isDark = isDark,
-                onNavigateToStats = onNavigateToStats,
-                onNavigateToWeightHistory = onNavigateToWeightHistory,
-                onNavigateToGoals = onNavigateToGoals
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
+            item { Spacer(modifier = Modifier.height(8.dp)) }
+            item { HeatmapCard(isDark, uiState) }
+            item {
+                MonthlySummaryCard(
+                    isDark = isDark,
+                    totalCalories = uiState.lastMonthSummary?.totalCalories ?: 0,
+                    exerciseCalories = uiState.lastMonthSummary?.totalExerciseCalories ?: 0,
+                    weightChange = null
+                )
+            }
+            item {
+                DataOverviewGrid(
+                    isDark = isDark,
+                    avgCalories = uiState.todayStats?.totalCalories ?: 0,
+                    avgWater = uiState.todayWaterAmount,
+                    currentWeight = uiState.userWeight,
+                    avgExercise = uiState.todayStats?.exerciseMinutes ?: 0
+                )
+            }
+            item {
+                CheckInIncentiveCard(
+                    isDark = isDark,
+                    streakDays = uiState.streakDays,
+                    weeklyGoalDays = uiState.weeklyGoalDays,
+                    weeklyActiveDays = uiState.weeklyActiveDays,
+                    weeklyRecordCount = uiState.weeklyRecordCount,
+                    achievements = uiState.achievementBadges
+                )
+            }
+            item {
+                FoodRecordInfoTablesCard(
+                    isDark = isDark,
+                    tableRows = uiState.foodRecordTableRows,
+                    topFoods = uiState.topFoodRows
+                )
+            }
+            item {
+                RecipeDataOverviewCard(
+                    isDark = isDark,
+                    recipeStats = uiState.recipeStats
+                )
+            }
+            item {
+                QuickAccessCard(
+                    isDark = isDark,
+                    onNavigateToStats = onNavigateToStats,
+                    onNavigateToWeightHistory = onNavigateToWeightHistory,
+                    onNavigateToGoals = onNavigateToGoals
+                )
+            }
         }
     }
 }
@@ -141,10 +160,15 @@ private fun HeatmapCard(
         generateActivityDataFromDailyRecords(dailyMealRecords)
     }
     
-    val activeDays = uiState.streakDays
+    val activeDays = uiState.monthlyActiveDays
     val todayStats = uiState.todayStats
     val totalRecords = todayStats?.recordCount ?: 0
-    val activityRate = if (activeDays > 0) (activeDays * 100 / 30).coerceAtMost(100) else 0
+    val daysElapsed = LocalDate.now().dayOfMonth.coerceAtLeast(1)
+    val activityRate = if (activeDays > 0) {
+        (activeDays * 100 / daysElapsed).coerceIn(0, 100)
+    } else {
+        0
+    }
 
     Box(
         modifier = Modifier
@@ -335,22 +359,8 @@ private fun MonthlySummaryCard(
     exerciseCalories: Int,
     weightChange: Float?
 ) {
-    val currentMonth = java.time.LocalDate.now().monthValue
-    val monthName = when(currentMonth) {
-        1 -> "一月"
-        2 -> "二月"
-        3 -> "三月"
-        4 -> "四月"
-        5 -> "五月"
-        6 -> "六月"
-        7 -> "七月"
-        8 -> "八月"
-        9 -> "九月"
-        10 -> "十月"
-        11 -> "十一月"
-        else -> "十二月"
-    }
-    
+    val today = LocalDate.now()
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -363,9 +373,14 @@ private fun MonthlySummaryCard(
             modifier = Modifier.padding(20.dp)
         ) {
             Text(
-                text = "${monthName}总结",
+                text = "本月总结",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "统计范围：${today.withDayOfMonth(1)} 至 $today",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -375,18 +390,21 @@ private fun MonthlySummaryCard(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 SummaryItem(
+                    isDark = isDark,
                     icon = Icons.Default.LocalFireDepartment,
                     value = if (totalCalories > 0) String.format("%,d", totalCalories) else "--",
                     label = "总热量(千卡)",
                     color = MaterialTheme.colorScheme.primary
                 )
                 SummaryItem(
+                    isDark = isDark,
                     icon = Icons.Default.DirectionsRun,
                     value = if (exerciseCalories > 0) String.format("%,d", exerciseCalories) else "--",
                     label = "运动消耗(千卡)",
                     color = MaterialTheme.colorScheme.secondary
                 )
                 SummaryItem(
+                    isDark = isDark,
                     icon = Icons.Default.TrendingDown,
                     value = weightChange?.let { String.format("%.1f", it) } ?: "--",
                     label = "体重变化(kg)",
@@ -399,6 +417,7 @@ private fun MonthlySummaryCard(
 
 @Composable
 private fun SummaryItem(
+    isDark: Boolean,
     icon: ImageVector,
     value: String,
     label: String,
@@ -409,7 +428,7 @@ private fun SummaryItem(
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(color.copy(alpha = 0.15f)),
+                .background(color.copy(alpha = if (isDark) 0.28f else 0.15f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -502,9 +521,9 @@ private fun DataCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(color.copy(alpha = 0.15f)),
+                .size(40.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(color.copy(alpha = if (isDark) 0.26f else 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -527,6 +546,245 @@ private fun DataCard(
             )
         }
     }
+}
+
+@Composable
+private fun CheckInIncentiveCard(
+    isDark: Boolean,
+    streakDays: Int,
+    weeklyGoalDays: Int,
+    weeklyActiveDays: Int,
+    weeklyRecordCount: Int,
+    achievements: List<com.calorieai.app.ui.screens.stats.AchievementBadge>
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .glassCardThemed(
+                isDark = isDark,
+                cornerRadius = 16.dp
+            )
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "连续记录成长",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "本周目标 ${weeklyActiveDays}/${weeklyGoalDays} 天 · 已连续记录 ${streakDays} 天 · 本周记录 ${weeklyRecordCount} 条",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            achievements.forEach { badge ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = badge.title,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = if (badge.achieved) "已达成 (${badge.progress})" else "进度 ${badge.progress}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (badge.achieved) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FoodRecordInfoTablesCard(
+    isDark: Boolean,
+    tableRows: List<com.calorieai.app.ui.screens.stats.FoodRecordTableRow>,
+    topFoods: List<com.calorieai.app.ui.screens.stats.TopFoodRow>
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .glassCardThemed(
+                isDark = isDark,
+                cornerRadius = 16.dp
+            )
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = "饮食记录信息栏",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = "表1：当日餐次记录汇总",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            FoodRecordSummaryTable(rows = tableRows)
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
+
+            Text(
+                text = "表2：近14天高频食物",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            TopFoodTable(rows = topFoods)
+        }
+    }
+}
+
+@Composable
+private fun RecipeDataOverviewCard(
+    isDark: Boolean,
+    recipeStats: com.calorieai.app.ui.screens.stats.RecipeStats
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .glassCardThemed(
+                isDark = isDark,
+                cornerRadius = 16.dp
+            )
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = "菜谱相关统计",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                TableBodyCell("已有食材：${recipeStats.pantryCount}项", Modifier.weight(1f))
+                TableBodyCell("收藏菜谱：${recipeStats.favoriteCount}条", Modifier.weight(1f))
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                TableBodyCell("使用总次数：${recipeStats.favoriteUseCount}次", Modifier.weight(1f))
+                TableBodyCell("即将过期：${recipeStats.pantryExpiringSoonCount}项", Modifier.weight(1f))
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
+
+            val mostUsed = recipeStats.mostUsedFavoriteName
+                ?.takeIf { it.isNotBlank() }
+                ?.let { "$it（${recipeStats.mostUsedFavoriteUseCount}次）" }
+                ?: "暂无使用记录"
+            Text(
+                text = "最常用收藏菜谱：$mostUsed",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun FoodRecordSummaryTable(
+    rows: List<com.calorieai.app.ui.screens.stats.FoodRecordTableRow>
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth()) {
+            TableHeaderCell("餐次", Modifier.weight(1.2f))
+            TableHeaderCell("条数", Modifier.weight(0.8f))
+            TableHeaderCell("热量", Modifier.weight(1f))
+            TableHeaderCell("蛋白", Modifier.weight(1f))
+        }
+        if (rows.isEmpty()) {
+            Text(
+                text = "当日暂无饮食记录",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            rows.forEach { row ->
+                Row(Modifier.fillMaxWidth()) {
+                    TableBodyCell(row.mealType, Modifier.weight(1.2f))
+                    TableBodyCell("${row.count}", Modifier.weight(0.8f))
+                    TableBodyCell("${row.calories}", Modifier.weight(1f))
+                    TableBodyCell("${row.protein.toInt()}g", Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TopFoodTable(
+    rows: List<com.calorieai.app.ui.screens.stats.TopFoodRow>
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth()) {
+            TableHeaderCell("食物", Modifier.weight(1.6f))
+            TableHeaderCell("次数", Modifier.weight(0.8f))
+            TableHeaderCell("总热量", Modifier.weight(1f))
+            TableHeaderCell("最近", Modifier.weight(1f))
+        }
+        if (rows.isEmpty()) {
+            Text(
+                text = "近14天暂无可统计食物",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            rows.forEach { row ->
+                Row(Modifier.fillMaxWidth()) {
+                    TableBodyCell(row.foodName, Modifier.weight(1.6f))
+                    TableBodyCell("${row.count}", Modifier.weight(0.8f))
+                    TableBodyCell("${row.totalCalories}", Modifier.weight(1f))
+                    TableBodyCell(row.lastRecordDate.toString().substring(5), Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TableHeaderCell(text: String, modifier: Modifier = Modifier) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    Text(
+        text = text,
+        modifier = modifier
+            .padding(end = 4.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                if (isDark) {
+                    MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.8f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerLow
+                }
+            )
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        style = MaterialTheme.typography.labelSmall,
+        color = if (isDark) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        fontWeight = FontWeight.SemiBold
+    )
+}
+
+@Composable
+private fun TableBodyCell(text: String, modifier: Modifier = Modifier) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    Text(
+        text = text,
+        modifier = modifier
+            .padding(end = 4.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                if (isDark) {
+                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.78f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerLowest
+                }
+            )
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        style = MaterialTheme.typography.bodySmall,
+        color = if (isDark) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+    )
 }
 
 @Composable
@@ -554,7 +812,7 @@ private fun QuickAccessCard(
                 onClick = onNavigateToStats
             )
             Divider(
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
+                color = MaterialTheme.colorScheme.outline.copy(alpha = if (isDark) 0.24f else 0.12f),
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
             QuickAccessItem(
@@ -564,7 +822,7 @@ private fun QuickAccessCard(
                 onClick = onNavigateToWeightHistory
             )
             Divider(
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
+                color = MaterialTheme.colorScheme.outline.copy(alpha = if (isDark) 0.24f else 0.12f),
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
             QuickAccessItem(
@@ -584,6 +842,7 @@ private fun QuickAccessItem(
     subtitle: String,
     onClick: () -> Unit
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -595,7 +854,11 @@ private fun QuickAccessItem(
             modifier = Modifier
                 .size(40.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                .background(
+                    MaterialTheme.colorScheme.primary.copy(
+                        alpha = if (isDark) 0.24f else 0.1f
+                    )
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(

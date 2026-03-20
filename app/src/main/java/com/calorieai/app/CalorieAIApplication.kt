@@ -7,6 +7,7 @@ import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -38,6 +39,8 @@ class CalorieAIApplication : Application(), Configuration.Provider {
     private fun initializeDefaultAIConfig() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                // 冷启动阶段优先保证首屏流畅，默认AI配置延迟初始化
+                delay(1500)
                 aiDefaultConfigInitializer.initializeDefaultConfig()
             } catch (e: Exception) {
                 e.printStackTrace()

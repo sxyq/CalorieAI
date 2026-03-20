@@ -9,10 +9,13 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -26,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -39,7 +43,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.ui.theme.GlassLightColors
 import com.calorieai.app.ui.theme.GlassDarkColors
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
 import java.text.SimpleDateFormat
 import java.util.*
@@ -57,7 +60,7 @@ fun AIChatScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var showHistory by remember { mutableStateOf(false) }
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     LaunchedEffect(initialSessionId) {
         val sessionId = initialSessionId?.takeIf { it.isNotBlank() } ?: return@LaunchedEffect
@@ -185,10 +188,11 @@ private fun EmptyStateContent(viewModel: AIChatViewModel, isDark: Boolean) {
     Column(
         Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.height(20.dp))
         
         Box(
             Modifier
@@ -242,7 +246,7 @@ private fun EmptyStateContent(viewModel: AIChatViewModel, isDark: Boolean) {
         
         QuickActionCards(viewModel, isDark)
         
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.height(24.dp))
     }
 }
 
@@ -269,6 +273,28 @@ private fun QuickActionCards(viewModel: AIChatViewModel, isDark: Boolean) {
                 Color(0xFF059669)
             ),
             onClick = { viewModel.startMealPlanning() }
+        )
+
+        QuickActionCard(
+            icon = Icons.Default.DateRange,
+            title = "菜谱周计划",
+            subtitle = "生成未来7天可执行计划",
+            gradientColors = listOf(
+                Color(0xFF7C3AED),
+                Color(0xFF6D28D9)
+            ),
+            onClick = { viewModel.startWeeklyMealPlanning() }
+        )
+
+        QuickActionCard(
+            icon = Icons.Default.Fastfood,
+            title = "下一餐推荐",
+            subtitle = "结合今日摄入智能推荐",
+            gradientColors = listOf(
+                Color(0xFFFF7043),
+                Color(0xFFF4511E)
+            ),
+            onClick = { viewModel.startNextMealRecommendation() }
         )
         
         QuickActionCard(
@@ -358,20 +384,25 @@ private fun QuickActionCard(
 
 @Composable
 private fun QuickActionsBar(viewModel: AIChatViewModel, isDark: Boolean) {
-    val actions = listOf(
-        Triple(Icons.Default.Assessment, "热量评估") { viewModel.startCalorieAssessment() },
-        Triple(Icons.Default.RestaurantMenu, "菜谱规划") { viewModel.startMealPlanning() },
-        Triple(Icons.Default.HealthAndSafety, "健康咨询") { viewModel.startHealthConsult() }
-    )
+    val actions = remember(viewModel) {
+        listOf(
+            Triple(Icons.Default.Assessment, "热量评估") { viewModel.startCalorieAssessment() },
+            Triple(Icons.Default.RestaurantMenu, "菜谱规划") { viewModel.startMealPlanning() },
+            Triple(Icons.Default.DateRange, "周计划") { viewModel.startWeeklyMealPlanning() },
+            Triple(Icons.Default.Fastfood, "下一餐") { viewModel.startNextMealRecommendation() },
+            Triple(Icons.Default.HealthAndSafety, "健康咨询") { viewModel.startHealthConsult() }
+        )
+    }
     
-    Row(
-        Modifier
+    LazyRow(
+        modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        actions.forEach { (icon, label, action) ->
-            CompactActionChip(icon, label, action, isDark, Modifier.weight(1f))
+        items(actions.size) { index ->
+            val (icon, label, action) = actions[index]
+            CompactActionChip(icon, label, action, isDark)
         }
     }
 }
@@ -427,6 +458,7 @@ private fun CompactActionChip(
 @Composable
 private fun AnimatedMessageItem(msg: ChatMessage, isDark: Boolean) {
     val isUser = msg.isFromUser
+    val timeText = remember(msg.timestamp) { formatTime(msg.timestamp) }
     val bgColor = if (isUser) {
         MaterialTheme.colorScheme.primary
     } else {
@@ -495,7 +527,7 @@ private fun AnimatedMessageItem(msg: ChatMessage, isDark: Boolean) {
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                formatTime(msg.timestamp),
+                timeText,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
@@ -713,6 +745,8 @@ private fun HighlightedAssistantSectionCard(
 
 @Composable
 private fun TypingIndicator(isDark: Boolean) {
+    val transition = rememberInfiniteTransition(label = "fullTyping")
+
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Start
@@ -750,8 +784,7 @@ private fun TypingIndicator(isDark: Boolean) {
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             repeat(3) { index ->
-                val infiniteTransition = rememberInfiniteTransition(label = "typing$index")
-                val scale by infiniteTransition.animateFloat(
+                val scale by transition.animateFloat(
                     initialValue = 0.5f,
                     targetValue = 1f,
                     animationSpec = infiniteRepeatable(

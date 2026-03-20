@@ -1,12 +1,14 @@
 package com.calorieai.app.ui.navigation
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -16,6 +18,8 @@ import com.calorieai.app.ui.components.NavItem
 import com.calorieai.app.ui.screens.add.AddFoodScreen
 import com.calorieai.app.ui.screens.add.AddMethodSelectorScreen
 import com.calorieai.app.ui.screens.add.FavoriteRecipesScreen
+import com.calorieai.app.ui.screens.add.FavoriteRecipesManagerScreen
+import com.calorieai.app.ui.screens.add.PantryIngredientsManagerScreen
 import com.calorieai.app.ui.screens.add.ManualAddScreen
 import com.calorieai.app.ui.screens.ai.AIChatScreen
 import com.calorieai.app.ui.screens.camera.CameraScreen
@@ -31,6 +35,7 @@ import com.calorieai.app.ui.screens.profile.HealthGoalsScreen
 import com.calorieai.app.ui.screens.result.ResultScreen
 import com.calorieai.app.ui.screens.settings.AboutScreen
 import com.calorieai.app.ui.screens.settings.AIConfigDetailScreen
+import com.calorieai.app.ui.screens.settings.AIModelCallStatsScreen
 import com.calorieai.app.ui.screens.settings.AISettingsScreen
 import com.calorieai.app.ui.screens.settings.AppearanceSettingsScreen
 import com.calorieai.app.ui.screens.settings.BackupSettingsScreen
@@ -64,6 +69,8 @@ sealed class Screen(val route: String) {
         }
     }
     object FavoriteRecipes : Screen("favorite_recipes")
+    object FavoriteRecipesManager : Screen("favorite_recipes_manager")
+    object PantryIngredientsManager : Screen("pantry_ingredients_manager")
     object ManualAdd : Screen("manual_add")
     object AddFood : Screen("add_food?date={date}") {
         fun createRoute(date: String? = null): String {
@@ -88,6 +95,7 @@ sealed class Screen(val route: String) {
     object NotificationSettings : Screen("notification_settings")
     object BackupSettings : Screen("backup_settings")
     object AISettings : Screen("ai_settings")
+    object AIModelCallStats : Screen("ai_model_call_stats")
     object AIConfigDetail : Screen("ai_config_detail?configId={configId}") {
         fun createRoute(configId: String? = null): String {
             return if (configId != null) {
@@ -146,6 +154,12 @@ val bottomNavItems = listOf(
         unselectedIcon = Icons.Outlined.Home
     ),
     NavItem(
+        route = Screen.FavoriteRecipes.route,
+        title = "菜谱",
+        selectedIcon = Icons.Filled.RestaurantMenu,
+        unselectedIcon = Icons.Outlined.RestaurantMenu
+    ),
+    NavItem(
         route = Screen.Overview.route,
         title = "概览",
         selectedIcon = Icons.Filled.BarChart,
@@ -161,13 +175,16 @@ val bottomNavItems = listOf(
 
 val bottomNavScreens = listOf(
     Screen.Home.route,
+    Screen.FavoriteRecipes.route,
     Screen.Overview.route,
     Screen.My.route
 )
 
 @Composable
 fun NavGraph(navController: NavHostController) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val bottomNavBehaviorViewModel: BottomNavBehaviorViewModel = hiltViewModel()
+    val bottomNavBehavior by bottomNavBehaviorViewModel.uiState.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -186,6 +203,32 @@ fun NavGraph(navController: NavHostController) {
                             }
                             launchSingleTop = true
                             restoreState = true
+                        }
+                    },
+                    onItemLongPressed = { route ->
+                        when (route) {
+                            Screen.Home.route -> {
+                                if (bottomNavBehavior.enableLongPressHomeToAdd) {
+                                    navController.navigate(Screen.AddMethodSelector.createRoute()) {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            }
+                            Screen.Overview.route -> {
+                                if (bottomNavBehavior.enableLongPressOverviewToStats) {
+                                    navController.navigate(Screen.Stats.route) {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            }
+                            Screen.My.route -> {
+                                if (bottomNavBehavior.enableLongPressMyToProfileEdit) {
+                                    navController.navigate(Screen.Profile.route) {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            }
+                            else -> Unit // 菜谱长按功能暂未定义
                         }
                     },
                     isDark = isDark,
@@ -262,7 +305,9 @@ fun NavGraph(navController: NavHostController) {
                     onNavigateToAIAssistant = {
                         navController.navigate(Screen.AIChat.createRoute())
                     },
-                    onNavigateToRecipes = {},
+                    onNavigateToRecipes = {
+                        navController.navigate(Screen.FavoriteRecipes.route)
+                    },
                     onNavigateToSettings = {
                         navController.navigate(Screen.Settings.route)
                     }
@@ -365,7 +410,38 @@ fun NavGraph(navController: NavHostController) {
 
             // 收藏菜谱
             composable(Screen.FavoriteRecipes.route) {
+                val previousRoute = navController.previousBackStackEntry?.destination?.route
+                val showBackButton = previousRoute != null && previousRoute !in bottomNavScreens
                 FavoriteRecipesScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    },
+                    onNavigateToPantryManager = {
+                        navController.navigate(Screen.PantryIngredientsManager.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToFavoritesManager = {
+                        navController.navigate(Screen.FavoriteRecipesManager.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                    showBackButton = showBackButton
+                )
+            }
+
+            // 收藏菜谱管理
+            composable(Screen.FavoriteRecipesManager.route) {
+                FavoriteRecipesManagerScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            // 已有食材管理
+            composable(Screen.PantryIngredientsManager.route) {
+                PantryIngredientsManagerScreen(
                     onNavigateBack = {
                         navController.popBackStack()
                     }
@@ -521,6 +597,18 @@ fun NavGraph(navController: NavHostController) {
                     },
                     onNavigateToDetail = { configId ->
                         navController.navigate(Screen.AIConfigDetail.createRoute(configId))
+                    },
+                    onNavigateToCallStats = {
+                        navController.navigate(Screen.AIModelCallStats.route)
+                    }
+                )
+            }
+
+            // AI模型调用统计
+            composable(Screen.AIModelCallStats.route) {
+                AIModelCallStatsScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
                     }
                 )
             }

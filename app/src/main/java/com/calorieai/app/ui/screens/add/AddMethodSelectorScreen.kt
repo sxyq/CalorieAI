@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -41,7 +42,6 @@ import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.ui.components.interactiveScale
 import com.calorieai.app.ui.theme.GlassLightColors
 import com.calorieai.app.ui.theme.GlassDarkColors
-import androidx.compose.foundation.isSystemInDarkTheme
 
 @Composable
 fun AddMethodSelectorScreen(
@@ -53,7 +53,7 @@ fun AddMethodSelectorScreen(
     onNavigateToExercise: () -> Unit = {},
     onNavigateToWaterHistory: () -> Unit = {}
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     var visible by remember { mutableStateOf(false) }
     val primaryColor = if (isDark) GlassDarkColors.Primary else GlassLightColors.Primary
     val surfaceColor = if (isDark) GlassDarkColors.Surface else GlassLightColors.Surface
@@ -78,14 +78,7 @@ fun AddMethodSelectorScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp)
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) {
-                    visible = false
-                    onNavigateBack()
-                },
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(60.dp))
@@ -180,8 +173,8 @@ fun AddMethodSelectorScreen(
                     ) {
                         SecondaryMethodCard(
                             icon = Icons.Default.MenuBook,
-                            title = "收藏菜谱",
-                            subtitle = "快速添加",
+                            title = "菜谱库",
+                            subtitle = "美食参考",
                             modifier = Modifier.weight(1f),
                             onClick = onNavigateToFavoriteRecipes
                         )
@@ -332,7 +325,7 @@ private fun SecondaryMethodCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val surfaceVariant = if (isDark)
         Color(0xFF2A2A2A)
     else

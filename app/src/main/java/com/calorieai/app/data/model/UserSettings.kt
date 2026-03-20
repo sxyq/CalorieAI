@@ -16,6 +16,12 @@ data class UserSettings(
     val userWeight: Float? = null,
     val activityLevel: String = "SEDENTARY",
     val dietaryPreference: String? = null,
+    val dietaryAllergens: String? = null, // 过敏原，逗号分隔
+    val flavorPreferences: String? = null, // 口味偏好，逗号分隔
+    val budgetPreference: String? = null, // 预算偏好：经济/均衡/高品质
+    val maxCookingMinutes: Int? = null, // 单餐可接受最长烹饪时长（分钟）
+    val specialPopulationMode: String = "GENERAL", // GENERAL/DIABETES/GOUT/PREGNANCY/CHILD/FITNESS
+    val weeklyRecordGoalDays: Int = 5, // 每周记录目标天数
     val breakfastReminderTime: String = "08:00",
     val lunchReminderTime: String = "12:00",
     val dinnerReminderTime: String = "18:00",
@@ -38,6 +44,9 @@ data class UserSettings(
     val backgroundBehavior: String = "STANDARD",  // STANDARD, KEEP_ALIVE, BATTERY_SAVER
     val startupPage: String = "HOME",  // HOME, STATS, ADD
     val enableQuickAdd: Boolean = false,
+    val enableLongPressHomeToAdd: Boolean = true,
+    val enableLongPressOverviewToStats: Boolean = true,
+    val enableLongPressMyToProfileEdit: Boolean = true,
     // 通知设置
     val enableGoalReminder: Boolean = true,
     val enableStreakReminder: Boolean = false,
@@ -48,8 +57,8 @@ data class UserSettings(
     // AI助手设置
     val showAIWidget: Boolean = true,  // 是否显示AI助手悬浮按钮
     // 壁纸设置
-    val wallpaperType: String = "GRADIENT",  // GRADIENT, SOLID, IMAGE
-    val wallpaperColor: String? = null,  // 纯色壁纸颜色
+    val wallpaperType: String = "SOLID",  // GRADIENT, SOLID, IMAGE
+    val wallpaperColor: String? = "#FFFFFF",  // 纯色壁纸颜色
     val wallpaperGradientStart: String? = null,  // 渐变起始颜色
     val wallpaperGradientEnd: String? = null,  // 渐变结束颜色
     val wallpaperImageUri: String? = null,  // 图片壁纸URI

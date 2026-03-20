@@ -12,6 +12,9 @@ import com.calorieai.app.data.model.Converters
 import com.calorieai.app.data.model.ExerciseRecord
 import com.calorieai.app.data.model.FavoriteRecipe
 import com.calorieai.app.data.model.FoodRecord
+import com.calorieai.app.data.model.PantryIngredient
+import com.calorieai.app.data.model.RecipeGuide
+import com.calorieai.app.data.model.RecipePlan
 import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.model.WaterRecord
 import com.calorieai.app.data.model.WeightRecord
@@ -20,8 +23,22 @@ import com.calorieai.app.data.local.dao.WeightRecordDao
 import com.calorieai.app.data.model.AIChatHistory
 
 @Database(
-    entities = [FoodRecord::class, UserSettings::class, AIConfig::class, ExerciseRecord::class, AITokenUsage::class, WeightRecord::class, AIChatHistory::class, WaterRecord::class, APICallRecord::class, FavoriteRecipe::class],
-    version = 17,
+    entities = [
+        FoodRecord::class,
+        UserSettings::class,
+        AIConfig::class,
+        ExerciseRecord::class,
+        AITokenUsage::class,
+        WeightRecord::class,
+        AIChatHistory::class,
+        WaterRecord::class,
+        APICallRecord::class,
+        FavoriteRecipe::class,
+        PantryIngredient::class,
+        RecipeGuide::class,
+        RecipePlan::class
+    ],
+    version = 20,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -36,6 +53,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun waterRecordDao(): WaterRecordDao
     abstract fun apiCallRecordDao(): APICallRecordDao
     abstract fun favoriteRecipeDao(): FavoriteRecipeDao
+    abstract fun pantryIngredientDao(): PantryIngredientDao
+    abstract fun recipeGuideDao(): RecipeGuideDao
+    abstract fun recipePlanDao(): RecipePlanDao
     
     companion object {
         /**
@@ -212,6 +232,106 @@ abstract class AppDatabase : RoomDatabase() {
                     CREATE UNIQUE INDEX IF NOT EXISTS index_favorite_recipes_sourceRecordId
                     ON favorite_recipes(sourceRecordId)
                 """)
+            }
+        }
+
+        /**
+         * 从版本17迁移到版本18
+         * 为AI个性化推荐新增忌口与偏好字段、周目标字段
+         */
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN dietaryAllergens TEXT")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN flavorPreferences TEXT")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN budgetPreference TEXT")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN maxCookingMinutes INTEGER")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN specialPopulationMode TEXT NOT NULL DEFAULT 'GENERAL'")
+                db.execSQL("ALTER TABLE user_settings ADD COLUMN weeklyRecordGoalDays INTEGER NOT NULL DEFAULT 5")
+            }
+        }
+
+        /**
+         * 从版本18迁移到版本19
+         * 新增食材库存、标准化菜谱、菜单计划
+         */
+        val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS pantry_ingredients (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        name TEXT NOT NULL,
+                        quantity REAL NOT NULL,
+                        unit TEXT NOT NULL,
+                        expiresAt INTEGER,
+                        notes TEXT,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """
+                )
+                db.execSQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS index_pantry_ingredients_name
+                    ON pantry_ingredients(name)
+                    """
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS recipe_guides (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        name TEXT NOT NULL,
+                        ingredientsText TEXT NOT NULL,
+                        stepsText TEXT NOT NULL,
+                        toolsText TEXT NOT NULL,
+                        difficulty TEXT NOT NULL,
+                        durationMinutes INTEGER NOT NULL,
+                        servings INTEGER NOT NULL,
+                        calories INTEGER NOT NULL,
+                        protein REAL NOT NULL,
+                        carbs REAL NOT NULL,
+                        fat REAL NOT NULL,
+                        sourceType TEXT NOT NULL,
+                        linkedFavoriteId TEXT,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS recipe_plans (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        title TEXT NOT NULL,
+                        startDateEpochDay INTEGER NOT NULL,
+                        endDateEpochDay INTEGER NOT NULL,
+                        menuText TEXT NOT NULL,
+                        generatedByAI INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """
+                )
+            }
+        }
+
+        /**
+         * 从版本19迁移到版本20
+         * 新增长按底栏快捷跳转开关
+         */
+        val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE user_settings ADD COLUMN enableLongPressHomeToAdd INTEGER NOT NULL DEFAULT 1"
+                )
+                db.execSQL(
+                    "ALTER TABLE user_settings ADD COLUMN enableLongPressOverviewToStats INTEGER NOT NULL DEFAULT 1"
+                )
+                db.execSQL(
+                    "ALTER TABLE user_settings ADD COLUMN enableLongPressMyToProfileEdit INTEGER NOT NULL DEFAULT 1"
+                )
             }
         }
     }

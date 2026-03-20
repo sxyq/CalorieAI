@@ -1,5 +1,7 @@
 package com.calorieai.app.service.ai
 
+import com.calorieai.app.data.model.NutritionCalculator
+import com.calorieai.app.data.model.UserBodyProfile
 import com.calorieai.app.data.repository.FoodRecordRepository
 import com.calorieai.app.data.repository.ExerciseRecordRepository
 import com.calorieai.app.data.repository.WeightRecordRepository
@@ -23,6 +25,17 @@ class AIContextService @Inject constructor(
     private val waterRecordRepository: WaterRecordRepository,
     private val userSettingsRepository: UserSettingsRepository
 ) {
+    private data class NutrientSnapshot(
+        val protein: Float = 0f,
+        val carbs: Float = 0f,
+        val fat: Float = 0f,
+        val fiber: Float = 0f,
+        val calcium: Float = 0f,
+        val iron: Float = 0f,
+        val vitaminC: Float = 0f,
+        val potassium: Float = 0f
+    )
+
     private fun getRange(days: Long): Pair<Long, Long> {
         val today = LocalDate.now()
         val start = today.minusDays(days - 1)
@@ -318,5 +331,126 @@ class AIContextService @Inject constructor(
 
         sb.appendLine("请严格基于上述本地近期数据给出结论和建议；若数据不足，明确指出缺少哪些记录。")
         return sb.toString()
+    }
+
+    /**
+     * 获取AI个性化约束上下文（忌口/口味/预算/时长/特定人群）
+     */
+    suspend fun getDietaryConstraintContext(): String {
+        val settings = userSettingsRepository.getSettingsOnce()
+        val allergens = settings?.dietaryAllergens?.takeIf { it.isNotBlank() } ?: "无明确过敏原"
+        val flavors = settings?.flavorPreferences?.takeIf { it.isNotBlank() } ?: "未设置口味偏好"
+        val budget = settings?.budgetPreference?.takeIf { it.isNotBlank() } ?: "未设置预算偏好"
+        val maxCooking = settings?.maxCookingMinutes?.let { "${it}分钟内" } ?: "未限制烹饪时长"
+        val specialMode = when (settings?.specialPopulationMode) {
+            "DIABETES" -> "控糖"
+            "GOUT" -> "痛风"
+            "PREGNANCY" -> "孕期"
+            "CHILD" -> "儿童"
+            "FITNESS" -> "健身"
+            else -> "通用健康"
+        }
+
+        return buildString {
+            appendLine("【个性化饮食约束】")
+            appendLine("- 过敏原/忌口：$allergens")
+            appendLine("- 口味偏好：$flavors")
+            appendLine("- 预算偏好：$budget")
+            appendLine("- 烹饪时长约束：$maxCooking")
+            appendLine("- 特定人群模式：$specialMode")
+        }
+    }
+
+    /**
+     * 获取指定天数营养缺口分析上下文（自动对比推荐摄入）
+     */
+    suspend fun getNutritionGapContext(days: Long): String {
+        val safeDays = days.coerceAtLeast(1)
+        val (startTime, endTime) = getRange(safeDays)
+        val foodRecords = foodRecordRepository.getRecordsBetweenSync(startTime, endTime)
+        val settings = userSettingsRepository.getSettingsOnce()
+
+        val profile = UserBodyProfile(
+            weight = settings?.userWeight ?: 70f,
+            gender = settings?.userGender ?: "MALE",
+            age = settings?.userAge ?: 30,
+            height = settings?.userHeight,
+            activityLevel = settings?.activityLevel ?: "MODERATE"
+        )
+        val references = NutritionCalculator.calculateAll(profile).associateBy { it.id }
+
+        val dayCount = safeDays.toFloat()
+        val totals = NutrientSnapshot(
+            protein = foodRecords.sumOf { it.protein.toDouble() }.toFloat(),
+            carbs = foodRecords.sumOf { it.carbs.toDouble() }.toFloat(),
+            fat = foodRecords.sumOf { it.fat.toDouble() }.toFloat(),
+            fiber = foodRecords.sumOf { it.fiber.toDouble() }.toFloat(),
+            calcium = foodRecords.sumOf { it.calcium.toDouble() }.toFloat(),
+            iron = foodRecords.sumOf { it.iron.toDouble() }.toFloat(),
+            vitaminC = foodRecords.sumOf { it.vitaminC.toDouble() }.toFloat(),
+            potassium = foodRecords.sumOf { it.potassium.toDouble() }.toFloat()
+        )
+        val avg = NutrientSnapshot(
+            protein = totals.protein / dayCount,
+            carbs = totals.carbs / dayCount,
+            fat = totals.fat / dayCount,
+            fiber = totals.fiber / dayCount,
+            calcium = totals.calcium / dayCount,
+            iron = totals.iron / dayCount,
+            vitaminC = totals.vitaminC / dayCount,
+            potassium = totals.potassium / dayCount
+        )
+
+        fun gapLine(id: String, name: String, value: Float): String {
+            val ref = references[id]?.dailyRecommended ?: 0f
+            if (ref <= 0f) return "- $name：平均 ${String.format("%.1f", value)}"
+            val percent = (value / ref * 100f).coerceAtLeast(0f)
+            val gap = (ref - value).coerceAtLeast(0f)
+            val tag = when {
+                percent < 70f -> "明显不足"
+                percent < 90f -> "偏低"
+                percent <= 120f -> "基本达标"
+                else -> "偏高"
+            }
+            return "- $name：平均 ${String.format("%.1f", value)} / 建议 ${String.format("%.1f", ref)}（${String.format("%.0f", percent)}%，$tag，差额 ${String.format("%.1f", gap)}）"
+        }
+
+        return buildString {
+            appendLine("【最近${safeDays}天营养缺口分析】")
+            appendLine(gapLine("protein", "蛋白质(g/日)", avg.protein))
+            appendLine(gapLine("fiber", "膳食纤维(g/日)", avg.fiber))
+            appendLine(gapLine("calcium", "钙(mg/日)", avg.calcium))
+            appendLine(gapLine("iron", "铁(mg/日)", avg.iron))
+            appendLine(gapLine("vitamin_c", "维生素C(mg/日)", avg.vitaminC))
+            appendLine(gapLine("potassium", "钾(mg/日)", avg.potassium))
+            appendLine(gapLine("carbs", "碳水(g/日)", avg.carbs))
+            appendLine(gapLine("fat", "脂肪(g/日)", avg.fat))
+            appendLine("- 记录条数：${foodRecords.size}，统计区间：${formatDate(startTime)} 至 ${formatDate(endTime)}")
+        }
+    }
+
+    /**
+     * 获取增强版AI指导上下文（用于菜谱/咨询/下一餐推荐）
+     */
+    suspend fun getAdvancedDietGuidanceContext(action: String, recentDays: Long = 14): String {
+        val baseContext = getQuickActionContext(action = action, recentDays = recentDays)
+        val constraintContext = getDietaryConstraintContext()
+        val gap7 = getNutritionGapContext(7)
+        val gap30 = getNutritionGapContext(30)
+        return buildString {
+            appendLine(baseContext)
+            appendLine()
+            appendLine(constraintContext)
+            appendLine()
+            appendLine(gap7)
+            appendLine()
+            appendLine(gap30)
+            appendLine()
+            appendLine("请输出时必须包含：")
+            appendLine("1) 营养缺口解释（7天与30天）")
+            appendLine("2) 可执行补充方案")
+            appendLine("3) 食材缺失时的智能替代建议，并重算热量与三大营养素")
+            appendLine("4) 若为特定人群模式，请给出该模式下的风险提示与替代策略")
+        }
     }
 }

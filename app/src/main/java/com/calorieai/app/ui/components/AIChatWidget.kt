@@ -6,7 +6,6 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -25,6 +24,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -47,16 +47,18 @@ import kotlinx.coroutines.launch
 
 /** 三种形态：悬浮球、迷你窗口、全屏（外部处理） */
 enum class AIWidgetState { FLOATING, MINI, FULLSCREEN }
+enum class AIWidgetMode { HEALTH_ONLY, RECIPE_ASSISTANT }
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun AIChatWidget(
     onExpandToFullScreen: (String) -> Unit,
+    mode: AIWidgetMode = AIWidgetMode.HEALTH_ONLY,
     widgetState: AIWidgetState = AIWidgetState.FLOATING,
     onWidgetStateChange: (AIWidgetState) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     AnimatedContent(
         targetState = widgetState,
@@ -81,6 +83,7 @@ fun AIChatWidget(
         when (state) {
             AIWidgetState.FLOATING -> FloatingButton { onWidgetStateChange(AIWidgetState.MINI) }
             AIWidgetState.MINI -> AIChatMiniWindow(
+                mode = mode,
                 onDismiss = { onWidgetStateChange(AIWidgetState.FLOATING) },
                 onExpand = { sessionId ->
                     onWidgetStateChange(AIWidgetState.FULLSCREEN)
@@ -97,7 +100,7 @@ fun AIChatWidget(
 private fun FloatingButton(onClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     val scale by animateFloatAsState(
         if (isPressed) 0.9f else 1f,
@@ -147,6 +150,7 @@ private fun FloatingButton(onClick: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AIChatMiniWindow(
+    mode: AIWidgetMode,
     onDismiss: () -> Unit,
     onExpand: (String) -> Unit,
     viewModel: AIChatViewModel = hiltViewModel()
@@ -156,7 +160,7 @@ private fun AIChatMiniWindow(
     val scope = rememberCoroutineScope()
     var inputText by remember { mutableStateOf("") }
     val context = LocalContext.current
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val voiceHelper = remember { VoiceInputHelper() }
     val voiceState by voiceHelper.voiceState.collectAsState()
     var showVoiceDialog by remember { mutableStateOf(false) }
@@ -219,7 +223,17 @@ private fun AIChatMiniWindow(
             // 内容区
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (uiState.messages.isEmpty()) {
-                    QuickActions({ viewModel.sendMessage(it) }, isDark)
+                    QuickActions(
+                        mode = mode,
+                        onAction = { prompt ->
+                            if (mode == AIWidgetMode.HEALTH_ONLY) {
+                                viewModel.startHealthConsult()
+                            } else {
+                                viewModel.sendMessage(prompt)
+                            }
+                        },
+                        isDark = isDark
+                    )
                 } else {
                     MessageList(uiState.messages, uiState.isLoading, listState, scope, isDark)
                 }
@@ -368,7 +382,7 @@ private fun GlassIconButton(onClick: () -> Unit, isDark: Boolean, icon: ImageVec
 
 /** 快捷操作 */
 @Composable
-private fun QuickActions(onAction: (String) -> Unit, isDark: Boolean) {
+private fun QuickActions(mode: AIWidgetMode, onAction: (String) -> Unit, isDark: Boolean) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text(
             "快捷功能",
@@ -378,12 +392,24 @@ private fun QuickActions(onAction: (String) -> Unit, isDark: Boolean) {
         )
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            QuickActionCard(Icons.Default.Assessment, "热量评估", Color(0xFFFF6B6B),
-                "帮我评估一下最近一周的热量摄入是否合理", onAction, Modifier.weight(1f), isDark)
-            QuickActionCard(Icons.Default.RestaurantMenu, "菜谱规划", Color(0xFF4ECDC4),
-                "帮我规划一下今天的健康菜谱", onAction, Modifier.weight(1f), isDark)
-            QuickActionCard(Icons.Default.HealthAndSafety, "健康咨询", Color(0xFFFFE66D),
-                "我想咨询一些营养健康问题", onAction, Modifier.weight(1f), isDark)
+            if (mode == AIWidgetMode.HEALTH_ONLY) {
+                QuickActionCard(
+                    icon = Icons.Default.HealthAndSafety,
+                    title = "健康咨询",
+                    color = Color(0xFFFFE66D),
+                    prompt = "我想咨询一些营养健康问题",
+                    onClick = onAction,
+                    modifier = Modifier.weight(1f),
+                    isDark = isDark
+                )
+            } else {
+                QuickActionCard(Icons.Default.Assessment, "热量评估", Color(0xFFFF6B6B),
+                    "帮我评估一下最近一周的热量摄入是否合理", onAction, Modifier.weight(1f), isDark)
+                QuickActionCard(Icons.Default.RestaurantMenu, "菜谱规划", Color(0xFF4ECDC4),
+                    "帮我规划一下今天的健康菜谱", onAction, Modifier.weight(1f), isDark)
+                QuickActionCard(Icons.Default.HealthAndSafety, "健康咨询", Color(0xFFFFE66D),
+                    "我想咨询一些营养健康问题", onAction, Modifier.weight(1f), isDark)
+            }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -399,7 +425,10 @@ private fun QuickActions(onAction: (String) -> Unit, isDark: Boolean) {
                 Text("你好！我是你的AI助手", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "📊 评估热量消耗\n🍽️ 规划健康菜谱\n💬 解答营养问题",
+                    if (mode == AIWidgetMode.HEALTH_ONLY)
+                        "💬 健康咨询\n📈 近期记录解读\n✅ 可执行建议"
+                    else
+                        "📊 评估热量消耗\n🍽️ 规划健康菜谱\n💬 解答营养问题",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -480,18 +509,21 @@ private fun MessageList(
 @Composable
 private fun MessageItem(message: ChatMessage, isDark: Boolean) {
     val isUser = message.isFromUser
-    val miniMarkdownConfig = MarkdownConfig.Compact.copy(
-        textStyle = TextStyle(
-            fontSize = 13.sp,
-            lineHeight = 19.sp
-        ),
-        h1Style = TextStyle(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold),
-        h2Style = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold),
-        h3Style = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
-        h4Style = TextStyle(fontSize = 13.sp, lineHeight = 19.sp, fontWeight = FontWeight.SemiBold),
-        paragraphSpacing = 3,
-        headingSpacing = 6
-    )
+    val compactMarkdownConfig = MarkdownConfig.Compact
+    val miniMarkdownConfig = remember(compactMarkdownConfig) {
+        compactMarkdownConfig.copy(
+            textStyle = TextStyle(
+                fontSize = 13.sp,
+                lineHeight = 19.sp
+            ),
+            h1Style = TextStyle(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold),
+            h2Style = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold),
+            h3Style = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
+            h4Style = TextStyle(fontSize = 13.sp, lineHeight = 19.sp, fontWeight = FontWeight.SemiBold),
+            paragraphSpacing = 3,
+            headingSpacing = 6
+        )
+    }
 
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start) {
         if (!isUser) {
@@ -639,6 +671,8 @@ private fun InputIconButton(onClick: () -> Unit, icon: ImageVector, desc: String
 /** 打字指示器 */
 @Composable
 private fun TypingIndicator(isDark: Boolean) {
+    val transition = rememberInfiniteTransition(label = "widgetTyping")
+
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
         Box(
             Modifier.size(28.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
@@ -656,7 +690,7 @@ private fun TypingIndicator(isDark: Boolean) {
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                 repeat(3) { index ->
-                    val alpha by rememberInfiniteTransition("typing$index").animateFloat(
+                    val alpha by transition.animateFloat(
                         0.3f, 1f, infiniteRepeatable(tween(600, delayMillis = index * 100), RepeatMode.Reverse)
                     )
                     Box(Modifier.size(6.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary.copy(alpha)))

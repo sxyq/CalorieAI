@@ -9,12 +9,15 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
 
 // ============================================
@@ -317,6 +320,8 @@ fun CalorieAITheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,  // 默认关闭动态颜色，保持蓝色品牌色
     backgroundOverride: Color? = null,
+    wallpaperEnabled: Boolean = false,
+    fontScale: Float = 1f,
     content: @Composable () -> Unit
 ) {
     val baseColorScheme = when {
@@ -332,7 +337,7 @@ fun CalorieAITheme(
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
-    val colorScheme = if (backgroundOverride != null) {
+    val themedColorScheme = if (backgroundOverride != null) {
         baseColorScheme.copy(
             background = backgroundOverride,
             surface = lerp(baseColorScheme.surface, backgroundOverride, 0.18f),
@@ -342,16 +347,38 @@ fun CalorieAITheme(
         baseColorScheme
     }
 
+    val colorScheme = if (wallpaperEnabled) {
+        val surfaceAlpha = if (darkTheme) 0.72f else 0.78f
+        val containerAlpha = if (darkTheme) 0.68f else 0.74f
+        themedColorScheme.copy(
+            background = Color.Transparent,
+            surface = themedColorScheme.surface.copy(alpha = surfaceAlpha),
+            surfaceVariant = themedColorScheme.surfaceVariant.copy(alpha = containerAlpha),
+            surfaceContainerLowest = themedColorScheme.surfaceContainerLowest.copy(alpha = containerAlpha),
+            surfaceContainerLow = themedColorScheme.surfaceContainerLow.copy(alpha = containerAlpha),
+            surfaceContainer = themedColorScheme.surfaceContainer.copy(alpha = containerAlpha),
+            surfaceContainerHigh = themedColorScheme.surfaceContainerHigh.copy(alpha = containerAlpha),
+            surfaceContainerHighest = themedColorScheme.surfaceContainerHighest.copy(alpha = containerAlpha)
+        )
+    } else {
+        themedColorScheme
+    }
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
 
-            // 状态栏使用表面色（白色/黑色）而非主题色，参考Deadliner风格
-            window.statusBarColor = colorScheme.surface.toArgb()
+            // 浅色主题固定白色系统栏，深色主题使用深色表面层级，提升可读性与一致性。
+            val systemBarColor = if (darkTheme) {
+                Color.Black.toArgb()
+            } else {
+                Color.White.toArgb()
+            }
+            window.statusBarColor = systemBarColor
 
-            // 导航栏使用表面色
-            window.navigationBarColor = colorScheme.surface.toArgb()
+            // 导航栏使用与状态栏一致的表面色
+            window.navigationBarColor = systemBarColor
 
             // 根据主题设置状态栏文字颜色
             // 浅色主题：黑色文字
@@ -363,11 +390,22 @@ fun CalorieAITheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    val baseDensity = LocalDensity.current
+    val appliedFontScale = fontScale.coerceIn(0.85f, 1.25f)
+    val scaledDensity = remember(baseDensity, appliedFontScale) {
+        Density(
+            density = baseDensity.density,
+            fontScale = baseDensity.fontScale * appliedFontScale
+        )
+    }
+
+    CompositionLocalProvider(LocalDensity provides scaledDensity) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }
 
 /**

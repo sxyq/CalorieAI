@@ -89,7 +89,8 @@ fun AppearanceSettingsScreen(
                     onTypeSelected = viewModel::updateWallpaperType,
                     onColorSelected = viewModel::updateWallpaperColor,
                     onGradientSelected = viewModel::updateWallpaperGradient,
-                    onImageSelected = viewModel::updateWallpaperImage
+                    onImageSelected = viewModel::updateWallpaperImage,
+                    onResetWallpaper = viewModel::resetWallpaperToDefault
                 )
             }
 
@@ -242,21 +243,40 @@ private fun WallpaperSelector(
     onTypeSelected: (WallpaperType) -> Unit,
     onColorSelected: (String?) -> Unit,
     onGradientSelected: (String?, String?) -> Unit,
-    onImageSelected: (String?) -> Unit
+    onImageSelected: (String?) -> Unit,
+    onResetWallpaper: () -> Unit
 ) {
+    val defaultColor = AppearanceSettingsViewModel.DEFAULT_LIGHT_WALLPAPER_COLOR
+    val isDefaultWallpaper = selectedType == WallpaperType.SOLID &&
+        (wallpaperColor.isNullOrBlank() || wallpaperColor.equals(defaultColor, ignoreCase = true)) &&
+        imageUri.isNullOrBlank()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
     ) {
-        // 壁纸类型选择
-        Text(
-            text = "选择壁纸类型",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "选择壁纸类型",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            TextButton(
+                onClick = onResetWallpaper,
+                enabled = !isDefaultWallpaper
+            ) {
+                Text("恢复壁纸默认")
+            }
+        }
 
+        // 壁纸类型选择
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
