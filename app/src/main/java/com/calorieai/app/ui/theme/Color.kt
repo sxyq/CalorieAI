@@ -45,7 +45,7 @@ val OnTertiaryContainerDark = Color(0xFFB2EBF2)
 // ============================================
 
 // 浅色主题背景
-val BackgroundLight = Color(0xFFF5F5F5)       // 浅灰背景
+val BackgroundLight = Color(0xFFFFFFFF)       // 纯白背景
 val OnBackgroundLight = Color(0xFF1C1B1F)     // 深色文字
 val SurfaceLight = Color(0xFFFFFFFF)          // 白色表面
 val OnSurfaceLight = Color(0xFF1C1B1F)

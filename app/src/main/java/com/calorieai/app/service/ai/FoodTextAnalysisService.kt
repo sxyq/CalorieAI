@@ -1,13 +1,15 @@
 package com.calorieai.app.service.ai
 
 import com.calorieai.app.data.model.FoodAnalysisResult
+import com.calorieai.app.data.model.FoodBatchAnalysisResult
+import com.calorieai.app.data.repository.APICallRecordRepository
 import com.calorieai.app.data.repository.AIConfigRepository
+import com.calorieai.app.data.repository.AITokenUsageRepository
 import com.calorieai.app.service.ai.common.AIApiClient
 import com.calorieai.app.service.ai.common.AIApiException
+import com.calorieai.app.utils.SecureLogger
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -16,17 +18,21 @@ import javax.inject.Singleton
 @Singleton
 class FoodTextAnalysisService @Inject constructor(
     private val aiApiClient: AIApiClient,
-    private val aiConfigRepository: AIConfigRepository
+    private val aiConfigRepository: AIConfigRepository,
+    private val apiCallRecordRepository: APICallRecordRepository,
+    private val aiTokenUsageRepository: AITokenUsageRepository
 ) {
     private val gson = Gson()
 
     companion object {
-        private const val CONCURRENT_CALLS = 5
+        private const val TAG = "FoodTextAnalysis"
         
-        private const val SYSTEM_PROMPT = """你是一个专业的营养师，擅长分析食物的热量和营养成分。请根据用户输入的食物描述，分析并提供详细的营养信息。
+        private const val SYSTEM_PROMPT = """你是专业营养师。用户可能一次输入多种食物，你必须按“每种食物一条记录”返回，不要合并。
 
 【严格要求 - 必须遵守】
-1. foodName 字段必须使用中文名称
+1. 返回JSON对象，且根字段必须是 items 数组
+2. 数组每个元素代表一种食物，不能把多种食物合并成一条
+3. foodName 字段必须使用中文名称（由你命名）
 2. 必须严格使用英文标点符号（逗号、引号、冒号）
 3. 所有数值必须是纯数字，不能带引号，不能使用字符串
 4. 所有营养素字段必须返回，不能省略
@@ -37,7 +43,7 @@ class FoodTextAnalysisService @Inject constructor(
 - 扩展营养素（10种）：fiber, sugar, saturatedFat, cholesterol, sodium, potassium, calcium, iron, vitaminA, vitaminC
 
 【JSON格式示例】
-{"foodName":"番茄炒蛋","estimatedWeight":200,"calories":185,"protein":13.4,"carbs":7.9,"fat":12.0,"fiber":2.5,"sugar":3.0,"saturatedFat":4.0,"cholesterol":160.8,"sodium":257.3,"potassium":492.3,"calcium":15.0,"iron":1.0,"vitaminA":3975.0,"vitaminC":12.3}
+{"items":[{"foodName":"空气炸锅大虾","estimatedWeight":200,"calories":198,"protein":35.0,"carbs":2.0,"fat":5.0,"fiber":0.0,"sugar":0.5,"saturatedFat":1.0,"cholesterol":180.0,"sodium":320.0,"potassium":280.0,"calcium":90.0,"iron":1.8,"vitaminA":40.0,"vitaminC":0.0},{"foodName":"小番茄","estimatedWeight":100,"calories":22,"protein":1.1,"carbs":4.8,"fat":0.2,"fiber":1.4,"sugar":3.2,"saturatedFat":0.0,"cholesterol":0.0,"sodium":5.0,"potassium":237.0,"calcium":10.0,"iron":0.3,"vitaminA":42.0,"vitaminC":14.0}]}
 
 【格式检查清单】
 ✓ 所有字段名使用英文
@@ -52,61 +58,107 @@ class FoodTextAnalysisService @Inject constructor(
 ✗ 不要使用中文标点符号
 ✗ 不要将数字用引号包裹
 ✗ 不要省略任何营养素字段
-✗ 不要返回说明文字，只返回JSON"""
+✗ 不要返回说明文字，只返回JSON对象"""
     }
+
+    private data class ParsedUsage(
+        val promptTokens: Int,
+        val completionTokens: Int,
+        val cost: Double
+    )
 
     suspend fun analyzeFoodText(
         foodDescription: String,
         maxRetries: Int = 2,
         onRetry: ((attempt: Int, maxAttempts: Int) -> Unit)? = null
-    ): Result<FoodAnalysisResult> = withContext(Dispatchers.IO) {
+    ): Result<FoodBatchAnalysisResult> = withContext(Dispatchers.IO) {
         try {
             val config = aiConfigRepository.getDefaultConfig().firstOrNull()
                 ?: return@withContext Result.failure(Exception("未配置AI服务"))
 
-            val userPrompt = "请分析以下食物的热量和营养成分：$foodDescription"
+            val userPrompt = "请拆分并分析以下食物，按多条items返回：$foodDescription"
+            var lastError: Throwable? = null
+            val maxAttempts = (maxRetries + 1).coerceAtLeast(1)
 
-            // 并发调用5次
-            val results = mutableListOf<FoodAnalysisResult>()
-            val errors = mutableListOf<String>()
-            
-            val deferredResults = (1..CONCURRENT_CALLS).map { 
-                async {
-                    try {
-                        val responseText = aiApiClient.chat(
-                            config = config,
-                            systemPrompt = SYSTEM_PROMPT,
-                            userMessage = userPrompt,
-                            temperature = 0.3,
-                            maxTokens = 1000
-                        )
-                        val result = parseAnalysisResult(responseText)
-                        val validation = validateNutritionData(result)
-                        if (validation.isValid) {
-                            Result.success(result)
-                        } else {
-                            Result.failure<FoodAnalysisResult>(Exception(validation.errorMessage))
-                        }
-                    } catch (e: Exception) {
-                        Result.failure<FoodAnalysisResult>(e)
+            for (attempt in 1..maxAttempts) {
+                val startTime = System.currentTimeMillis()
+                try {
+                    val (responseText, rawResponse) = aiApiClient.chatRaw(
+                        config = config,
+                        systemPrompt = SYSTEM_PROMPT,
+                        userMessage = userPrompt,
+                        temperature = 0.2,
+                        maxTokens = 1400
+                    )
+                    val parsedUsage = parseUsage(rawResponse, config.protocol.name, config.modelId)
+                    if (parsedUsage.promptTokens > 0 || parsedUsage.completionTokens > 0) {
+                        recordTokenUsage(config.id, config.name, parsedUsage)
                     }
+                    val parsedItems = parseBatchAnalysisResult(responseText)
+                    val validItems = parsedItems.filter { validateNutritionData(it).isValid }
+                    if (validItems.isNotEmpty()) {
+                        recordApiCall(
+                            configId = config.id,
+                            configName = config.name,
+                            modelId = config.modelId,
+                            inputText = userPrompt,
+                            outputText = responseText,
+                            promptTokens = parsedUsage.promptTokens,
+                            completionTokens = parsedUsage.completionTokens,
+                            cost = parsedUsage.cost,
+                            duration = System.currentTimeMillis() - startTime,
+                            isSuccess = true
+                        )
+                        SecureLogger.event(
+                            TAG,
+                            "batch_analysis_success",
+                            "attempt" to attempt,
+                            "itemCount" to validItems.size,
+                            "inputLength" to foodDescription.length
+                        )
+                        return@withContext Result.success(FoodBatchAnalysisResult(items = validItems))
+                    }
+                    lastError = Exception("AI返回结果为空或无效")
+                    recordApiCall(
+                        configId = config.id,
+                        configName = config.name,
+                        modelId = config.modelId,
+                        inputText = userPrompt,
+                        outputText = responseText,
+                        promptTokens = parsedUsage.promptTokens,
+                        completionTokens = parsedUsage.completionTokens,
+                        cost = parsedUsage.cost,
+                        duration = System.currentTimeMillis() - startTime,
+                        isSuccess = false,
+                        errorMessage = lastError?.message
+                    )
+                } catch (e: Exception) {
+                    lastError = e
+                    recordApiCall(
+                        configId = config.id,
+                        configName = config.name,
+                        modelId = config.modelId,
+                        inputText = userPrompt,
+                        outputText = "",
+                        promptTokens = 0,
+                        completionTokens = 0,
+                        cost = 0.0,
+                        duration = System.currentTimeMillis() - startTime,
+                        isSuccess = false,
+                        errorMessage = e.message
+                    )
+                }
+
+                if (attempt < maxAttempts) {
+                    onRetry?.invoke(attempt, maxAttempts)
+                    SecureLogger.w(
+                        TAG,
+                        "batch_analysis_retry | attempt=$attempt/$maxAttempts | reason=${lastError?.message}"
+                    )
                 }
             }
-            
-            deferredResults.awaitAll().forEach { result ->
-                result.fold(
-                    onSuccess = { results.add(it) },
-                    onFailure = { errors.add(it.message ?: "未知错误") }
-                )
-            }
 
-            if (results.isEmpty()) {
-                return@withContext Result.failure(Exception("所有分析尝试失败: ${errors.take(3).joinToString("; ")}"))
-            }
-
-            // 计算平均值
-            val averagedResult = calculateAverageResult(results)
-            Result.success(averagedResult)
+            Result.failure(lastError ?: Exception("AI分析失败"))
 
         } catch (e: AIApiException) {
             Result.failure(Exception("AI分析失败: ${e.message}"))
@@ -114,45 +166,8 @@ class FoodTextAnalysisService @Inject constructor(
             Result.failure(e)
         }
     }
-    
-    /**
-     * 计算多次分析结果的平均值
-     */
-    private fun calculateAverageResult(results: List<FoodAnalysisResult>): FoodAnalysisResult {
-        if (results.isEmpty()) return FoodAnalysisResult(foodName = "未知食物")
-        if (results.size == 1) return results.first()
-        
-        // 选择出现最多的食物名称
-        val foodNames = results.map { it.foodName }.groupingBy { it }.eachCount()
-        val mostCommonName = foodNames.maxByOrNull { it.value }?.key ?: "未知食物"
-        
-        // 计算数值字段的平均值
-        fun averageOf(selector: (FoodAnalysisResult) -> Float): Float {
-            val values = results.map(selector)
-            return values.sum() / values.size
-        }
-        
-        return FoodAnalysisResult(
-            foodName = mostCommonName,
-            estimatedWeight = (results.map { it.estimatedWeight }.sum() / results.size),
-            calories = averageOf { it.calories },
-            protein = averageOf { it.protein },
-            carbs = averageOf { it.carbs },
-            fat = averageOf { it.fat },
-            fiber = averageOf { it.fiber },
-            sugar = averageOf { it.sugar },
-            saturatedFat = averageOf { it.saturatedFat },
-            cholesterol = averageOf { it.cholesterol },
-            sodium = averageOf { it.sodium },
-            potassium = averageOf { it.potassium },
-            calcium = averageOf { it.calcium },
-            iron = averageOf { it.iron },
-            vitaminA = averageOf { it.vitaminA },
-            vitaminC = averageOf { it.vitaminC }
-        )
-    }
 
-    private fun parseAnalysisResult(content: String): FoodAnalysisResult {
+    private fun parseBatchAnalysisResult(content: String): List<FoodAnalysisResult> {
         val jsonString = extractJsonFromText(content)
         
         var cleanedJson = jsonString
@@ -218,10 +233,18 @@ class FoodTextAnalysisService @Inject constructor(
         }
 
         return try {
-            gson.fromJson(cleanedJson, FoodAnalysisResult::class.java)
-                ?: FoodAnalysisResult(foodName = "未知食物")
+            val jsonObject = gson.fromJson(cleanedJson, com.google.gson.JsonObject::class.java)
+            val itemsArray = jsonObject?.getAsJsonArray("items")
+            if (itemsArray != null && itemsArray.size() > 0) {
+                itemsArray.mapNotNull { element ->
+                    runCatching { gson.fromJson(element, FoodAnalysisResult::class.java) }.getOrNull()
+                }
+            } else {
+                // 兼容模型偶发返回单对象的情况
+                listOf(gson.fromJson(cleanedJson, FoodAnalysisResult::class.java))
+            }
         } catch (e: Exception) {
-            FoodAnalysisResult(foodName = "未知食物")
+            emptyList()
         }
     }
     
@@ -268,5 +291,85 @@ class FoodTextAnalysisService @Inject constructor(
         anyFenceRegex.find(raw)?.let { return it.groups[1]!!.value.trim() }
 
         return raw.trim()
+    }
+
+    private suspend fun recordApiCall(
+        configId: String,
+        configName: String,
+        modelId: String,
+        inputText: String,
+        outputText: String,
+        promptTokens: Int,
+        completionTokens: Int,
+        cost: Double,
+        duration: Long,
+        isSuccess: Boolean,
+        errorMessage: String? = null
+    ) {
+        runCatching {
+            apiCallRecordRepository.recordCall(
+                configId = configId,
+                configName = configName,
+                modelId = modelId,
+                inputText = inputText,
+                outputText = outputText,
+                promptTokens = promptTokens,
+                completionTokens = completionTokens,
+                cost = cost,
+                duration = duration,
+                isSuccess = isSuccess,
+                errorMessage = errorMessage
+            )
+        }
+    }
+
+    private suspend fun recordTokenUsage(
+        configId: String,
+        configName: String,
+        parsedUsage: ParsedUsage
+    ) {
+        runCatching {
+            aiTokenUsageRepository.recordTokenUsage(
+                configId = configId,
+                configName = configName,
+                promptTokens = parsedUsage.promptTokens,
+                completionTokens = parsedUsage.completionTokens,
+                cost = parsedUsage.cost
+            )
+        }
+    }
+
+    private fun parseUsage(rawResponse: String, protocol: String, modelId: String): ParsedUsage {
+        val usage = when (protocol) {
+            "CLAUDE" -> aiApiClient.extractClaudeUsage(rawResponse)
+            else -> aiApiClient.extractOpenAIUsage(rawResponse)
+        }
+        val promptTokens = usage?.promptTokens ?: 0
+        val completionTokens = usage?.completionTokens ?: 0
+        val cost = if (usage != null) {
+            calculateCost(promptTokens, completionTokens, protocol, modelId)
+        } else {
+            0.0
+        }
+        return ParsedUsage(
+            promptTokens = promptTokens,
+            completionTokens = completionTokens,
+            cost = cost
+        )
+    }
+
+    private fun calculateCost(promptTokens: Int, completionTokens: Int, protocol: String, modelId: String): Double {
+        val rates = when (protocol) {
+            "OPENAI" -> when {
+                modelId.contains("gpt-4") -> 0.03 to 0.06
+                modelId.contains("gpt-3.5") -> 0.0015 to 0.002
+                else -> 0.001 to 0.002
+            }
+            "CLAUDE" -> 0.008 to 0.024
+            "KIMI" -> 0.006 to 0.006
+            else -> 0.001 to 0.002
+        }
+        val (inputRate, outputRate) = rates
+        return (promptTokens * inputRate + completionTokens * outputRate) / 1000.0
     }
 }

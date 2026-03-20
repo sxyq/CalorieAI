@@ -8,12 +8,16 @@ import android.os.Bundle
 import android.widget.RemoteViews
 import com.calorieai.app.MainActivity
 import com.calorieai.app.R
+import com.calorieai.app.utils.SecureLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 abstract class BaseCalorieWidget : AppWidgetProvider() {
+    companion object {
+        private const val TAG = "BaseCalorieWidget"
+    }
 
     abstract val layoutResId: Int
     abstract val pendingIntentRequestCode: Int
@@ -43,6 +47,13 @@ abstract class BaseCalorieWidget : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
+        SecureLogger.event(
+            TAG,
+            "refresh_widgets_start",
+            "widgetType" to widgetType,
+            "layoutResId" to layoutResId,
+            "count" to appWidgetIds.size
+        )
         val pendingResult = goAsync()
         coroutineScope.launch {
             try {
@@ -55,7 +66,25 @@ abstract class BaseCalorieWidget : AppWidgetProvider() {
                     bindData(context, views, snapshot)
                     setupClickIntent(context, views, appWidgetId)
                     appWidgetManager.updateAppWidget(appWidgetId, views)
+                    SecureLogger.event(
+                        TAG,
+                        "widget_updated",
+                        "widgetType" to widgetType,
+                        "appWidgetId" to appWidgetId
+                    )
                 }
+                SecureLogger.event(
+                    TAG,
+                    "refresh_widgets_done",
+                    "widgetType" to widgetType,
+                    "count" to appWidgetIds.size
+                )
+            } catch (e: Exception) {
+                SecureLogger.e(
+                    TAG,
+                    "refresh_widgets_failed | widgetType=$widgetType | count=${appWidgetIds.size} | error=${e.message}",
+                    e
+                )
             } finally {
                 pendingResult.finish()
             }

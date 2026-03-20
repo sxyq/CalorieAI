@@ -161,7 +161,11 @@ fun AIChatScreen(
                     items(uiState.messages, key = { it.id }) { msg ->
                         AnimatedMessageItem(msg, isDark)
                     }
-                    if (uiState.isTyping) {
+                    val showTypingIndicator = uiState.isTyping && (
+                        uiState.messages.lastOrNull()?.isFromUser == true ||
+                            uiState.messages.lastOrNull()?.content.isNullOrBlank()
+                        )
+                    if (showTypingIndicator) {
                         item { TypingIndicator(isDark) }
                     }
                 }
@@ -458,6 +462,7 @@ private fun CompactActionChip(
 @Composable
 private fun AnimatedMessageItem(msg: ChatMessage, isDark: Boolean) {
     val isUser = msg.isFromUser
+    if (!isUser && msg.content.isBlank()) return
     val timeText = remember(msg.timestamp) { formatTime(msg.timestamp) }
     val bgColor = if (isUser) {
         MaterialTheme.colorScheme.primary

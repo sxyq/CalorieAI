@@ -3,6 +3,7 @@ package com.calorieai.app.service.widget
 import android.content.Context
 import androidx.room.Room
 import com.calorieai.app.data.local.AppDatabase
+import com.calorieai.app.utils.SecureLogger
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.ZoneId
@@ -10,6 +11,7 @@ import java.util.Date
 import java.util.Locale
 
 object WidgetDataProvider {
+    private const val TAG = "WidgetDataProvider"
 
     data class TodaySnapshot(
         val dateLabel: String,
@@ -70,7 +72,7 @@ object WidgetDataProvider {
                 .getTotalAmountByDate(startOfDay) ?: 0
             val settings = database.userSettingsDao().getSettingsSync()
 
-            TodaySnapshot(
+            val snapshot = TodaySnapshot(
                 dateLabel = SimpleDateFormat("M月d日", Locale.getDefault()).format(Date()),
                 calorieIntake = foodRecords.sumOf { it.totalCalories },
                 calorieGoal = settings?.dailyCalorieGoal ?: 2000,
@@ -83,7 +85,19 @@ object WidgetDataProvider {
                 fat = foodRecords.sumOf { it.fat.toDouble() }.toFloat(),
                 mealCount = foodRecords.size
             )
-        } catch (_: Exception) {
+            SecureLogger.event(
+                TAG,
+                "snapshot_loaded",
+                "dateLabel" to snapshot.dateLabel,
+                "foodRecords" to foodRecords.size,
+                "exerciseRecords" to exerciseRecords.size,
+                "calorieIntake" to snapshot.calorieIntake,
+                "waterIntakeMl" to snapshot.waterIntakeMl,
+                "mealCount" to snapshot.mealCount
+            )
+            snapshot
+        } catch (e: Exception) {
+            SecureLogger.e(TAG, "snapshot_load_failed", e)
             TodaySnapshot(
                 dateLabel = SimpleDateFormat("M月d日", Locale.getDefault()).format(Date()),
                 calorieIntake = 0,

@@ -368,6 +368,13 @@ class AIContextService @Inject constructor(
         val safeDays = days.coerceAtLeast(1)
         val (startTime, endTime) = getRange(safeDays)
         val foodRecords = foodRecordRepository.getRecordsBetweenSync(startTime, endTime)
+        val activeDays = foodRecords
+            .groupBy {
+                java.time.Instant.ofEpochMilli(it.recordTime)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+            }
+            .size
         val settings = userSettingsRepository.getSettingsOnce()
 
         val profile = UserBodyProfile(
@@ -379,7 +386,7 @@ class AIContextService @Inject constructor(
         )
         val references = NutritionCalculator.calculateAll(profile).associateBy { it.id }
 
-        val dayCount = safeDays.toFloat()
+        val denominator = activeDays.coerceAtLeast(1).toFloat()
         val totals = NutrientSnapshot(
             protein = foodRecords.sumOf { it.protein.toDouble() }.toFloat(),
             carbs = foodRecords.sumOf { it.carbs.toDouble() }.toFloat(),
@@ -391,14 +398,14 @@ class AIContextService @Inject constructor(
             potassium = foodRecords.sumOf { it.potassium.toDouble() }.toFloat()
         )
         val avg = NutrientSnapshot(
-            protein = totals.protein / dayCount,
-            carbs = totals.carbs / dayCount,
-            fat = totals.fat / dayCount,
-            fiber = totals.fiber / dayCount,
-            calcium = totals.calcium / dayCount,
-            iron = totals.iron / dayCount,
-            vitaminC = totals.vitaminC / dayCount,
-            potassium = totals.potassium / dayCount
+            protein = totals.protein / denominator,
+            carbs = totals.carbs / denominator,
+            fat = totals.fat / denominator,
+            fiber = totals.fiber / denominator,
+            calcium = totals.calcium / denominator,
+            iron = totals.iron / denominator,
+            vitaminC = totals.vitaminC / denominator,
+            potassium = totals.potassium / denominator
         )
 
         fun gapLine(id: String, name: String, value: Float): String {
@@ -417,6 +424,14 @@ class AIContextService @Inject constructor(
 
         return buildString {
             appendLine("【最近${safeDays}天营养缺口分析】")
+            val coverage = (activeDays * 100f / safeDays.toFloat()).coerceIn(0f, 100f)
+            appendLine("- 有效记录天数：$activeDays/$safeDays（覆盖率 ${String.format("%.0f", coverage)}%）")
+            appendLine("- 统计口径：以下“平均值”按有效记录天数计算（非固定按${safeDays}天均摊）")
+            when {
+                activeDays == 0 -> appendLine("- 数据状态：冷启动（暂无饮食记录），仅可提供基线建议，不能判断趋势")
+                activeDays < 3 -> appendLine("- 数据状态：样本偏少（<3天），谨慎解读，禁止下“缺口持续加大”结论")
+                else -> appendLine("- 数据状态：样本基本可用，可进行阶段性缺口判断")
+            }
             appendLine(gapLine("protein", "蛋白质(g/日)", avg.protein))
             appendLine(gapLine("fiber", "膳食纤维(g/日)", avg.fiber))
             appendLine(gapLine("calcium", "钙(mg/日)", avg.calcium))
@@ -447,10 +462,12 @@ class AIContextService @Inject constructor(
             appendLine(gap30)
             appendLine()
             appendLine("请输出时必须包含：")
+            appendLine("0) 先给出最近7天与30天的有效记录天数（例如：2/7天、5/30天）")
             appendLine("1) 营养缺口解释（7天与30天）")
             appendLine("2) 可执行补充方案")
             appendLine("3) 食材缺失时的智能替代建议，并重算热量与三大营养素")
             appendLine("4) 若为特定人群模式，请给出该模式下的风险提示与替代策略")
+            appendLine("5) 当任一窗口有效记录天数<3时，禁止使用“缺口持续加大/恶化”等趋势结论，改用冷启动基线建议")
         }
     }
 }

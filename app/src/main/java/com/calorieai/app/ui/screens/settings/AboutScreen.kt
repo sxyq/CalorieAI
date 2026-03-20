@@ -32,6 +32,7 @@ import com.calorieai.app.ui.components.SettingsTopAppBar
 import com.calorieai.app.ui.components.markdown.MarkdownConfig
 import com.calorieai.app.ui.components.markdown.MarkdownText
 import com.calorieai.app.ui.theme.*
+import com.calorieai.app.utils.SecureLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,6 +40,8 @@ import android.provider.MediaStore
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+
+private const val TAG = "AboutScreen"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,22 +90,26 @@ fun AboutScreen(
                 onLogoClick = {
                     if (exportingLogcat) return@AppInfoCard
                     logoTapCount += 1
+                    SecureLogger.event(TAG, "logo_tap", "count" to logoTapCount)
                     val remaining = 5 - logoTapCount
                     if (remaining > 0) {
                         Toast.makeText(context, "再点击 $remaining 次导出日志", Toast.LENGTH_SHORT).show()
                     } else {
                         logoTapCount = 0
                         exportingLogcat = true
+                        SecureLogger.event(TAG, "export_logcat_triggered")
                         scope.launch {
                             val result = exportLogcatToDownload(context)
                             exportingLogcat = false
                             result.onSuccess { fileName ->
+                                SecureLogger.event(TAG, "export_logcat_success", "fileName" to fileName)
                                 Toast.makeText(
                                     context,
                                     "日志已保存到 Download/$fileName",
                                     Toast.LENGTH_LONG
                                 ).show()
                             }.onFailure { error ->
+                                SecureLogger.e(TAG, "export_logcat_failed | ${error.message}", error)
                                 Toast.makeText(
                                     context,
                                     "日志导出失败：${error.message ?: "未知错误"}",
@@ -173,7 +180,7 @@ fun AboutScreen(
                     icon = Icons.Default.Code,
                     showArrow = true,
                     onClick = {
-                        openUrl(context, "https://github.com/NightFuryPro/CalorieAI")
+                        openUrl(context, "https://github.com/sxyq/CalorieAI")
                     }
                 )
                 SettingsSectionDivider()
@@ -183,7 +190,7 @@ fun AboutScreen(
                     icon = Icons.Default.BugReport,
                     showArrow = true,
                     onClick = {
-                        openUrl(context, "https://github.com/NightFuryPro/CalorieAI/issues")
+                        openUrl(context, "https://github.com/sxyq/CalorieAI/issues")
                     }
                 )
                 SettingsSectionDivider()
@@ -193,7 +200,7 @@ fun AboutScreen(
                     icon = Icons.Default.Lightbulb,
                     showArrow = true,
                     onClick = {
-                        openUrl(context, "https://github.com/NightFuryPro/CalorieAI/discussions")
+                        openUrl(context, "https://github.com/sxyq/CalorieAI/discussions")
                     }
                 )
                 SettingsSectionDivider()
@@ -203,7 +210,7 @@ fun AboutScreen(
                     icon = Icons.Default.Star,
                     showArrow = true,
                     onClick = {
-                        openUrl(context, "https://github.com/NightFuryPro/CalorieAI")
+                        openUrl(context, "https://github.com/sxyq/CalorieAI")
                     }
                 )
             }
@@ -305,11 +312,18 @@ private suspend fun exportLogcatToDownload(context: Context): Result<String> = w
     runCatching {
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         val fileName = "calorieai_logcat_$timeStamp.txt"
+        SecureLogger.event(TAG, "export_logcat_start", "fileName" to fileName)
 
-        val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-v", "time"))
+        val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-v", "threadtime", "-b", "all"))
         val logText = process.inputStream.bufferedReader().use { it.readText() }
         val errText = process.errorStream.bufferedReader().use { it.readText() }
         process.waitFor()
+        SecureLogger.event(
+            TAG,
+            "export_logcat_collected",
+            "logLength" to logText.length,
+            "errLength" to errText.length
+        )
 
         if (logText.isBlank() && errText.isNotBlank()) {
             throw IllegalStateException(errText)
@@ -326,6 +340,7 @@ private suspend fun exportLogcatToDownload(context: Context): Result<String> = w
         resolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
             writer.write(logText.ifBlank { "无可用日志输出" })
         } ?: throw IllegalStateException("无法写入下载文件")
+        SecureLogger.event(TAG, "export_logcat_write_done", "fileName" to fileName)
 
         fileName
     }
@@ -712,7 +727,7 @@ private fun FaqDialog(onDismiss: () -> Unit) {
                             ❓ 还有其他问题？
                             
                             请在GitHub上提交Issue：
-                            github.com/NightFuryPro/CalorieAI/issues
+                            github.com/sxyq/CalorieAI/issues
                         """.trimIndent(),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

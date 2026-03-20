@@ -40,12 +40,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.calorieai.app.ui.components.SettingsTopAppBar
 import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.utils.MetabolicConstants
@@ -60,6 +66,20 @@ fun ProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAvatarPicker by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val avatarPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let {
+            viewModel.updateAvatarUrl(it.toString())
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+        }
+    }
 
     val bmr = calculateBMR(
         gender = uiState.gender,
@@ -145,6 +165,22 @@ fun ProfileScreen(
                 )
             }
 
+            ProfileSectionCard(
+                title = "饮水目标",
+                subtitle = "可手动管理参考饮水量，也可参考身体数据推荐值"
+            ) {
+                WaterGoalSection(
+                    dailyWaterGoal = uiState.dailyWaterGoal,
+                    suggestedWaterGoal = MetabolicConstants.calculateDailyWaterGoal(
+                        weight = uiState.weight,
+                        activityLevel = uiState.activityLevel,
+                        age = uiState.age,
+                        gender = uiState.gender
+                    ),
+                    onWaterGoalChange = viewModel::updateDailyWaterGoal
+                )
+            }
+
             Spacer(modifier = Modifier.height(20.dp))
         }
     }
@@ -153,10 +189,27 @@ fun ProfileScreen(
         AlertDialog(
             onDismissRequest = { showAvatarPicker = false },
             title = { Text("选择头像") },
-            text = { Text("头像选择功能将在后续版本中添加") },
+            text = { Text("可从相册选择头像，也可以清除当前头像。") },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showAvatarPicker = false
+                        viewModel.updateAvatarUrl(null)
+                    }
+                ) {
+                    Text("清除头像")
+                }
+            },
             confirmButton = {
-                TextButton(onClick = { showAvatarPicker = false }) {
-                    Text("确定")
+                TextButton(
+                    onClick = {
+                        showAvatarPicker = false
+                        avatarPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    }
+                ) {
+                    Text("选择图片")
                 }
             }
         )
@@ -200,9 +253,16 @@ private fun ProfileHeroCard(
                 contentAlignment = Alignment.Center
             ) {
                 val displayText = userName.trim().take(1).uppercase()
-                if (avatarUrl != null || displayText.isNotEmpty()) {
+                if (!avatarUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = "用户头像",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else if (displayText.isNotEmpty()) {
                     Text(
-                        text = if (displayText.isNotEmpty()) displayText else "你",
+                        text = displayText,
                         style = MaterialTheme.typography.headlineLarge,
                         color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.Bold
@@ -658,6 +718,62 @@ private fun CalorieGoalSection(
                 MaterialTheme.colorScheme.onSurfaceVariant
             }
         )
+    }
+}
+
+@Composable
+private fun WaterGoalSection(
+    dailyWaterGoal: Int,
+    suggestedWaterGoal: Int,
+    onWaterGoalChange: (Int) -> Unit
+) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val clampedGoal = dailyWaterGoal.coerceIn(1200, 5000)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        OutlinedTextField(
+            value = clampedGoal.toString(),
+            onValueChange = { onWaterGoalChange(it.toIntOrNull() ?: suggestedWaterGoal) },
+            label = { Text("每日饮水目标") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Done
+            ),
+            suffix = { Text("ml") },
+            shape = RoundedCornerShape(14.dp)
+        )
+
+        Slider(
+            value = clampedGoal.toFloat(),
+            onValueChange = { onWaterGoalChange(it.roundToInt()) },
+            valueRange = 1200f..5000f
+        )
+
+        Text(
+            text = "推荐值：$suggestedWaterGoal ml（基于体重与活动量估算）",
+            style = MaterialTheme.typography.bodySmall,
+            color = if (isDark) {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
+        )
+
+        TextButton(
+            onClick = { onWaterGoalChange(suggestedWaterGoal) },
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                    if (isDark) {
+                        MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.9f)
+                    } else {
+                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.58f)
+                    }
+                )
+        ) {
+            Text("使用推荐值")
+        }
     }
 }
 

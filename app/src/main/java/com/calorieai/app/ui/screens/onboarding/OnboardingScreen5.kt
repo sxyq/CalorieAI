@@ -7,7 +7,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +22,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -56,7 +56,7 @@ fun OnboardingScreen5(
         )
     }
 
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     val estimatedWeeks = remember(targetWeight, selectedStrategy, goal) {
         calculateEstimatedWeeks(currentWeight, targetWeight, selectedStrategy, goal)
@@ -297,7 +297,10 @@ private fun CurrentWeightCard(
 ) {
     Box(
         modifier = modifier
-            .glassCardThemed(isDark = isDark, cornerRadius = 14.dp)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = RoundedCornerShape(14.dp)
+            )
             .padding(14.dp)
     ) {
         Column {
@@ -343,7 +346,10 @@ private fun GoalTypeCard(
 
     Box(
         modifier = modifier
-            .glassCardThemed(isDark = isDark, cornerRadius = 14.dp)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = RoundedCornerShape(14.dp)
+            )
             .padding(14.dp)
     ) {
         Column {
@@ -428,7 +434,10 @@ private fun StrategyCard(
                     Modifier
                 }
             )
-            .glassCardThemed(isDark = isDark, cornerRadius = 14.dp)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = RoundedCornerShape(14.dp)
+            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -546,7 +555,10 @@ private fun EstimatedTimeCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .glassCardThemed(isDark = isDark, cornerRadius = 14.dp)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = RoundedCornerShape(14.dp)
+            )
             .background(
                 color = color.copy(alpha = 0.08f),
                 shape = RoundedCornerShape(14.dp)

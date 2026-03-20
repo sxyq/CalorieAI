@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -48,7 +50,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -318,18 +323,83 @@ private fun AICard(isLoading: Boolean, result: String?, error: String?, onGenera
             if (isLoading) CircularProgressIndicator(modifier = Modifier.padding(4.dp))
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             result?.let {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isDark) {
-                            MaterialTheme.colorScheme.surfaceContainerHigh
-                        } else {
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)
-                        }
-                    )
-                ) {
-                    MarkdownText(it, config = MarkdownConfig.ChatReadable, modifier = Modifier.padding(10.dp))
-                }
+                AIAssistantStyleRecipePanel(resultText = it, isDark = isDark)
                 TextButton(onClick = onClear, modifier = Modifier.align(Alignment.End)) { Text("清空") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AIAssistantStyleRecipePanel(
+    resultText: String,
+    isDark: Boolean
+) {
+    val scrollState = rememberScrollState()
+    val clipboardManager = LocalClipboardManager.current
+    val panelBg = if (isDark) {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    } else {
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = panelBg),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = if (isDark) {
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+            } else {
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+            }
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SmartToy,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = "AI 推荐结果",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(
+                    onClick = { clipboardManager.setText(AnnotatedString(resultText)) },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) { Text("复制") }
+            }
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = if (isDark) Color(0xFF1E1E1E) else Color(0xFFF5F7FA)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState)
+                        .padding(12.dp)
+                ) {
+                    MarkdownText(
+                        text = resultText,
+                        config = MarkdownConfig.ChatReadable
+                    )
+                }
             }
         }
     }

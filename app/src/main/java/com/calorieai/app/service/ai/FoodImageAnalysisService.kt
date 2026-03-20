@@ -6,7 +6,9 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
 import com.calorieai.app.data.model.FoodAnalysisResult
+import com.calorieai.app.data.repository.APICallRecordRepository
 import com.calorieai.app.data.repository.AIConfigRepository
+import com.calorieai.app.data.repository.AITokenUsageRepository
 import com.calorieai.app.service.ai.common.AIApiClient
 import com.calorieai.app.service.ai.common.AIApiException
 import com.google.gson.Gson
@@ -22,7 +24,9 @@ import javax.inject.Singleton
 @Singleton
 class FoodImageAnalysisService @Inject constructor(
     private val aiApiClient: AIApiClient,
-    private val aiConfigRepository: AIConfigRepository
+    private val aiConfigRepository: AIConfigRepository,
+    private val apiCallRecordRepository: APICallRecordRepository,
+    private val aiTokenUsageRepository: AITokenUsageRepository
 ) {
     private val gson = Gson()
 
@@ -61,6 +65,12 @@ class FoodImageAnalysisService @Inject constructor(
 ✗ 不要返回说明文字，只返回JSON"""
     }
 
+    private data class ParsedUsage(
+        val promptTokens: Int,
+        val completionTokens: Int,
+        val cost: Double
+    )
+
     suspend fun analyzeFoodImage(
         imageUri: Uri,
         context: Context,
@@ -91,8 +101,9 @@ class FoodImageAnalysisService @Inject constructor(
             
             val deferredResults = (1..CONCURRENT_CALLS).map { index ->
                 async {
+                    val startTime = System.currentTimeMillis()
                     try {
-                        val responseText = aiApiClient.vision(
+                        val (responseText, rawResponse) = aiApiClient.visionRaw(
                             config = config,
                             systemPrompt = SYSTEM_PROMPT,
                             userMessage = userMessage,
@@ -100,14 +111,56 @@ class FoodImageAnalysisService @Inject constructor(
                             temperature = 0.3,
                             maxTokens = 1000
                         )
+                        val parsedUsage = parseUsage(rawResponse, config.protocol.name, config.modelId)
+                        if (parsedUsage.promptTokens > 0 || parsedUsage.completionTokens > 0) {
+                            recordTokenUsage(config.id, config.name, parsedUsage)
+                        }
                         val result = parseAnalysisResult(responseText)
                         val validation = validateNutritionData(result)
                         if (validation.isValid) {
+                            recordApiCall(
+                                configId = config.id,
+                                configName = config.name,
+                                modelId = config.modelId,
+                                inputText = "图片分析请求(尝试#$index): $userMessage",
+                                outputText = responseText,
+                                promptTokens = parsedUsage.promptTokens,
+                                completionTokens = parsedUsage.completionTokens,
+                                cost = parsedUsage.cost,
+                                duration = System.currentTimeMillis() - startTime,
+                                isSuccess = true
+                            )
                             Result.success(result)
                         } else {
+                            recordApiCall(
+                                configId = config.id,
+                                configName = config.name,
+                                modelId = config.modelId,
+                                inputText = "图片分析请求(尝试#$index): $userMessage",
+                                outputText = responseText,
+                                promptTokens = parsedUsage.promptTokens,
+                                completionTokens = parsedUsage.completionTokens,
+                                cost = parsedUsage.cost,
+                                duration = System.currentTimeMillis() - startTime,
+                                isSuccess = false,
+                                errorMessage = validation.errorMessage
+                            )
                             Result.failure<FoodAnalysisResult>(Exception(validation.errorMessage))
                         }
                     } catch (e: Exception) {
+                        recordApiCall(
+                            configId = config.id,
+                            configName = config.name,
+                                modelId = config.modelId,
+                                inputText = "图片分析请求(尝试#$index): $userMessage",
+                                outputText = "",
+                                promptTokens = 0,
+                                completionTokens = 0,
+                                cost = 0.0,
+                                duration = System.currentTimeMillis() - startTime,
+                                isSuccess = false,
+                                errorMessage = e.message
+                        )
                         Result.failure<FoodAnalysisResult>(e)
                     }
                 }
@@ -270,5 +323,85 @@ class FoodImageAnalysisService @Inject constructor(
         anyFenceRegex.find(raw)?.let { return it.groups[1]!!.value.trim() }
 
         return raw.trim()
+    }
+
+    private suspend fun recordApiCall(
+        configId: String,
+        configName: String,
+        modelId: String,
+        inputText: String,
+        outputText: String,
+        promptTokens: Int,
+        completionTokens: Int,
+        cost: Double,
+        duration: Long,
+        isSuccess: Boolean,
+        errorMessage: String? = null
+    ) {
+        runCatching {
+            apiCallRecordRepository.recordCall(
+                configId = configId,
+                configName = configName,
+                modelId = modelId,
+                inputText = inputText,
+                outputText = outputText,
+                promptTokens = promptTokens,
+                completionTokens = completionTokens,
+                cost = cost,
+                duration = duration,
+                isSuccess = isSuccess,
+                errorMessage = errorMessage
+            )
+        }
+    }
+
+    private suspend fun recordTokenUsage(
+        configId: String,
+        configName: String,
+        parsedUsage: ParsedUsage
+    ) {
+        runCatching {
+            aiTokenUsageRepository.recordTokenUsage(
+                configId = configId,
+                configName = configName,
+                promptTokens = parsedUsage.promptTokens,
+                completionTokens = parsedUsage.completionTokens,
+                cost = parsedUsage.cost
+            )
+        }
+    }
+
+    private fun parseUsage(rawResponse: String, protocol: String, modelId: String): ParsedUsage {
+        val usage = when (protocol) {
+            "CLAUDE" -> aiApiClient.extractClaudeUsage(rawResponse)
+            else -> aiApiClient.extractOpenAIUsage(rawResponse)
+        }
+        val promptTokens = usage?.promptTokens ?: 0
+        val completionTokens = usage?.completionTokens ?: 0
+        val cost = if (usage != null) {
+            calculateCost(promptTokens, completionTokens, protocol, modelId)
+        } else {
+            0.0
+        }
+        return ParsedUsage(
+            promptTokens = promptTokens,
+            completionTokens = completionTokens,
+            cost = cost
+        )
+    }
+
+    private fun calculateCost(promptTokens: Int, completionTokens: Int, protocol: String, modelId: String): Double {
+        val rates = when (protocol) {
+            "OPENAI" -> when {
+                modelId.contains("gpt-4") -> 0.03 to 0.06
+                modelId.contains("gpt-3.5") -> 0.0015 to 0.002
+                else -> 0.001 to 0.002
+            }
+            "CLAUDE" -> 0.008 to 0.024
+            "KIMI" -> 0.006 to 0.006
+            else -> 0.001 to 0.002
+        }
+        val (inputRate, outputRate) = rates
+        return (promptTokens * inputRate + completionTokens * outputRate) / 1000.0
     }
 }

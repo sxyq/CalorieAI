@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -45,7 +45,7 @@ fun OnboardingScreen3(
     var selectedActivityLevel by remember { mutableStateOf(initialActivityLevel) }
     var showMoreExercises by remember { mutableStateOf(false) }
 
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     // 常用运动（默认显示）
     val commonExercises = listOf(
@@ -295,7 +295,10 @@ private fun ActivityLevelCard(
         modifier = Modifier
             .fillMaxWidth()
             .scale(scale)
-            .glassCardThemed(isDark = isDark, cornerRadius = 16.dp)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = RoundedCornerShape(16.dp)
+            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -394,7 +397,10 @@ private fun ExerciseChip(
     Box(
         modifier = modifier
             .scale(scale)
-            .glassCardThemed(isDark = isDark, cornerRadius = 12.dp)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = RoundedCornerShape(12.dp)
+            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,

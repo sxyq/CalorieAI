@@ -6,6 +6,7 @@ import com.calorieai.app.data.model.FavoriteRecipe
 import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.repository.FavoriteRecipeRepository
 import com.calorieai.app.data.repository.FoodRecordRepository
+import com.calorieai.app.service.ai.FoodTextAnalysisService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,7 +17,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ResultViewModel @Inject constructor(
     private val foodRecordRepository: FoodRecordRepository,
-    private val favoriteRecipeRepository: FavoriteRecipeRepository
+    private val favoriteRecipeRepository: FavoriteRecipeRepository,
+    private val foodTextAnalysisService: FoodTextAnalysisService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ResultUiState())
@@ -44,6 +46,65 @@ class ResultViewModel @Inject constructor(
     fun deleteRecord(recordId: String) {
         viewModelScope.launch {
             foodRecordRepository.deleteRecordById(recordId)
+        }
+    }
+
+    fun regenerateCurrentRecord() {
+        val currentRecord = _uiState.value.record ?: return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isRegenerating = true, regenerateMessage = null)
+            try {
+                val result = foodTextAnalysisService.analyzeFoodText(
+                    foodDescription = currentRecord.userInput,
+                    maxRetries = 2
+                )
+                if (result.isFailure) {
+                    _uiState.value = _uiState.value.copy(
+                        isRegenerating = false,
+                        regenerateMessage = result.exceptionOrNull()?.message ?: "重新生成失败"
+                    )
+                    return@launch
+                }
+
+                val firstItem = result.getOrNull()?.items?.firstOrNull()
+                if (firstItem == null) {
+                    _uiState.value = _uiState.value.copy(
+                        isRegenerating = false,
+                        regenerateMessage = "重新生成失败：AI未返回有效数据"
+                    )
+                    return@launch
+                }
+
+                val updatedRecord = currentRecord.copy(
+                    foodName = firstItem.foodName.takeIf { it.isNotBlank() } ?: currentRecord.foodName,
+                    totalCalories = firstItem.calories.toInt().coerceAtLeast(0),
+                    protein = firstItem.protein,
+                    carbs = firstItem.carbs,
+                    fat = firstItem.fat,
+                    fiber = firstItem.fiber,
+                    sugar = firstItem.sugar,
+                    sodium = firstItem.sodium,
+                    cholesterol = firstItem.cholesterol,
+                    saturatedFat = firstItem.saturatedFat,
+                    calcium = firstItem.calcium,
+                    iron = firstItem.iron,
+                    vitaminC = firstItem.vitaminC,
+                    vitaminA = firstItem.vitaminA,
+                    potassium = firstItem.potassium
+                )
+
+                foodRecordRepository.updateRecord(updatedRecord)
+                _uiState.value = _uiState.value.copy(
+                    record = updatedRecord,
+                    isRegenerating = false,
+                    regenerateMessage = "已重新生成并更新数据"
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isRegenerating = false,
+                    regenerateMessage = "重新生成失败：${e.message ?: "未知错误"}"
+                )
+            }
         }
     }
 
@@ -90,11 +151,17 @@ class ResultViewModel @Inject constructor(
     fun clearFavoriteMessage() {
         _uiState.value = _uiState.value.copy(favoriteMessage = null)
     }
+
+    fun clearRegenerateMessage() {
+        _uiState.value = _uiState.value.copy(regenerateMessage = null)
+    }
 }
 
 data class ResultUiState(
     val record: FoodRecord? = null,
     val isLoading: Boolean = false,
+    val isRegenerating: Boolean = false,
     val isFavoritedRecipe: Boolean = false,
-    val favoriteMessage: String? = null
+    val favoriteMessage: String? = null,
+    val regenerateMessage: String? = null
 )

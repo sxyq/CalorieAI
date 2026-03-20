@@ -7,9 +7,13 @@ import com.calorieai.app.data.model.ChatMessageData
 import com.calorieai.app.data.model.ChatSessionSummary
 import com.calorieai.app.data.repository.AIChatHistoryRepository
 import com.calorieai.app.service.ai.AIChatService
+import com.calorieai.app.service.ai.AIChatService.ConversationMessage
+import com.calorieai.app.utils.SecureLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.*
 import javax.inject.Inject
 
@@ -19,6 +23,7 @@ class AIChatViewModel @Inject constructor(
     private val aiChatHistoryRepository: AIChatHistoryRepository
 ) : ViewModel() {
     companion object {
+        private const val TAG = "AIChatViewModel"
         // 保留流式打字观感，同时降低每字符重组造成的主线程压力
         private const val STREAM_UI_UPDATE_INTERVAL_MS = 48L
         private const val STREAM_UI_UPDATE_CHUNK_SIZE = 20
@@ -28,6 +33,7 @@ class AIChatViewModel @Inject constructor(
     val uiState: StateFlow<AIChatUiState> = _uiState.asStateFlow()
 
     init {
+        SecureLogger.event(TAG, "init")
         loadChatSessions()
         startNewSession()
         updateRemainingCalls()
@@ -36,6 +42,7 @@ class AIChatViewModel @Inject constructor(
     private fun loadChatSessions() {
         viewModelScope.launch {
             aiChatHistoryRepository.getAllHistory().collect { sessions ->
+                SecureLogger.event(TAG, "chat_sessions_updated", "count" to sessions.size)
                 _uiState.value = _uiState.value.copy(
                     chatSessions = sessions.map { it.toChatSessionInfo() }
                 )
@@ -46,22 +53,35 @@ class AIChatViewModel @Inject constructor(
     private fun updateRemainingCalls() {
         viewModelScope.launch {
             val remaining = aiChatService.getRemainingCalls()
+            SecureLogger.event(TAG, "remaining_calls_updated", "remaining" to remaining)
             _uiState.value = _uiState.value.copy(remainingCalls = remaining)
         }
     }
 
-    fun startNewSession() {
-        // 先保存当前会话
-        saveCurrentSession()
-        
-        // 创建新会话
-        val sessionId = UUID.randomUUID().toString()
-        _uiState.value = _uiState.value.copy(
-            currentSessionId = sessionId,
-            currentSessionTitle = "",
-            messages = emptyList(),
-            inputText = ""
-        )
+    fun startNewSession(skipSaveCurrent: Boolean = false) {
+        viewModelScope.launch {
+            val previousSessionId = _uiState.value.currentSessionId
+            SecureLogger.event(
+                TAG,
+                "start_new_session",
+                "skipSaveCurrent" to skipSaveCurrent,
+                "previousSessionId" to previousSessionId
+            )
+            // 先保存当前会话（删除当前会话时需跳过，否则会被重新写回）
+            if (!skipSaveCurrent) {
+                saveCurrentSessionInternal(_uiState.value)
+            }
+
+            // 创建并持久化一个新会话，确保“+号新对话”有实际效果
+            val sessionId = aiChatHistoryRepository.createNewSession("新对话")
+            SecureLogger.event(TAG, "new_session_created", "sessionId" to sessionId)
+            _uiState.value = _uiState.value.copy(
+                currentSessionId = sessionId,
+                currentSessionTitle = "新对话",
+                messages = emptyList(),
+                inputText = ""
+            )
+        }
     }
 
     fun loadSession(sessionId: String) {
@@ -69,22 +89,34 @@ class AIChatViewModel @Inject constructor(
         saveCurrentSession()
         
         viewModelScope.launch {
+            SecureLogger.event(TAG, "load_session_start", "sessionId" to sessionId)
             val (history, messages) = aiChatHistoryRepository.getHistoryBySessionId(sessionId)
             if (history != null) {
+                SecureLogger.event(
+                    TAG,
+                    "load_session_success",
+                    "sessionId" to sessionId,
+                    "messageCount" to messages.size,
+                    "title" to history.title
+                )
                 _uiState.value = _uiState.value.copy(
                     currentSessionId = sessionId,
                     currentSessionTitle = history.title,
                     messages = messages.map { it.toChatMessage() }
                 )
+            } else {
+                SecureLogger.w(TAG, "load_session_not_found | sessionId=$sessionId")
             }
         }
     }
 
     fun deleteSession(sessionId: String) {
         viewModelScope.launch {
+            SecureLogger.event(TAG, "delete_session_start", "sessionId" to sessionId)
             aiChatHistoryRepository.deleteSession(sessionId)
+            SecureLogger.event(TAG, "delete_session_done", "sessionId" to sessionId)
             if (sessionId == _uiState.value.currentSessionId) {
-                startNewSession()
+                startNewSession(skipSaveCurrent = true)
             }
         }
     }
@@ -101,17 +133,27 @@ class AIChatViewModel @Inject constructor(
     }
 
     private fun saveCurrentSession() {
-        val currentState = _uiState.value
-        if (currentState.messages.isNotEmpty()) {
-            viewModelScope.launch {
-                val title = currentState.messages.firstOrNull { it.isFromUser }?.content?.take(30) ?: "新对话"
-                val messages = currentState.messages.map { it.toChatMessageData() }
-                aiChatHistoryRepository.saveChatSession(
-                    sessionId = currentState.currentSessionId,
-                    title = title,
-                    messages = messages
-                )
-            }
+        viewModelScope.launch {
+            saveCurrentSessionInternal(_uiState.value)
+        }
+    }
+
+    private suspend fun saveCurrentSessionInternal(state: AIChatUiState) {
+        if (state.messages.isNotEmpty()) {
+            val title = state.messages.firstOrNull { it.isFromUser }?.content?.take(30) ?: "新对话"
+            val messages = state.messages.map { it.toChatMessageData() }
+            SecureLogger.event(
+                TAG,
+                "save_session",
+                "sessionId" to state.currentSessionId,
+                "title" to title,
+                "messageCount" to messages.size
+            )
+            aiChatHistoryRepository.saveChatSession(
+                sessionId = state.currentSessionId,
+                title = title,
+                messages = messages
+            )
         }
     }
 
@@ -131,12 +173,34 @@ class AIChatViewModel @Inject constructor(
 
     fun sendMessage(message: String) {
         // 并发控制：如果正在发送，则忽略新请求
-        if (_uiState.value.isSending) return
-        if (message.isBlank()) return
+        if (_uiState.value.isSending) {
+            SecureLogger.w(TAG, "send_ignored_already_sending")
+            return
+        }
+        if (message.isBlank()) {
+            SecureLogger.w(TAG, "send_ignored_blank_message")
+            return
+        }
 
         val userMessage = ChatMessage(
             content = message,
             isFromUser = true
+        )
+        val conversationHistory = (_uiState.value.messages + userMessage).map { chatMessage ->
+            ConversationMessage(
+                role = if (chatMessage.isFromUser) "user" else "assistant",
+                content = chatMessage.content,
+                timestamp = chatMessage.timestamp
+            )
+        }
+        val startAt = SystemClock.elapsedRealtime()
+        val activeSessionId = _uiState.value.currentSessionId
+        SecureLogger.event(
+            TAG,
+            "send_start",
+            "sessionId" to activeSessionId,
+            "inputLength" to message.length,
+            "historyCount" to conversationHistory.size
         )
 
         _uiState.value = _uiState.value.copy(
@@ -156,8 +220,15 @@ class AIChatViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
+                withContext(NonCancellable) {
                 // 创建AI消息占位符
                 val aiMessageId = UUID.randomUUID().toString()
+                SecureLogger.event(
+                    TAG,
+                    "stream_placeholder_created",
+                    "sessionId" to activeSessionId,
+                    "messageId" to aiMessageId
+                )
                 val aiMessage = ChatMessage(
                     id = aiMessageId,
                     content = "",
@@ -172,7 +243,7 @@ class AIChatViewModel @Inject constructor(
                 var pendingLength = 0
                 var lastUiUpdateAt = 0L
 
-                aiChatService.sendMessageStream(message).collect { chunk ->
+                aiChatService.sendMessageStream(message, conversationHistory).collect { chunk ->
                     val piece = chunk.toString()
                     fullResponse.append(piece)
                     pendingLength += piece.length
@@ -191,6 +262,15 @@ class AIChatViewModel @Inject constructor(
                 if (pendingLength > 0) {
                     updateStreamingAssistantMessage(aiMessageId, fullResponse.toString())
                 }
+                val elapsed = SystemClock.elapsedRealtime() - startAt
+                SecureLogger.event(
+                    TAG,
+                    "send_success",
+                    "sessionId" to activeSessionId,
+                    "messageId" to aiMessageId,
+                    "responseLength" to fullResponse.length,
+                    "elapsedMs" to elapsed
+                )
 
                 // 完成后更新状态
                 _uiState.value = _uiState.value.copy(
@@ -204,8 +284,14 @@ class AIChatViewModel @Inject constructor(
 
                 // 自动保存会话
                 saveCurrentSession()
+                }
             } catch (e: Exception) {
-                e.printStackTrace()
+                val elapsed = SystemClock.elapsedRealtime() - startAt
+                SecureLogger.e(
+                    TAG,
+                    "send_failed | sessionId=$activeSessionId | inputLength=${message.length} | elapsedMs=$elapsed | error=${e.message}",
+                    e
+                )
                 
                 val errorMsg = when {
                     e.message?.contains("未配置AI服务") == true -> "未配置AI服务，请先在设置中配置AI服务"
@@ -483,6 +569,12 @@ class AIChatViewModel @Inject constructor(
     }
 
     fun clearCurrentChat() {
+        SecureLogger.event(
+            TAG,
+            "clear_current_chat",
+            "sessionId" to _uiState.value.currentSessionId,
+            "messageCount" to _uiState.value.messages.size
+        )
         _uiState.value = _uiState.value.copy(
             messages = emptyList(),
             currentSessionTitle = ""
@@ -492,7 +584,10 @@ class AIChatViewModel @Inject constructor(
     private fun updateStreamingAssistantMessage(messageId: String, content: String) {
         val currentMessages = _uiState.value.messages
         val targetIndex = currentMessages.indexOfLast { it.id == messageId }
-        if (targetIndex < 0) return
+        if (targetIndex < 0) {
+            SecureLogger.w(TAG, "stream_update_target_missing | messageId=$messageId")
+            return
+        }
 
         val updatedMessages = currentMessages.toMutableList()
         val old = updatedMessages[targetIndex]

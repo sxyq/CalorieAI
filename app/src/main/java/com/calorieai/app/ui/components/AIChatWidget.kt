@@ -56,7 +56,8 @@ fun AIChatWidget(
     mode: AIWidgetMode = AIWidgetMode.HEALTH_ONLY,
     widgetState: AIWidgetState = AIWidgetState.FLOATING,
     onWidgetStateChange: (AIWidgetState) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: AIChatViewModel = hiltViewModel()
 ) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
@@ -81,14 +82,19 @@ fun AIChatWidget(
         modifier = modifier
     ) { state ->
         when (state) {
-            AIWidgetState.FLOATING -> FloatingButton { onWidgetStateChange(AIWidgetState.MINI) }
+            AIWidgetState.FLOATING -> FloatingButton {
+                // 悬浮窗展开到小窗时，默认新开对话
+                viewModel.startNewSession()
+                onWidgetStateChange(AIWidgetState.MINI)
+            }
             AIWidgetState.MINI -> AIChatMiniWindow(
                 mode = mode,
                 onDismiss = { onWidgetStateChange(AIWidgetState.FLOATING) },
                 onExpand = { sessionId ->
                     onWidgetStateChange(AIWidgetState.FULLSCREEN)
                     onExpandToFullScreen(sessionId)
-                }
+                },
+                viewModel = viewModel
             )
             else -> Box(Modifier.size(1.dp))
         }
