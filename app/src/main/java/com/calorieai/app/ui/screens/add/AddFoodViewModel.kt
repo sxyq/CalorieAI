@@ -25,12 +25,17 @@ class AddFoodViewModel @Inject constructor(
     private val aiTokenUsageRepository: com.calorieai.app.data.repository.AITokenUsageRepository,
     private val aiConfigRepository: com.calorieai.app.data.repository.AIConfigRepository
 ) : ViewModel() {
+    private companion object {
+        const val MAX_FOOD_DESCRIPTION_LENGTH = 2000
+    }
 
     private val _uiState = MutableStateFlow(AddFoodUiState())
     val uiState: StateFlow<AddFoodUiState> = _uiState.asStateFlow()
 
     fun onFoodDescriptionChange(description: String) {
-        _uiState.value = _uiState.value.copy(foodDescription = description)
+        _uiState.value = _uiState.value.copy(
+            foodDescription = description.take(MAX_FOOD_DESCRIPTION_LENGTH)
+        )
     }
 
     fun onMealTypeChange(mealType: MealType) {
@@ -75,8 +80,13 @@ class AddFoodViewModel @Inject constructor(
             onError("请输入食物描述")
             return
         }
+        if (description.length > MAX_FOOD_DESCRIPTION_LENGTH) {
+            onError("输入内容过长，请控制在${MAX_FOOD_DESCRIPTION_LENGTH}字以内")
+            return
+        }
 
         _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null, retryMessage = null, retryAttempt = 0)
+        val maxRetries = _uiState.value.maxRetries.coerceAtLeast(0)
 
         viewModelScope.launch {
             try {
@@ -85,10 +95,11 @@ class AddFoodViewModel @Inject constructor(
                     // 调用AI服务分析食物，带重试机制
                     val analysisResult = foodTextAnalysisService.analyzeFoodText(
                         foodDescription = description,
-                        maxRetries = 2,
+                        maxRetries = maxRetries,
                         onRetry = { attempt, maxAttempts ->
+                            val totalRetries = (maxAttempts - 1).coerceAtLeast(0)
                             _uiState.value = _uiState.value.copy(
-                                retryMessage = "AI分析失败，正在进行第${attempt}次重试...",
+                                retryMessage = "AI返回数据不完整，正在重试（${attempt}/${totalRetries}）...",
                                 retryAttempt = attempt
                             )
                         }
@@ -119,7 +130,12 @@ class AddFoodViewModel @Inject constructor(
 
                     // 过滤无效条目，确保多食材拆分后每条都可入库
                     val validItems = parsedItems.filter { item ->
-                        item.foodName.isNotBlank() || item.calories > 0
+                        item.foodName.isNotBlank() && (
+                            item.calories > 0 ||
+                                item.protein > 0 ||
+                                item.carbs > 0 ||
+                                item.fat > 0
+                            )
                     }
                     if (validItems.isEmpty()) {
                         _uiState.value = _uiState.value.copy(

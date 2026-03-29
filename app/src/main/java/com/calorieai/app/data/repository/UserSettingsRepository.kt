@@ -40,8 +40,9 @@ class UserSettingsRepository @Inject constructor(
     fun getSettings(): Flow<UserSettings?> = userSettingsDao.getSettings()
 
     suspend fun saveSettings(settings: UserSettings) {
-        userSettingsDao.insertOrUpdate(settings)
-        syncToEncryptedPreferences(settings)
+        val sanitized = sanitizeUserSettings(settings)
+        userSettingsDao.insertOrUpdate(sanitized)
+        syncToEncryptedPreferences(sanitized)
     }
 
     suspend fun getSettingsOnce(): UserSettings? {

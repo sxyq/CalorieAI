@@ -57,9 +57,9 @@ class FoodRecordRepository @Inject constructor(
         return foodRecordDao.getRecordsBetweenOnce(startTime, endTime)
     }
     
-    suspend fun addRecord(record: FoodRecord) = foodRecordDao.insertRecord(record)
+    suspend fun addRecord(record: FoodRecord) = foodRecordDao.insertRecord(sanitizeFoodRecord(record))
     
-    suspend fun updateRecord(record: FoodRecord) = foodRecordDao.updateRecord(record)
+    suspend fun updateRecord(record: FoodRecord) = foodRecordDao.updateRecord(sanitizeFoodRecord(record))
     
     suspend fun deleteRecord(record: FoodRecord) = foodRecordDao.deleteRecord(record)
     

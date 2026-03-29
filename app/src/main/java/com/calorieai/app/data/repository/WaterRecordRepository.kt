@@ -29,9 +29,9 @@ class WaterRecordRepository @Inject constructor(
 
     suspend fun getLatestRecord(): WaterRecord? = waterRecordDao.getLatestRecord()
 
-    suspend fun insert(record: WaterRecord): Long = waterRecordDao.insert(record)
+    suspend fun insert(record: WaterRecord): Long = waterRecordDao.insert(sanitizeWaterRecord(record))
 
-    suspend fun update(record: WaterRecord) = waterRecordDao.update(record)
+    suspend fun update(record: WaterRecord) = waterRecordDao.update(sanitizeWaterRecord(record))
 
     suspend fun delete(record: WaterRecord) = waterRecordDao.delete(record)
 

@@ -69,6 +69,18 @@ fun AIChatScreen(
         }
     }
 
+    LaunchedEffect(
+        uiState.messages.size,
+        uiState.messages.lastOrNull()?.id,
+        uiState.messages.lastOrNull()?.content?.length,
+        uiState.isTyping
+    ) {
+        val lastIndex = uiState.messages.lastIndex
+        if (lastIndex >= 0) {
+            listState.animateScrollToItem(lastIndex)
+        }
+    }
+
     Scaffold(
         containerColor = if (isDark) Color(0xFF0D0D0D) else Color(0xFFFAFAFA),
         topBar = {
@@ -572,15 +584,24 @@ private fun AssistantMessageContent(
     val visibleText = if (!needCollapse || expanded) {
         text
     } else {
-        sections.take(3).joinToString("\n\n")
+        val collapsed = sections.take(3).joinToString("\n\n")
+        if (collapsed.isBlank()) text.take(420) else collapsed
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        MarkdownText(
-            text = visibleText,
-            isDark = isDark,
-            config = MarkdownConfig.ChatReadable
-        )
+        if (visibleText.isNotBlank()) {
+            MarkdownText(
+                text = visibleText,
+                isDark = isDark,
+                config = MarkdownConfig.ChatReadable
+            )
+        } else {
+            Text(
+                text = text.ifBlank { "（暂无可显示内容）" },
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (isDark) Color(0xFFE0E0E0) else Color(0xFF1A1A1A)
+            )
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),

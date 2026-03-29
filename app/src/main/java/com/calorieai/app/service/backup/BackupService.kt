@@ -12,14 +12,12 @@ import com.calorieai.app.data.model.ExerciseRecord
 import com.calorieai.app.data.model.FavoriteRecipe
 import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.PantryIngredient
-import com.calorieai.app.data.model.RecipeGuide
 import com.calorieai.app.data.model.RecipePlan
 import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.repository.ExerciseRecordRepository
 import com.calorieai.app.data.repository.FavoriteRecipeRepository
 import com.calorieai.app.data.repository.FoodRecordRepository
 import com.calorieai.app.data.repository.PantryIngredientRepository
-import com.calorieai.app.data.repository.RecipeGuideRepository
 import com.calorieai.app.data.repository.RecipePlanRepository
 import com.calorieai.app.data.repository.UserSettingsRepository
 import com.calorieai.app.data.repository.WaterRecordRepository
@@ -27,7 +25,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.BufferedReader
@@ -45,9 +45,9 @@ import javax.inject.Singleton
  */
 @Serializable
 data class BackupData(
-    val version: Int = 6,  // 版本号升级到6
+    val version: Int = 7,  // 版本号升级到7
     val backupDate: String,
-    val appVersion: String = "3.5.0",
+    val appVersion: String = "3.6.0",
     val foodRecords: List<FoodRecordBackup>,
     val exerciseRecords: List<ExerciseRecordBackup>,
     val userSettings: UserSettingsBackup?,
@@ -56,7 +56,9 @@ data class BackupData(
     val waterRecords: List<WaterRecordBackup> = emptyList(),  // 新增饮水记录
     val favoriteRecipes: List<FavoriteRecipeBackup> = emptyList(),
     val pantryIngredients: List<PantryIngredientBackup> = emptyList(),
-    val recipeGuides: List<RecipeGuideBackup> = emptyList(),
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("recipeGuides")
+    val legacyRecipeGuides: List<RecipeGuideBackup> = emptyList(),
     val recipePlans: List<RecipePlanBackup> = emptyList(),
     val aiChatHistory: List<AIChatHistoryBackup> = emptyList(),
     val apiCallLogs: List<APICallLogBackup> = emptyList(),
@@ -165,6 +167,14 @@ data class FavoriteRecipeBackup(
     val vitaminC: Float = 0f,
     val vitaminA: Float = 0f,
     val potassium: Float = 0f,
+    val recipeIngredientsText: String? = null,
+    val recipeStepsText: String? = null,
+    val recipeToolsText: String? = null,
+    val recipeDifficulty: String? = null,
+    val recipeDurationMinutes: Int? = null,
+    val recipeServings: Int? = null,
+    val recipeSourceType: String? = null,
+    val recipeUpdatedAt: Long? = null,
     val createdAt: Long,
     val lastUsedAt: Long? = null,
     val useCount: Int = 0
@@ -301,7 +311,6 @@ class BackupService @Inject constructor(
     private val waterRecordRepository: WaterRecordRepository,
     private val favoriteRecipeRepository: FavoriteRecipeRepository,
     private val pantryIngredientRepository: PantryIngredientRepository,
-    private val recipeGuideRepository: RecipeGuideRepository,
     private val recipePlanRepository: RecipePlanRepository,
     private val webDavBackupService: WebDavBackupService
 ) {
@@ -325,7 +334,6 @@ class BackupService @Inject constructor(
             val waterRecords = waterRecordRepository.getRecordsBetweenSync(0, Long.MAX_VALUE)
             val favoriteRecipes = favoriteRecipeRepository.getAllFavoritesOnce()
             val pantryIngredients = pantryIngredientRepository.getAllOnce()
-            val recipeGuides = recipeGuideRepository.getAllOnce()
             val recipePlans = recipePlanRepository.getAllOnce()
             val aiChatHistory = aiChatHistoryDao.getAllHistoryOnce()
             val apiCallLogs = apiCallRecordDao.getAllRecordsOnce()
@@ -348,7 +356,6 @@ class BackupService @Inject constructor(
                 waterRecords = waterRecords.map { it.toBackup() },
                 favoriteRecipes = favoriteRecipes.map { it.toBackup() },
                 pantryIngredients = pantryIngredients.map { it.toBackup() },
-                recipeGuides = recipeGuides.map { it.toBackup() },
                 recipePlans = recipePlans.map { it.toBackup() },
                 aiChatHistory = aiChatHistory.map { it.toBackup() },
                 apiCallLogs = apiCallLogs.map { it.toBackup() },
@@ -372,7 +379,7 @@ class BackupService @Inject constructor(
                 waterRecordCount = backupData.waterRecords.size,
                 favoriteRecipeCount = backupData.favoriteRecipes.size,
                 pantryIngredientCount = backupData.pantryIngredients.size,
-                recipeGuideCount = backupData.recipeGuides.size,
+                recipeGuideCount = 0,
                 recipePlanCount = backupData.recipePlans.size,
                 aiChatHistoryCount = backupData.aiChatHistory.size,
                 apiCallLogCount = backupData.apiCallLogs.size,
@@ -396,7 +403,6 @@ class BackupService @Inject constructor(
             val waterRecords = waterRecordRepository.getRecordsBetweenSync(0, Long.MAX_VALUE)
             val favoriteRecipes = favoriteRecipeRepository.getAllFavoritesOnce()
             val pantryIngredients = pantryIngredientRepository.getAllOnce()
-            val recipeGuides = recipeGuideRepository.getAllOnce()
             val recipePlans = recipePlanRepository.getAllOnce()
             val aiChatHistory = aiChatHistoryDao.getAllHistoryOnce()
             val apiCallLogs = apiCallRecordDao.getAllRecordsOnce()
@@ -412,7 +418,6 @@ class BackupService @Inject constructor(
                 waterRecords = waterRecords.map { it.toBackup() },
                 favoriteRecipes = favoriteRecipes.map { it.toBackup() },
                 pantryIngredients = pantryIngredients.map { it.toBackup() },
-                recipeGuides = recipeGuides.map { it.toBackup() },
                 recipePlans = recipePlans.map { it.toBackup() },
                 aiChatHistory = aiChatHistory.map { it.toBackup() },
                 apiCallLogs = apiCallLogs.map { it.toBackup() },
@@ -430,7 +435,7 @@ class BackupService @Inject constructor(
                     waterRecordCount = backupData.waterRecords.size,
                     favoriteRecipeCount = backupData.favoriteRecipes.size,
                     pantryIngredientCount = backupData.pantryIngredients.size,
-                    recipeGuideCount = backupData.recipeGuides.size,
+                    recipeGuideCount = 0,
                     recipePlanCount = backupData.recipePlans.size,
                     aiChatHistoryCount = backupData.aiChatHistory.size,
                     apiCallLogCount = backupData.apiCallLogs.size,
@@ -462,7 +467,7 @@ class BackupService @Inject constructor(
             val backupData = json.decodeFromString<BackupData>(jsonString)
 
             // 版本兼容性检查
-            if (backupData.version > 6) {
+            if (backupData.version > 7) {
                 return@withContext Result.failure(Exception("备份版本(${backupData.version})高于当前应用支持的版本，请升级应用后重试"))
             }
 
@@ -474,7 +479,6 @@ class BackupService @Inject constructor(
                     waterRecordRepository.deleteAll()
                     favoriteRecipeRepository.deleteAll()
                     pantryIngredientRepository.deleteAll()
-                    recipeGuideRepository.deleteAll()
                     recipePlanRepository.deleteAll()
                     aiChatHistoryDao.deleteAll()
                     apiCallRecordDao.deleteAllRecords()
@@ -582,6 +586,14 @@ class BackupService @Inject constructor(
                         vitaminC = backup.vitaminC,
                         vitaminA = backup.vitaminA,
                         potassium = backup.potassium,
+                        recipeIngredientsText = backup.recipeIngredientsText,
+                        recipeStepsText = backup.recipeStepsText,
+                        recipeToolsText = backup.recipeToolsText,
+                        recipeDifficulty = backup.recipeDifficulty,
+                        recipeDurationMinutes = backup.recipeDurationMinutes,
+                        recipeServings = backup.recipeServings,
+                        recipeSourceType = backup.recipeSourceType,
+                        recipeUpdatedAt = backup.recipeUpdatedAt,
                         createdAt = backup.createdAt,
                         lastUsedAt = backup.lastUsedAt,
                         useCount = backup.useCount
@@ -605,28 +617,9 @@ class BackupService @Inject constructor(
                     )
                 }
 
-                // 恢复标准化菜谱
-                backupData.recipeGuides.forEach { backup ->
-                    recipeGuideRepository.upsert(
-                        RecipeGuide(
-                            id = backup.id,
-                            name = backup.name,
-                            ingredientsText = backup.ingredientsText,
-                            stepsText = backup.stepsText,
-                            toolsText = backup.toolsText,
-                            difficulty = backup.difficulty,
-                            durationMinutes = backup.durationMinutes,
-                            servings = backup.servings,
-                            calories = backup.calories,
-                            protein = backup.protein,
-                            carbs = backup.carbs,
-                            fat = backup.fat,
-                            sourceType = backup.sourceType,
-                            linkedFavoriteId = backup.linkedFavoriteId,
-                            createdAt = backup.createdAt,
-                            updatedAt = backup.updatedAt
-                        )
-                    )
+                // 兼容 v6: 将旧 recipe_guides 合并到 favorite_recipes
+                backupData.legacyRecipeGuides.forEach { backup ->
+                    mergeLegacyGuideToFavorite(backup)
                 }
 
                 // 恢复菜单计划
@@ -752,7 +745,7 @@ class BackupService @Inject constructor(
                 waterRecordCount = backupData.waterRecords.size,
                 favoriteRecipeCount = backupData.favoriteRecipes.size,
                 pantryIngredientCount = backupData.pantryIngredients.size,
-                recipeGuideCount = backupData.recipeGuides.size,
+                recipeGuideCount = backupData.legacyRecipeGuides.size,
                 recipePlanCount = backupData.recipePlans.size,
                 aiChatHistoryCount = backupData.aiChatHistory.size,
                 apiCallLogCount = backupData.apiCallLogs.size,
@@ -762,6 +755,59 @@ class BackupService @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    private suspend fun mergeLegacyGuideToFavorite(backup: RecipeGuideBackup) {
+        val linkedFavorite = backup.linkedFavoriteId?.let { linkedId ->
+            favoriteRecipeRepository.getAllFavoritesOnce().firstOrNull { it.id == linkedId }
+        }
+
+        if (linkedFavorite != null) {
+            favoriteRecipeRepository.upsert(
+                linkedFavorite.copy(
+                    recipeIngredientsText = backup.ingredientsText,
+                    recipeStepsText = backup.stepsText,
+                    recipeToolsText = backup.toolsText,
+                    recipeDifficulty = backup.difficulty,
+                    recipeDurationMinutes = backup.durationMinutes,
+                    recipeServings = backup.servings,
+                    recipeSourceType = backup.sourceType,
+                    recipeUpdatedAt = backup.updatedAt
+                )
+            )
+            return
+        }
+
+        val syntheticSourceRecordId = "guide:${backup.id}"
+        val existingSynthetic = favoriteRecipeRepository.getBySourceRecordId(syntheticSourceRecordId)
+        val base = existingSynthetic ?: FavoriteRecipe(
+            id = "guide_${backup.id}",
+            sourceRecordId = syntheticSourceRecordId,
+            foodName = backup.name,
+            userInput = backup.name,
+            totalCalories = backup.calories,
+            protein = backup.protein,
+            carbs = backup.carbs,
+            fat = backup.fat,
+            createdAt = backup.createdAt
+        )
+        favoriteRecipeRepository.upsert(
+            base.copy(
+                foodName = backup.name,
+                totalCalories = backup.calories,
+                protein = backup.protein,
+                carbs = backup.carbs,
+                fat = backup.fat,
+                recipeIngredientsText = backup.ingredientsText,
+                recipeStepsText = backup.stepsText,
+                recipeToolsText = backup.toolsText,
+                recipeDifficulty = backup.difficulty,
+                recipeDurationMinutes = backup.durationMinutes,
+                recipeServings = backup.servings,
+                recipeSourceType = backup.sourceType,
+                recipeUpdatedAt = backup.updatedAt
+            )
+        )
     }
 
     /**
@@ -818,7 +864,6 @@ class BackupService @Inject constructor(
         val currentWater = waterRecordRepository.getRecordsBetweenSync(0, Long.MAX_VALUE)
         val currentFavorites = favoriteRecipeRepository.getAllFavoritesOnce()
         val currentPantry = pantryIngredientRepository.getAllOnce()
-        val currentGuides = recipeGuideRepository.getAllOnce()
         val currentPlans = recipePlanRepository.getAllOnce()
         val currentHistory = aiChatHistoryDao.getAllHistoryOnce()
         val currentApiLogs = apiCallRecordDao.getAllRecordsOnce()
@@ -865,7 +910,7 @@ class BackupService @Inject constructor(
                 overwriteItem("饮水记录", backupData.waterRecords.size, currentWater.size),
                 overwriteItem("收藏菜谱", backupData.favoriteRecipes.size, currentFavorites.size),
                 overwriteItem("食材库存", backupData.pantryIngredients.size, currentPantry.size),
-                overwriteItem("标准化菜谱", backupData.recipeGuides.size, currentGuides.size),
+                overwriteItem("旧版菜谱指南(并入收藏)", backupData.legacyRecipeGuides.size, 0),
                 overwriteItem("菜单计划", backupData.recipePlans.size, currentPlans.size),
                 overwriteItem("AI对话历史", backupData.aiChatHistory.size, currentHistory.size),
                 overwriteItem("API调用日志", backupData.apiCallLogs.size, currentApiLogs.size),
@@ -892,7 +937,7 @@ class BackupService @Inject constructor(
                 mergeItem("饮水记录", backupData.waterRecords.map { it.id.toString() }.toSet(), currentWater.map { it.id.toString() }.toSet()),
                 mergeItem("收藏菜谱", backupData.favoriteRecipes.map { it.id }.toSet(), currentFavorites.map { it.id }.toSet()),
                 mergeItem("食材库存", backupData.pantryIngredients.map { it.id }.toSet(), currentPantry.map { it.id }.toSet()),
-                mergeItem("标准化菜谱", backupData.recipeGuides.map { it.id }.toSet(), currentGuides.map { it.id }.toSet()),
+                mergeItem("旧版菜谱指南(并入收藏)", backupData.legacyRecipeGuides.map { it.id }.toSet(), emptySet()),
                 mergeItem("菜单计划", backupData.recipePlans.map { it.id }.toSet(), currentPlans.map { it.id }.toSet()),
                 mergeItem("AI对话历史", backupData.aiChatHistory.map { it.id.toString() }.toSet(), currentHistory.map { it.id.toString() }.toSet()),
                 mergeItem("API调用日志", backupData.apiCallLogs.map { it.id }.toSet(), currentApiLogs.map { it.id }.toSet()),
@@ -988,6 +1033,14 @@ class BackupService @Inject constructor(
         vitaminC = vitaminC,
         vitaminA = vitaminA,
         potassium = potassium,
+        recipeIngredientsText = recipeIngredientsText,
+        recipeStepsText = recipeStepsText,
+        recipeToolsText = recipeToolsText,
+        recipeDifficulty = recipeDifficulty,
+        recipeDurationMinutes = recipeDurationMinutes,
+        recipeServings = recipeServings,
+        recipeSourceType = recipeSourceType,
+        recipeUpdatedAt = recipeUpdatedAt,
         createdAt = createdAt,
         lastUsedAt = lastUsedAt,
         useCount = useCount
@@ -1000,25 +1053,6 @@ class BackupService @Inject constructor(
         unit = unit,
         expiresAt = expiresAt,
         notes = notes,
-        createdAt = createdAt,
-        updatedAt = updatedAt
-    )
-
-    private fun RecipeGuide.toBackup() = RecipeGuideBackup(
-        id = id,
-        name = name,
-        ingredientsText = ingredientsText,
-        stepsText = stepsText,
-        toolsText = toolsText,
-        difficulty = difficulty,
-        durationMinutes = durationMinutes,
-        servings = servings,
-        calories = calories,
-        protein = protein,
-        carbs = carbs,
-        fat = fat,
-        sourceType = sourceType,
-        linkedFavoriteId = linkedFavoriteId,
         createdAt = createdAt,
         updatedAt = updatedAt
     )

@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -24,7 +25,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -75,8 +75,33 @@ fun OnboardingScreen1(
         }
     }
 
+    LaunchedEffect(selectedYear, selectedMonth) {
+        val year = selectedYear ?: return@LaunchedEffect
+        val month = selectedMonth ?: return@LaunchedEffect
+        val today = LocalDate.now()
+        val birthDate = LocalDate.of(year, month, 1)
+        val computedAge = today.year - birthDate.year -
+            if (today.dayOfYear < birthDate.dayOfYear) 1 else 0
+        if (computedAge in 1..120) {
+            ageInput = computedAge.toString()
+        }
+    }
+
     val parsedAge = ageInput.toIntOrNull()
-    val ageValid = parsedAge != null && parsedAge in 10..100
+    val inferredAgeFromBirthDate = run {
+        val year = selectedYear
+        val month = selectedMonth
+        if (year == null || month == null) {
+            null
+        } else {
+            val today = LocalDate.now()
+            val birthDate = LocalDate.of(year, month, 1)
+            today.year - birthDate.year -
+                if (today.dayOfYear < birthDate.dayOfYear) 1 else 0
+        }
+    }
+    val effectiveAge = parsedAge ?: inferredAgeFromBirthDate
+    val ageValid = effectiveAge != null && effectiveAge in 10..100
     val heightValid = selectedHeight.toFloatOrNull()?.let { it in 100f..220f } == true
     val weightValid = selectedWeight.toFloatOrNull()?.let { it in 30f..200f } == true
     val isFormValid = selectedGender != null && ageValid && heightValid && weightValid

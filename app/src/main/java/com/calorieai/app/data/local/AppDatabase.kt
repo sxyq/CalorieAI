@@ -13,7 +13,6 @@ import com.calorieai.app.data.model.ExerciseRecord
 import com.calorieai.app.data.model.FavoriteRecipe
 import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.PantryIngredient
-import com.calorieai.app.data.model.RecipeGuide
 import com.calorieai.app.data.model.RecipePlan
 import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.model.WaterRecord
@@ -35,10 +34,9 @@ import com.calorieai.app.data.model.AIChatHistory
         APICallRecord::class,
         FavoriteRecipe::class,
         PantryIngredient::class,
-        RecipeGuide::class,
         RecipePlan::class
     ],
-    version = 20,
+    version = 21,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -54,7 +52,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun apiCallRecordDao(): APICallRecordDao
     abstract fun favoriteRecipeDao(): FavoriteRecipeDao
     abstract fun pantryIngredientDao(): PantryIngredientDao
-    abstract fun recipeGuideDao(): RecipeGuideDao
     abstract fun recipePlanDao(): RecipePlanDao
     
     companion object {
@@ -332,6 +329,181 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL(
                     "ALTER TABLE user_settings ADD COLUMN enableLongPressMyToProfileEdit INTEGER NOT NULL DEFAULT 1"
                 )
+            }
+        }
+
+        /**
+         * 从版本20迁移到版本21
+         * 将 recipe_guides 合并进 favorite_recipes，并移除 recipe_guides 表
+         */
+        val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS recipe_guides (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        name TEXT NOT NULL,
+                        ingredientsText TEXT NOT NULL,
+                        stepsText TEXT NOT NULL,
+                        toolsText TEXT NOT NULL,
+                        difficulty TEXT NOT NULL,
+                        durationMinutes INTEGER NOT NULL,
+                        servings INTEGER NOT NULL,
+                        calories INTEGER NOT NULL,
+                        protein REAL NOT NULL,
+                        carbs REAL NOT NULL,
+                        fat REAL NOT NULL,
+                        sourceType TEXT NOT NULL,
+                        linkedFavoriteId TEXT,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """
+                )
+
+                db.execSQL("ALTER TABLE favorite_recipes ADD COLUMN recipeIngredientsText TEXT")
+                db.execSQL("ALTER TABLE favorite_recipes ADD COLUMN recipeStepsText TEXT")
+                db.execSQL("ALTER TABLE favorite_recipes ADD COLUMN recipeToolsText TEXT")
+                db.execSQL("ALTER TABLE favorite_recipes ADD COLUMN recipeDifficulty TEXT")
+                db.execSQL("ALTER TABLE favorite_recipes ADD COLUMN recipeDurationMinutes INTEGER")
+                db.execSQL("ALTER TABLE favorite_recipes ADD COLUMN recipeServings INTEGER")
+                db.execSQL("ALTER TABLE favorite_recipes ADD COLUMN recipeSourceType TEXT")
+                db.execSQL("ALTER TABLE favorite_recipes ADD COLUMN recipeUpdatedAt INTEGER")
+
+                db.execSQL(
+                    """
+                    UPDATE favorite_recipes
+                    SET
+                        recipeIngredientsText = (
+                            SELECT rg.ingredientsText
+                            FROM recipe_guides rg
+                            WHERE rg.linkedFavoriteId = favorite_recipes.id
+                            LIMIT 1
+                        ),
+                        recipeStepsText = (
+                            SELECT rg.stepsText
+                            FROM recipe_guides rg
+                            WHERE rg.linkedFavoriteId = favorite_recipes.id
+                            LIMIT 1
+                        ),
+                        recipeToolsText = (
+                            SELECT rg.toolsText
+                            FROM recipe_guides rg
+                            WHERE rg.linkedFavoriteId = favorite_recipes.id
+                            LIMIT 1
+                        ),
+                        recipeDifficulty = (
+                            SELECT rg.difficulty
+                            FROM recipe_guides rg
+                            WHERE rg.linkedFavoriteId = favorite_recipes.id
+                            LIMIT 1
+                        ),
+                        recipeDurationMinutes = (
+                            SELECT rg.durationMinutes
+                            FROM recipe_guides rg
+                            WHERE rg.linkedFavoriteId = favorite_recipes.id
+                            LIMIT 1
+                        ),
+                        recipeServings = (
+                            SELECT rg.servings
+                            FROM recipe_guides rg
+                            WHERE rg.linkedFavoriteId = favorite_recipes.id
+                            LIMIT 1
+                        ),
+                        recipeSourceType = (
+                            SELECT rg.sourceType
+                            FROM recipe_guides rg
+                            WHERE rg.linkedFavoriteId = favorite_recipes.id
+                            LIMIT 1
+                        ),
+                        recipeUpdatedAt = (
+                            SELECT rg.updatedAt
+                            FROM recipe_guides rg
+                            WHERE rg.linkedFavoriteId = favorite_recipes.id
+                            LIMIT 1
+                        )
+                    WHERE EXISTS (
+                        SELECT 1
+                        FROM recipe_guides rg
+                        WHERE rg.linkedFavoriteId = favorite_recipes.id
+                    )
+                    """
+                )
+
+                db.execSQL(
+                    """
+                    INSERT INTO favorite_recipes (
+                        id,
+                        sourceRecordId,
+                        foodName,
+                        userInput,
+                        totalCalories,
+                        protein,
+                        carbs,
+                        fat,
+                        fiber,
+                        sugar,
+                        sodium,
+                        cholesterol,
+                        saturatedFat,
+                        calcium,
+                        iron,
+                        vitaminC,
+                        vitaminA,
+                        potassium,
+                        recipeIngredientsText,
+                        recipeStepsText,
+                        recipeToolsText,
+                        recipeDifficulty,
+                        recipeDurationMinutes,
+                        recipeServings,
+                        recipeSourceType,
+                        recipeUpdatedAt,
+                        createdAt,
+                        lastUsedAt,
+                        useCount
+                    )
+                    SELECT
+                        'guide_' || rg.id,
+                        'guide:' || rg.id,
+                        rg.name,
+                        rg.name,
+                        rg.calories,
+                        rg.protein,
+                        rg.carbs,
+                        rg.fat,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        rg.ingredientsText,
+                        rg.stepsText,
+                        rg.toolsText,
+                        rg.difficulty,
+                        rg.durationMinutes,
+                        rg.servings,
+                        rg.sourceType,
+                        rg.updatedAt,
+                        rg.createdAt,
+                        NULL,
+                        0
+                    FROM recipe_guides rg
+                    WHERE rg.linkedFavoriteId IS NULL
+                       OR NOT EXISTS (
+                            SELECT 1
+                            FROM favorite_recipes fr
+                            WHERE fr.id = rg.linkedFavoriteId
+                       )
+                    """
+                )
+
+                db.execSQL("DROP TABLE IF EXISTS recipe_guides")
             }
         }
     }

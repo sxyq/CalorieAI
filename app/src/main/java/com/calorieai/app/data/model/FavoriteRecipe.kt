@@ -30,6 +30,15 @@ data class FavoriteRecipe(
     val vitaminC: Float = 0f,
     val vitaminA: Float = 0f,
     val potassium: Float = 0f,
+    // 合并自 recipe_guides 的扩展做法信息（v21）
+    val recipeIngredientsText: String? = null,
+    val recipeStepsText: String? = null,
+    val recipeToolsText: String? = null,
+    val recipeDifficulty: String? = null,
+    val recipeDurationMinutes: Int? = null,
+    val recipeServings: Int? = null,
+    val recipeSourceType: String? = null,
+    val recipeUpdatedAt: Long? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val lastUsedAt: Long? = null,
     val useCount: Int = 0

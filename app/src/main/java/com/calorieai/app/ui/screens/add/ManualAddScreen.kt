@@ -102,24 +102,12 @@ fun ManualAddScreen(
 
                 FavoriteRecipeQuickEntryCard(
                     favorites = uiState.favoriteRecipes,
+                    favoriteRecipeMealTypeMap = uiState.favoriteRecipeMealTypeMap,
                     selectedMealType = uiState.favoriteMealType,
                     onMealTypeSelected = viewModel::updateFavoriteMealType,
                     onQuickAdd = { recipe ->
                         viewModel.addFavoriteRecipeToToday(recipe, onSaveComplete)
                     }
-                )
-
-                // 食物名称输入 - 大卡片样式
-                FoodNameInput(
-                    value = uiState.foodName,
-                    onValueChange = viewModel::updateFoodName,
-                    placeholder = "输入食物名称，如：红烧肉"
-                )
-
-                // 热量输入 - 突出显示
-                CalorieInput(
-                    value = uiState.calories,
-                    onValueChange = viewModel::updateCalories
                 )
 
                 // 餐次选择 - 横向滑动选择器
@@ -292,12 +280,17 @@ fun ManualAddScreen(
 @Composable
 private fun FavoriteRecipeQuickEntryCard(
     favorites: List<FavoriteRecipe>,
+    favoriteRecipeMealTypeMap: Map<String, MealType>,
     selectedMealType: MealType,
     onMealTypeSelected: (MealType) -> Unit,
     onQuickAdd: (FavoriteRecipe) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val displayFavorites = favorites.sortedByDescending { it.lastUsedAt ?: 0L }
+    val displayFavorites = favorites
+        .filter { recipe ->
+            favoriteRecipeMealTypeMap[recipe.id] == selectedMealType
+        }
+        .sortedByDescending { it.lastUsedAt ?: 0L }
     val mealTypes = listOf(MealType.BREAKFAST, MealType.LUNCH, MealType.DINNER, MealType.SNACK)
 
     Box(
@@ -370,7 +363,7 @@ private fun FavoriteRecipeQuickEntryCard(
 
             if (displayFavorites.isEmpty()) {
                 Text(
-                    text = "暂无收藏菜谱，去菜谱页收藏后可在这里快速录入",
+                    text = "当前餐次暂无收藏菜谱，切换餐次或去菜谱页新增收藏",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

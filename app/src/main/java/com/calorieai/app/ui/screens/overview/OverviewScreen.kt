@@ -22,52 +22,14 @@ import androidx.compose.ui.unit.dp
 import com.calorieai.app.ui.theme.*
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.calorieai.app.ui.components.CompactHeatmap
+import com.calorieai.app.ui.components.HeatmapData
+import com.calorieai.app.ui.components.HeatmapLegend
 import com.calorieai.app.ui.screens.stats.StatsViewModel
 import com.calorieai.app.ui.screens.stats.StatsUiState
 import com.calorieai.app.utils.HistoryStats
 import com.calorieai.app.utils.TodayStats
 import java.time.LocalDate
-
-private data class OverviewHeatmapPalette(
-    val empty: Color,
-    val levels: List<Color>
-)
-
-private fun overviewHeatmapPalette(isDark: Boolean): OverviewHeatmapPalette {
-    return if (isDark) {
-        OverviewHeatmapPalette(
-            empty = Color(0xFF2D3440),
-            levels = listOf(
-                Color(0xFF2C455C),
-                Color(0xFF1E566D),
-                Color(0xFF1D6B83),
-                Color(0xFF1E7C96),
-                Color(0xFF218AA3),
-                Color(0xFF2397A0),
-                Color(0xFF23A38B),
-                Color(0xFF3CB276),
-                Color(0xFF62C261),
-                Color(0xFF8AD850)
-            )
-        )
-    } else {
-        OverviewHeatmapPalette(
-            empty = Color(0xFFE6EAF0),
-            levels = listOf(
-                Color(0xFFD7EEF8),
-                Color(0xFFBEE4F5),
-                Color(0xFFA8DBF2),
-                Color(0xFF8FD1ED),
-                Color(0xFF7CC8E6),
-                Color(0xFF63BCDE),
-                Color(0xFF4EAFD8),
-                Color(0xFF3EA6D0),
-                Color(0xFF238BC0),
-                Color(0xFF0E5A8A)
-            )
-        )
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -165,21 +127,16 @@ private fun HeatmapCard(
     isDark: Boolean,
     uiState: StatsUiState
 ) {
-    // 使用真实的每日餐次记录数据生成热力图
+    val totalRecords = uiState.todayStats?.recordCount ?: 0
     val dailyMealRecords = uiState.dailyMealRecords
-    
-    // 计算活跃度数据（基于真实每日餐次记录）
-    val activityData = remember(dailyMealRecords) {
-        generateActivityDataFromDailyRecords(dailyMealRecords)
+    val heatmapData = remember(dailyMealRecords, totalRecords) {
+        generateHeatmapDataFromDailyRecords(
+            dailyMealRecords = dailyMealRecords,
+            todayRecordCount = totalRecords
+        )
     }
-    
+
     val activeDays = uiState.monthlyActiveDays
-    val totalRecords = remember(dailyMealRecords) {
-        dailyMealRecords.firstOrNull { it.date == LocalDate.now() }?.recordCount ?: 0
-    }
-    val displayActivityData = remember(activityData, totalRecords) {
-        mergeTodayRecordToHeatmap(activityData, totalRecords)
-    }
     val daysElapsed = LocalDate.now().dayOfMonth.coerceAtLeast(1)
     val activityRate = if (activeDays > 0) {
         (activeDays * 100 / daysElapsed).coerceIn(0, 100)
@@ -209,26 +166,21 @@ private fun HeatmapCard(
                     fontWeight = FontWeight.Bold
                 )
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "无",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    HeatmapLegend(isDark)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "全",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                HeatmapLegend(
+                    labels = listOf("无", "全"),
+                    isDark = isDark
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            HeatmapGrid(isDark, displayActivityData)
+            CompactHeatmap(
+                data = heatmapData,
+                weeks = 20,
+                cellSize = 14,
+                isDark = isDark,
+                modifier = Modifier.fillMaxWidth()
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -244,118 +196,32 @@ private fun HeatmapCard(
     }
 }
 
-private fun mergeTodayRecordToHeatmap(
-    baseData: List<List<Int>>,
-    todayRecordCount: Int
-): List<List<Int>> {
-    if (baseData.isEmpty() || todayRecordCount <= 0) return baseData
-    if (baseData.size < 7 || baseData.any { it.size < 20 }) return baseData
-
+private fun generateHeatmapDataFromDailyRecords(
+    dailyMealRecords: List<com.calorieai.app.ui.screens.stats.DailyMealRecord>,
+    todayRecordCount: Int = 0
+): List<HeatmapData> {
+    if (dailyMealRecords.isEmpty()) return emptyList()
     val today = LocalDate.now()
-    val dayIndex = today.dayOfWeek.value % 7
-    val weekIndex = 19 // 20周热力图的最后一列即当前周
-
-    val targetLevel = todayRecordCount.coerceIn(1, 10)
-    val mutable = baseData.map { it.toMutableList() }.toMutableList()
-    mutable[dayIndex][weekIndex] = maxOf(mutable[dayIndex][weekIndex], targetLevel)
-    return mutable
-}
-
-// 从真实的每日餐次记录数据生成活跃度数据
-// level: 0=无记录, 1~10=记录强度
-// 返回的矩阵是 [dayIndex][weekIndex] 格式，即每行是一周中的同一天（如所有周一），每列是一周
-private fun generateActivityDataFromDailyRecords(
-    dailyMealRecords: List<com.calorieai.app.ui.screens.stats.DailyMealRecord>
-): List<List<Int>> {
-    val weeks = 20
-    val daysPerWeek = 7
-    // 数据存储为每行代表星期几（0=周日, 1=周一...），每列代表第几周
-    val data = MutableList(daysPerWeek) { MutableList(weeks) { 0 } }
-
-    if (dailyMealRecords.isEmpty()) {
-        return data
+    val base = dailyMealRecords.map { record ->
+        HeatmapData(
+            date = record.date,
+            value = record.level.coerceIn(0, 10).toFloat()
+        )
     }
+    if (todayRecordCount <= 0) return base
 
-    val today = java.time.LocalDate.now()
-    // 以“本周周日”为锚点，确保最后一列是当前周，并且行索引对应真实星期
-    val currentWeekStart = today.minusDays((today.dayOfWeek.value % 7).toLong())
-    val firstWeekStart = currentWeekStart.minusWeeks((weeks - 1).toLong())
-    val totalDays = weeks * daysPerWeek
-    val endDate = firstWeekStart.plusDays((totalDays - 1).toLong())
-
-    dailyMealRecords.forEach { record ->
-        val date = record.date
-        if (date.isBefore(firstWeekStart) || date.isAfter(endDate) || date.isAfter(today)) {
-            return@forEach
+    val todayLevel = todayRecordCount.coerceIn(1, 10).toFloat()
+    val merged = base.toMutableList()
+    val index = merged.indexOfFirst { it.date == today }
+    if (index >= 0) {
+        val current = merged[index]
+        if (todayLevel > current.value) {
+            merged[index] = current.copy(value = todayLevel)
         }
-
-        val daysBetween = (date.toEpochDay() - firstWeekStart.toEpochDay()).toInt()
-        val weekIndex = daysBetween / daysPerWeek
-        val dayIndex = date.dayOfWeek.value % 7 // 周日=0 ... 周六=6
-        data[dayIndex][weekIndex] = record.level
-    }
-
-    return data
-}
-
-@Composable
-private fun HeatmapLegend(isDark: Boolean) {
-    val palette = overviewHeatmapPalette(isDark)
-    // 0=无记录，1~10逐级增强
-    val colors = listOf(palette.empty) + palette.levels
-
-    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        colors.forEach { color ->
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(color)
-            )
-        }
-    }
-}
-
-@Composable
-private fun HeatmapGrid(
-    isDark: Boolean,
-    activityData: List<List<Int>> = emptyList()
-) {
-    val weeks = 20
-    val daysPerWeek = 7
-    
-    // 如果没有数据，使用默认空数据
-    val data = activityData.ifEmpty {
-        List(daysPerWeek) { List(weeks) { 0 } }
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        repeat(daysPerWeek) { dayIndex ->
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                repeat(weeks) { weekIndex ->
-                    val intensity = data.getOrNull(dayIndex)?.getOrNull(weekIndex) ?: 0
-                    HeatmapCell(intensity, isDark)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HeatmapCell(intensity: Int, isDark: Boolean) {
-    val palette = overviewHeatmapPalette(isDark)
-    val backgroundColor = if (intensity <= 0) {
-        palette.empty
     } else {
-        palette.levels[(intensity - 1).coerceIn(0, palette.levels.lastIndex)]
+        merged.add(HeatmapData(date = today, value = todayLevel))
     }
-
-    Box(
-        modifier = Modifier
-            .size(14.dp)
-            .clip(RoundedCornerShape(3.dp))
-            .background(backgroundColor)
-    )
+    return merged
 }
 
 @Composable

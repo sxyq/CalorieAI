@@ -12,6 +12,7 @@ import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,16 +28,22 @@ class FoodTextAnalysisService @Inject constructor(
     companion object {
         private const val TAG = "FoodTextAnalysis"
         
-        private const val SYSTEM_PROMPT = """你是专业营养师。用户可能一次输入多种食物，你必须按“每种食物一条记录”返回，不要合并。
+        private const val SYSTEM_PROMPT = """你是专业营养师。请先判断用户是否在“明确列举多种独立食物”。
 
 【严格要求 - 必须遵守】
 1. 返回JSON对象，且根字段必须是 items 数组
-2. 数组每个元素代表一种食物，不能把多种食物合并成一条
+2. 只有当用户明确列举多种独立食物时，才返回多条 items
+3. 如果用户输入的是单一菜名/品牌餐品/套餐名称（如“汉堡王大皇堡”），必须只返回1条，不能拆成配料
 3. foodName 字段必须使用中文名称（由你命名）
 2. 必须严格使用英文标点符号（逗号、引号、冒号）
 3. 所有数值必须是纯数字，不能带引号，不能使用字符串
 4. 所有营养素字段必须返回，不能省略
 5. 如果无法准确估算，使用合理的估计值（不能全部填0）
+
+【拆分判定规则（非常重要）】
+- 应拆分：用户明确列出多食物，且通常带数量/单位，例如“100g牛肉 50g鸡肉 1个鸡蛋”
+- 不应拆分：品牌名、菜名、单个餐品、套餐/便当/盖饭/汉堡名，即使其内部有多个配料，也按1条返回
+- 当无法确定时，优先不拆分，按1条返回
 
 【13种必需营养素字段】
 - 基础营养素（3种）：protein, carbs, fat
@@ -70,13 +77,23 @@ class FoodTextAnalysisService @Inject constructor(
     suspend fun analyzeFoodText(
         foodDescription: String,
         maxRetries: Int = 2,
-        onRetry: ((attempt: Int, maxAttempts: Int) -> Unit)? = null
+        onRetry: ((attempt: Int, maxAttempts: Int) -> Unit)? = null,
+        requestTag: String? = null
     ): Result<FoodBatchAnalysisResult> = withContext(Dispatchers.IO) {
         try {
             val config = aiConfigRepository.getDefaultConfig().firstOrNull()
                 ?: return@withContext Result.failure(Exception("未配置AI服务"))
+            val batchId = UUID.randomUUID().toString().substring(0, 8)
 
-            val userPrompt = "请拆分并分析以下食物，按多条items返回：$foodDescription"
+            val userPrompt = buildString {
+                append("请拆分并分析以下食物，按多条items返回：")
+                append(foodDescription)
+                if (!requestTag.isNullOrBlank()) {
+                    append("\n\n请求追踪ID：")
+                    append(requestTag)
+                    append("（仅用于防缓存与日志追踪，不参与营养结论）")
+                }
+            }
             var lastError: Throwable? = null
             val maxAttempts = (maxRetries + 1).coerceAtLeast(1)
 
@@ -95,13 +112,17 @@ class FoodTextAnalysisService @Inject constructor(
                         recordTokenUsage(config.id, config.name, parsedUsage)
                     }
                     val parsedItems = parseBatchAnalysisResult(responseText)
-                    val validItems = parsedItems.filter { validateNutritionData(it).isValid }
+                    val intentAlignedItems = alignItemsWithUserIntent(parsedItems, foodDescription)
+                    val normalizedItems = intentAlignedItems.mapIndexed { index, item ->
+                        normalizeNutritionData(item, foodDescription, index)
+                    }
+                    val validItems = normalizedItems.filter { validateNutritionData(it).isValid }
                     if (validItems.isNotEmpty()) {
                         recordApiCall(
                             configId = config.id,
                             configName = config.name,
                             modelId = config.modelId,
-                            inputText = userPrompt,
+                            inputText = "[文本分析任务#$batchId][尝试#$attempt] $userPrompt",
                             outputText = responseText,
                             promptTokens = parsedUsage.promptTokens,
                             completionTokens = parsedUsage.completionTokens,
@@ -116,14 +137,20 @@ class FoodTextAnalysisService @Inject constructor(
                             "itemCount" to validItems.size,
                             "inputLength" to foodDescription.length
                         )
-                        return@withContext Result.success(FoodBatchAnalysisResult(items = validItems))
+                        return@withContext Result.success(
+                            FoodBatchAnalysisResult(
+                                items = validItems,
+                                promptTokens = parsedUsage.promptTokens,
+                                completionTokens = parsedUsage.completionTokens
+                            )
+                        )
                     }
                     lastError = Exception("AI返回结果为空或无效")
                     recordApiCall(
                         configId = config.id,
                         configName = config.name,
                         modelId = config.modelId,
-                        inputText = userPrompt,
+                        inputText = "[文本分析任务#$batchId][尝试#$attempt] $userPrompt",
                         outputText = responseText,
                         promptTokens = parsedUsage.promptTokens,
                         completionTokens = parsedUsage.completionTokens,
@@ -138,7 +165,7 @@ class FoodTextAnalysisService @Inject constructor(
                         configId = config.id,
                         configName = config.name,
                         modelId = config.modelId,
-                        inputText = userPrompt,
+                        inputText = "[文本分析任务#$batchId][尝试#$attempt] $userPrompt",
                         outputText = "",
                         promptTokens = 0,
                         completionTokens = 0,
@@ -176,10 +203,10 @@ class FoodTextAnalysisService @Inject constructor(
             .replace("estimated weight", "estimatedWeight")
         
         cleanedJson = cleanedJson
-            .replace(""", "\"")
-            .replace(""", "\"")
-            .replace("'", "\"")
-            .replace("'", "\"")
+            .replace("“", "\"")
+            .replace("”", "\"")
+            .replace("‘", "\"")
+            .replace("’", "\"")
         
         val fieldNameMappings = mapOf(
             "estimated weight" to "estimatedWeight",
@@ -247,23 +274,134 @@ class FoodTextAnalysisService @Inject constructor(
             emptyList()
         }
     }
-    
+
+    private fun alignItemsWithUserIntent(
+        items: List<FoodAnalysisResult>,
+        foodDescription: String
+    ): List<FoodAnalysisResult> {
+        if (items.isEmpty()) return items
+        if (shouldSplitByExplicitQuantity(foodDescription)) {
+            return items
+        }
+        // 非“明确多食物+数量”场景，强制合并为单条，避免把菜名拆成配料。
+        return listOf(mergeToSingleItem(items, foodDescription))
+    }
+
+    private fun shouldSplitByExplicitQuantity(input: String): Boolean {
+        val normalized = input.lowercase()
+        // 统计“数量+单位”出现次数。出现2次及以上，视为明确多食物拆分意图。
+        val quantityRegex = Regex("(\\d+(?:\\.\\d+)?)\\s*(g|克|kg|千克|ml|毫升|l|升|个|份|片|勺|杯|碗)")
+        val quantityCount = quantityRegex.findAll(normalized).count()
+        if (quantityCount >= 2) return true
+
+        // 兜底：常见分隔词 + 至少两个数字，也判定为拆分意图
+        val hasSplitter = listOf("，", ",", "、", "和", "及", "+", " plus ").any { normalized.contains(it) }
+        val numberCount = Regex("\\d+(?:\\.\\d+)?").findAll(normalized).count()
+        return hasSplitter && numberCount >= 2
+    }
+
+    private fun mergeToSingleItem(
+        items: List<FoodAnalysisResult>,
+        foodDescription: String
+    ): FoodAnalysisResult {
+        if (items.size == 1) return items.first()
+        val name = deriveMergedName(foodDescription, items)
+        val weight = items.sumOf { it.estimatedWeight.toDouble() }.toInt().coerceAtLeast(1)
+        return FoodAnalysisResult(
+            foodName = name,
+            estimatedWeight = weight,
+            calories = items.sumOf { it.calories.toDouble() }.toFloat(),
+            protein = items.sumOf { it.protein.toDouble() }.toFloat(),
+            carbs = items.sumOf { it.carbs.toDouble() }.toFloat(),
+            fat = items.sumOf { it.fat.toDouble() }.toFloat(),
+            fiber = items.sumOf { it.fiber.toDouble() }.toFloat(),
+            sugar = items.sumOf { it.sugar.toDouble() }.toFloat(),
+            saturatedFat = items.sumOf { it.saturatedFat.toDouble() }.toFloat(),
+            cholesterol = items.sumOf { it.cholesterol.toDouble() }.toFloat(),
+            sodium = items.sumOf { it.sodium.toDouble() }.toFloat(),
+            potassium = items.sumOf { it.potassium.toDouble() }.toFloat(),
+            calcium = items.sumOf { it.calcium.toDouble() }.toFloat(),
+            iron = items.sumOf { it.iron.toDouble() }.toFloat(),
+            vitaminA = items.sumOf { it.vitaminA.toDouble() }.toFloat(),
+            vitaminC = items.sumOf { it.vitaminC.toDouble() }.toFloat()
+        )
+    }
+
+    private fun deriveMergedName(
+        foodDescription: String,
+        items: List<FoodAnalysisResult>
+    ): String {
+        val cleaned = foodDescription.trim()
+        if (cleaned.isNotEmpty()) return cleaned.take(30)
+        return items.maxByOrNull { it.calories }?.foodName ?: "混合食物"
+    }
+
+    private fun normalizeNutritionData(
+        result: FoodAnalysisResult,
+        foodDescription: String,
+        index: Int
+    ): FoodAnalysisResult {
+        val normalizedFoodName = result.foodName.trim().ifBlank {
+            deriveFallbackName(foodDescription, index)
+        }
+
+        val protein = sanitizeNumeric(result.protein)
+        val carbs = sanitizeNumeric(result.carbs)
+        val fat = sanitizeNumeric(result.fat)
+        var calories = sanitizeNumeric(result.calories)
+
+        if (calories <= 0f) {
+            val estimatedCalories = protein * 4f + carbs * 4f + fat * 9f
+            if (estimatedCalories > 0f) {
+                calories = estimatedCalories
+            }
+        }
+
+        return result.copy(
+            foodName = normalizedFoodName.take(30),
+            estimatedWeight = result.estimatedWeight.coerceAtLeast(0),
+            calories = calories,
+            protein = protein,
+            carbs = carbs,
+            fat = fat,
+            fiber = sanitizeNumeric(result.fiber),
+            sugar = sanitizeNumeric(result.sugar),
+            saturatedFat = sanitizeNumeric(result.saturatedFat),
+            cholesterol = sanitizeNumeric(result.cholesterol),
+            sodium = sanitizeNumeric(result.sodium),
+            potassium = sanitizeNumeric(result.potassium),
+            calcium = sanitizeNumeric(result.calcium),
+            iron = sanitizeNumeric(result.iron),
+            vitaminA = sanitizeNumeric(result.vitaminA),
+            vitaminC = sanitizeNumeric(result.vitaminC)
+        )
+    }
+
+    private fun deriveFallbackName(foodDescription: String, index: Int): String {
+        val cleaned = foodDescription.trim().take(30)
+        if (cleaned.isNotBlank()) return cleaned
+        return "未命名食物${index + 1}"
+    }
+
+    private fun sanitizeNumeric(value: Float): Float {
+        if (value.isNaN() || value.isInfinite()) return 0f
+        return value.coerceAtLeast(0f)
+    }
+
     private fun validateNutritionData(result: FoodAnalysisResult): ValidationResult {
         if (result.foodName.isBlank()) {
             return ValidationResult(false, "食物名称为空")
         }
-        if (result.calories <= 0) {
-            return ValidationResult(false, "热量数据无效")
+
+        val hasCalories = result.calories > 0f
+        val hasMacroNutrients = result.protein > 0f || result.carbs > 0f || result.fat > 0f
+        if (!hasCalories && !hasMacroNutrients) {
+            return ValidationResult(false, "热量和宏量营养素均无效")
         }
-        
-        val basicNutrients = listOf(result.protein, result.carbs, result.fat)
-        if (basicNutrients.all { it <= 0 }) {
-            return ValidationResult(false, "基础营养素数据无效")
-        }
-        
+
         return ValidationResult(true, "数据有效")
     }
-    
+
     private data class ValidationResult(
         val isValid: Boolean,
         val errorMessage: String

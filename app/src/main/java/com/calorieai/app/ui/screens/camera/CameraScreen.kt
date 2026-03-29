@@ -3,6 +3,8 @@ package com.calorieai.app.ui.screens.camera
 import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -152,6 +154,7 @@ fun CameraPreview(
     
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var preview by remember { mutableStateOf<Preview?>(null) }
+    var cameraInitError by remember { mutableStateOf<String?>(null) }
     
     val executor = remember { ContextCompat.getMainExecutor(context) }
     
@@ -164,19 +167,18 @@ fun CameraPreview(
                 
                 val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
                 cameraProviderFuture.addListener({
-                    val cameraProvider = cameraProviderFuture.get()
-                    
-                    preview = Preview.Builder().build().also {
-                        it.setSurfaceProvider(previewView.surfaceProvider)
-                    }
-                    
-                    imageCapture = ImageCapture.Builder()
-                        .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                        .build()
-                    
-                    val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-                    
                     try {
+                        val cameraProvider = cameraProviderFuture.get()
+
+                        preview = Preview.Builder().build().also {
+                            it.setSurfaceProvider(previewView.surfaceProvider)
+                        }
+
+                        imageCapture = ImageCapture.Builder()
+                            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                            .build()
+
+                        val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
                         cameraProvider.unbindAll()
                         cameraProvider.bindToLifecycle(
                             lifecycleOwner,
@@ -184,8 +186,11 @@ fun CameraPreview(
                             preview,
                             imageCapture
                         )
+                        cameraInitError = null
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        cameraInitError = e.message ?: "相机初始化失败"
+                        imageCapture = null
+                        Log.e("CameraScreen", "Camera initialization failed", e)
                     }
                 }, executor)
                 
@@ -209,7 +214,8 @@ fun CameraPreview(
                         onPhotoTaken = onPhotoTaken
                     )
                 },
-                modifier = Modifier.size(72.dp)
+                modifier = Modifier.size(72.dp),
+                enabled = imageCapture != null
             ) {
                 Icon(
                     Icons.Default.Camera,
@@ -232,9 +238,14 @@ fun CameraPreview(
                 )
             ) {
                 Text(
-                    text = "请将营养成分表对准框内",
+                    text = cameraInitError ?: "请将营养成分表对准框内",
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (cameraInitError == null) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    }
                 )
             }
         }
@@ -247,7 +258,10 @@ private fun takePhoto(
     context: android.content.Context,
     onPhotoTaken: (Uri) -> Unit
 ) {
-    val imageCapture = imageCapture ?: return
+    val imageCapture = imageCapture ?: run {
+        Toast.makeText(context, "相机尚未准备好，请稍后重试", Toast.LENGTH_SHORT).show()
+        return
+    }
     
     val photoFile = File(
         context.cacheDir,
@@ -266,7 +280,8 @@ private fun takePhoto(
             }
             
             override fun onError(exception: ImageCaptureException) {
-                exception.printStackTrace()
+                Log.e("CameraScreen", "takePhoto failed", exception)
+                Toast.makeText(context, "拍照失败：${exception.message ?: "未知错误"}", Toast.LENGTH_SHORT).show()
             }
         }
     )

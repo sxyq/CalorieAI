@@ -15,7 +15,7 @@ class PantryIngredientRepository @Inject constructor(
     suspend fun getAllOnce(): List<PantryIngredient> = pantryIngredientDao.getAllOnce()
 
     suspend fun upsert(item: PantryIngredient) {
-        pantryIngredientDao.upsert(item)
+        pantryIngredientDao.upsert(sanitizePantryIngredient(item))
     }
 
     suspend fun delete(item: PantryIngredient) {

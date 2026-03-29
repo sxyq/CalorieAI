@@ -20,7 +20,7 @@ class FavoriteRecipeRepository @Inject constructor(
     }
 
     suspend fun upsert(recipe: FavoriteRecipe) {
-        favoriteRecipeDao.insert(recipe)
+        favoriteRecipeDao.insert(sanitizeFavoriteRecipe(recipe))
     }
 
     suspend fun delete(recipe: FavoriteRecipe) {

@@ -11,7 +11,6 @@ import com.calorieai.app.data.local.ExerciseRecordDao
 import com.calorieai.app.data.local.FavoriteRecipeDao
 import com.calorieai.app.data.local.FoodRecordDao
 import com.calorieai.app.data.local.PantryIngredientDao
-import com.calorieai.app.data.local.RecipeGuideDao
 import com.calorieai.app.data.local.RecipePlanDao
 import com.calorieai.app.data.local.UserSettingsDao
 import com.calorieai.app.data.local.dao.WaterRecordDao
@@ -43,7 +42,8 @@ object DatabaseModule {
                 AppDatabase.MIGRATION_16_17,
                 AppDatabase.MIGRATION_17_18,
                 AppDatabase.MIGRATION_18_19,
-                AppDatabase.MIGRATION_19_20
+                AppDatabase.MIGRATION_19_20,
+                AppDatabase.MIGRATION_20_21
             )
             .fallbackToDestructiveMigration()
             .build()
@@ -102,11 +102,6 @@ object DatabaseModule {
     @Provides
     fun providePantryIngredientDao(database: AppDatabase): PantryIngredientDao {
         return database.pantryIngredientDao()
-    }
-
-    @Provides
-    fun provideRecipeGuideDao(database: AppDatabase): RecipeGuideDao {
-        return database.recipeGuideDao()
     }
 
     @Provides

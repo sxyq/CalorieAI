@@ -28,11 +28,11 @@ class ExerciseRecordRepository @Inject constructor(
     }
 
     suspend fun addRecord(record: ExerciseRecord) {
-        exerciseRecordDao.insertRecord(record)
+        exerciseRecordDao.insertRecord(sanitizeExerciseRecord(record))
     }
 
     suspend fun updateRecord(record: ExerciseRecord) {
-        exerciseRecordDao.updateRecord(record)
+        exerciseRecordDao.updateRecord(sanitizeExerciseRecord(record))
     }
 
     suspend fun deleteRecord(record: ExerciseRecord) {

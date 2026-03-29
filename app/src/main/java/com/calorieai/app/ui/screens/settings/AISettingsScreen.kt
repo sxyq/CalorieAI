@@ -20,12 +20,14 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.AIConfig
 import com.calorieai.app.data.model.AIProtocol
+import com.calorieai.app.service.voice.VoiceModelManager
 import com.calorieai.app.ui.components.TokenUsageCard
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.ui.components.interactiveScale
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,6 +49,10 @@ fun AISettingsScreen(
         val message = uiState.saveMessage ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(message)
         viewModel.clearSaveMessage()
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshVoiceModelState()
     }
 
     Scaffold(
@@ -71,6 +77,15 @@ fun AISettingsScreen(
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
             item { RateLimitInfoCard() }
+            item {
+                VoiceModelCard(
+                    isInstalled = uiState.isVoiceModelInstalled,
+                    installedLabel = uiState.installedVoiceModelLabel,
+                    isDownloading = uiState.isVoiceModelDownloading,
+                    onDownload = viewModel::downloadVoiceModel,
+                    onRefresh = viewModel::refreshVoiceModelState
+                )
+            }
             item { TokenUsageCard(stats = uiState.tokenUsageStats) }
             item {
                 ModelCallStatsEntryCard(
@@ -124,6 +139,135 @@ fun AISettingsScreen(
         }
     }
 
+}
+
+@Composable
+private fun VoiceModelCard(
+    isInstalled: Boolean,
+    installedLabel: String?,
+    isDownloading: Boolean,
+    onDownload: (VoiceModelManager.VoiceModelPackage) -> Unit,
+    onRefresh: () -> Unit
+) {
+    var showPicker by remember { mutableStateOf(false) }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .liquidGlass(
+                shape = RoundedCornerShape(16.dp),
+                tint = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+            )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.GraphicEq,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "离线语音模型",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Text(
+                text = if (isInstalled) {
+                    "状态：已安装（可离线语音输入）\n${installedLabel ?: ""}"
+                } else {
+                    "状态：未安装。请先下载后再使用语音输入。"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(
+                    onClick = { showPicker = true },
+                    enabled = !isDownloading,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (isDownloading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("下载中...")
+                    } else {
+                        Text(if (isInstalled) "重新下载" else "下载模型")
+                    }
+                }
+                OutlinedButton(
+                    onClick = onRefresh,
+                    enabled = !isDownloading,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("刷新状态")
+                }
+            }
+        }
+    }
+
+    if (showPicker) {
+        AlertDialog(
+            onDismissRequest = { showPicker = false },
+            title = { Text("选择语音模型包") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    VoiceModelOptionItem(
+                        title = VoiceModelManager.VoiceModelPackage.LARGE_CN.displayName,
+                        subtitle = "${VoiceModelManager.VoiceModelPackage.LARGE_CN.sizeHint}，识别更准",
+                        onClick = {
+                            showPicker = false
+                            onDownload(VoiceModelManager.VoiceModelPackage.LARGE_CN)
+                        }
+                    )
+                    VoiceModelOptionItem(
+                        title = VoiceModelManager.VoiceModelPackage.SMALL_CN.displayName,
+                        subtitle = "${VoiceModelManager.VoiceModelPackage.SMALL_CN.sizeHint}，下载更快",
+                        onClick = {
+                            showPicker = false
+                            onDownload(VoiceModelManager.VoiceModelPackage.SMALL_CN)
+                        }
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showPicker = false }) { Text("取消") }
+            }
+        )
+    }
+}
+
+@Composable
+private fun VoiceModelOptionItem(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
+                onClick = onClick
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(text = title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }
 
 @Composable
@@ -439,7 +583,7 @@ fun AIConfigItem(
                     Text(
                         text = when (config.protocol) {
                             AIProtocol.OPENAI -> "OpenAI"
-                            AIProtocol.CLAUDE -> "Claude"
+                            AIProtocol.CLAUDE -> "Anthropic"
                             AIProtocol.KIMI -> "Kimi"
                             AIProtocol.GLM -> "GLM"
                             AIProtocol.QWEN -> "Qwen"

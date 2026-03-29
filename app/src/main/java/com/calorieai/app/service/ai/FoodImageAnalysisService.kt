@@ -11,6 +11,7 @@ import com.calorieai.app.data.repository.AIConfigRepository
 import com.calorieai.app.data.repository.AITokenUsageRepository
 import com.calorieai.app.service.ai.common.AIApiClient
 import com.calorieai.app.service.ai.common.AIApiException
+import com.calorieai.app.utils.SecureLogger
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -18,6 +19,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -31,6 +33,7 @@ class FoodImageAnalysisService @Inject constructor(
     private val gson = Gson()
 
     companion object {
+        private const val TAG = "FoodImageAnalysis"
         private const val CONCURRENT_CALLS = 5
         
         private const val SYSTEM_PROMPT = """你是一个专业的营养师，擅长通过图片识别食物并分析其营养成分。请仔细分析图片中的食物，提供详细的营养信息。
@@ -79,12 +82,15 @@ class FoodImageAnalysisService @Inject constructor(
         onRetry: ((attempt: Int, maxAttempts: Int, reason: String) -> Unit)? = null
     ): Result<FoodAnalysisResult> = withContext(Dispatchers.IO) {
         try {
-            val config = aiConfigRepository.getDefaultConfig().firstOrNull()
-                ?: return@withContext Result.failure(Exception("未配置AI服务"))
-
-            if (!config.isImageUnderstanding) {
-                return@withContext Result.failure(Exception("当前AI配置不支持图像理解"))
-            }
+            val config = resolveImageConfig()
+                ?: return@withContext Result.failure(Exception("未找到可用的图像识别模型，请在AI配置里启用支持图像的模型（推荐Omni/o-mini）"))
+            SecureLogger.event(
+                TAG,
+                "image_model_selected",
+                "configId" to config.id,
+                "configName" to config.name,
+                "modelId" to config.modelId
+            )
 
             val base64Image = uriToBase64(imageUri, context)
                 ?: return@withContext Result.failure(Exception("图片转换失败"))
@@ -98,6 +104,7 @@ class FoodImageAnalysisService @Inject constructor(
             // 并发调用5次
             val results = mutableListOf<FoodAnalysisResult>()
             val errors = mutableListOf<String>()
+            val batchId = UUID.randomUUID().toString().substring(0, 8)
             
             val deferredResults = (1..CONCURRENT_CALLS).map { index ->
                 async {
@@ -122,7 +129,7 @@ class FoodImageAnalysisService @Inject constructor(
                                 configId = config.id,
                                 configName = config.name,
                                 modelId = config.modelId,
-                                inputText = "图片分析请求(尝试#$index): $userMessage",
+                                inputText = "[图片分析任务#$batchId][尝试#$index] $userMessage",
                                 outputText = responseText,
                                 promptTokens = parsedUsage.promptTokens,
                                 completionTokens = parsedUsage.completionTokens,
@@ -136,7 +143,7 @@ class FoodImageAnalysisService @Inject constructor(
                                 configId = config.id,
                                 configName = config.name,
                                 modelId = config.modelId,
-                                inputText = "图片分析请求(尝试#$index): $userMessage",
+                                inputText = "[图片分析任务#$batchId][尝试#$index] $userMessage",
                                 outputText = responseText,
                                 promptTokens = parsedUsage.promptTokens,
                                 completionTokens = parsedUsage.completionTokens,
@@ -152,7 +159,7 @@ class FoodImageAnalysisService @Inject constructor(
                             configId = config.id,
                             configName = config.name,
                                 modelId = config.modelId,
-                                inputText = "图片分析请求(尝试#$index): $userMessage",
+                                inputText = "[图片分析任务#$batchId][尝试#$index] $userMessage",
                                 outputText = "",
                                 promptTokens = 0,
                                 completionTokens = 0,
@@ -186,6 +193,25 @@ class FoodImageAnalysisService @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    private suspend fun resolveImageConfig(): com.calorieai.app.data.model.AIConfig? {
+        val defaultConfig = aiConfigRepository.getDefaultConfig().firstOrNull()
+        if (defaultConfig != null && defaultConfig.isImageUnderstanding) {
+            return defaultConfig
+        }
+
+        val allConfigs = aiConfigRepository.getAllConfigs().firstOrNull().orEmpty()
+        val imageConfigs = allConfigs.filter { it.isImageUnderstanding }
+        if (imageConfigs.isEmpty()) {
+            return null
+        }
+
+        // 优先选 Omni / o-mini 这类视觉能力模型
+        return imageConfigs.firstOrNull {
+            val modelId = it.modelId.lowercase()
+            modelId.contains("omni") || modelId.contains("o-mini") || modelId.contains("omini")
+        } ?: imageConfigs.first()
     }
     
     /**

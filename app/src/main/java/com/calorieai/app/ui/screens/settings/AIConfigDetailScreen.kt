@@ -576,7 +576,7 @@ fun ProtocolSelector(
 
                 ProtocolOption(
                     protocol = AIProtocol.CLAUDE,
-                    title = "Claude",
+                    title = "Anthropic",
                     isSelected = selectedProtocol == AIProtocol.CLAUDE,
                     onClick = { if (enabled) onProtocolSelected(AIProtocol.CLAUDE) },
                     modifier = Modifier.weight(1f),
