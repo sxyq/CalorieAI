@@ -7,6 +7,7 @@ import com.calorieai.app.data.model.TokenUsageStats
 import com.calorieai.app.data.repository.AIConfigRepository
 import com.calorieai.app.data.repository.AITokenUsageRepository
 import com.calorieai.app.data.repository.UserSettingsRepository
+import com.calorieai.app.service.voice.VoiceModelManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -16,7 +17,8 @@ import javax.inject.Inject
 class AISettingsViewModel @Inject constructor(
     private val aiConfigRepository: AIConfigRepository,
     private val aiTokenUsageRepository: AITokenUsageRepository,
-    private val userSettingsRepository: UserSettingsRepository
+    private val userSettingsRepository: UserSettingsRepository,
+    private val voiceModelManager: VoiceModelManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AISettingsUiState())
@@ -26,6 +28,7 @@ class AISettingsViewModel @Inject constructor(
         loadConfigs()
         loadTokenUsageStats()
         loadPersonalizationSettings()
+        refreshVoiceModelState()
     }
 
     private fun loadConfigs() {
@@ -136,6 +139,44 @@ class AISettingsViewModel @Inject constructor(
     fun clearSaveMessage() {
         _uiState.value = _uiState.value.copy(saveMessage = null)
     }
+
+    fun refreshVoiceModelState() {
+        val installedPackage = voiceModelManager.getInstalledPackage()
+        _uiState.value = _uiState.value.copy(
+            isVoiceModelInstalled = installedPackage != null,
+            installedVoiceModelLabel = installedPackage?.let { "${it.displayName}（${it.sizeHint}）" }
+        )
+    }
+
+    fun downloadVoiceModel(pkg: VoiceModelManager.VoiceModelPackage) {
+        viewModelScope.launch {
+            if (_uiState.value.isVoiceModelDownloading) return@launch
+            _uiState.value = _uiState.value.copy(isVoiceModelDownloading = true)
+            val result = voiceModelManager.downloadAndInstallModel(pkg)
+            val installedPackage = voiceModelManager.getInstalledPackage()
+            val errorMessage = result.exceptionOrNull()?.toReadableErrorMessage()
+            _uiState.value = _uiState.value.copy(
+                isVoiceModelDownloading = false,
+                isVoiceModelInstalled = installedPackage != null,
+                installedVoiceModelLabel = installedPackage?.let { "${it.displayName}（${it.sizeHint}）" },
+                saveMessage = if (result.isSuccess) {
+                    "语音模型下载完成：${pkg.displayName}，可离线语音输入"
+                } else {
+                    "语音模型下载失败：$errorMessage"
+                }
+            )
+        }
+    }
+
+    private fun Throwable.toReadableErrorMessage(): String {
+        val root = generateSequence(this) { it.cause }.last()
+        val message = root.message?.trim().orEmpty()
+        return if (message.isNotEmpty()) {
+            "${root.javaClass.simpleName}: $message"
+        } else {
+            root.javaClass.simpleName
+        }
+    }
 }
 
 data class AISettingsUiState(
@@ -149,5 +190,8 @@ data class AISettingsUiState(
     val maxCookingMinutes: String = "",
     val specialPopulationMode: String = "GENERAL",
     val weeklyRecordGoalDays: String = "5",
+    val isVoiceModelInstalled: Boolean = false,
+    val installedVoiceModelLabel: String? = null,
+    val isVoiceModelDownloading: Boolean = false,
     val saveMessage: String? = null
 )

@@ -17,11 +17,11 @@ class AIConfigRepository @Inject constructor(
     suspend fun getConfigById(id: String): AIConfig? = aiConfigDao.getConfigById(id)
 
     suspend fun addConfig(config: AIConfig) {
-        aiConfigDao.insertConfig(config)
+        aiConfigDao.insertConfig(sanitizeAIConfig(config))
     }
 
     suspend fun updateConfig(config: AIConfig) {
-        aiConfigDao.updateConfig(config)
+        aiConfigDao.updateConfig(sanitizeAIConfig(config))
     }
 
     suspend fun deleteConfig(config: AIConfig) {

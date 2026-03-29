@@ -1,9 +1,14 @@
 package com.calorieai.app
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -11,18 +16,25 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.navigation.compose.rememberNavController
+import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.calorieai.app.data.local.OnboardingDataStore
 import com.calorieai.app.data.repository.UserSettingsRepository
 import com.calorieai.app.service.notification.NotificationScheduler
+import com.calorieai.app.service.update.AppUpdateInfo
+import com.calorieai.app.service.update.AppUpdateManager
 import com.calorieai.app.ui.navigation.NavGraph
 import com.calorieai.app.ui.screens.onboarding.OnboardingFlow
 import com.calorieai.app.ui.screens.settings.ThemeMode
@@ -45,6 +57,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var notificationScheduler: NotificationScheduler
+
+    @Inject
+    lateinit var appUpdateManager: AppUpdateManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -103,6 +118,13 @@ class MainActivity : ComponentActivity() {
 
             var shouldSkipOnboarding by remember { mutableStateOf(false) }
             var isLoading by remember { mutableStateOf(true) }
+            var pendingUpdateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
+            var hasRequestedNotificationPermission by rememberSaveable { mutableStateOf(false) }
+            val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission()
+            ) {
+                hasRequestedNotificationPermission = true
+            }
 
             LaunchedEffect(Unit) {
                 val completed = withContext(Dispatchers.IO) {
@@ -110,6 +132,23 @@ class MainActivity : ComponentActivity() {
                 }
                 shouldSkipOnboarding = completed
                 isLoading = false
+            }
+
+            LaunchedEffect(isLoading, shouldSkipOnboarding, settings?.isNotificationEnabled) {
+                if (isLoading || !shouldSkipOnboarding) return@LaunchedEffect
+                if (settings?.isNotificationEnabled != true) return@LaunchedEffect
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return@LaunchedEffect
+                if (hasRequestedNotificationPermission) return@LaunchedEffect
+
+                val granted = ContextCompat.checkSelfPermission(
+                    this@MainActivity,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+                if (granted) {
+                    hasRequestedNotificationPermission = true
+                } else {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
             }
 
             LaunchedEffect(
@@ -126,8 +165,17 @@ class MainActivity : ComponentActivity() {
                 // 避免在首屏渲染关键路径触发 WorkManager 初始化，降低冷启动卡顿。
                 delay(900)
                 withContext(Dispatchers.IO) {
-                    notificationScheduler.syncMealReminders(currentSettings)
+                    notificationScheduler.syncMealReminders(
+                        settings = currentSettings,
+                        source = "MainActivity.launch"
+                    )
                 }
+            }
+
+            LaunchedEffect(isLoading, shouldSkipOnboarding) {
+                if (isLoading || !shouldSkipOnboarding) return@LaunchedEffect
+                delay(1300)
+                pendingUpdateInfo = appUpdateManager.checkForUpdate()
             }
 
             CalorieAITheme(
@@ -171,9 +219,50 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+                pendingUpdateInfo?.let { updateInfo ->
+                    AppUpdateDialog(
+                        updateInfo = updateInfo,
+                        onDownload = {
+                            val opened = appUpdateManager.openDownloadPage(updateInfo)
+                            if (opened) {
+                                pendingUpdateInfo = null
+                            }
+                        },
+                        onLater = {
+                            pendingUpdateInfo = null
+                        }
+                    )
+                }
             }
         }
     }
+}
+
+@Composable
+private fun AppUpdateDialog(
+    updateInfo: AppUpdateInfo,
+    onDownload: () -> Unit,
+    onLater: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onLater,
+        title = {
+            Text("发现新版本 ${updateInfo.latestVersionName}")
+        },
+        text = {
+            Text(updateInfo.changelog)
+        },
+        confirmButton = {
+            TextButton(onClick = onDownload) {
+                Text("立即下载")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onLater) {
+                Text("稍后")
+            }
+        }
+    )
 }
 
 @Composable

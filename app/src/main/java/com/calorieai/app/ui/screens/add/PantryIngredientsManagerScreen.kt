@@ -32,10 +32,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,24 +44,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.calorieai.app.data.model.PantryIngredient
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantryIngredientsManagerScreen(
     onNavigateBack: () -> Unit,
-    viewModel: FavoriteRecipesViewModel = hiltViewModel()
+    viewModel: PantryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collectLatest { event ->
+            when (event) {
+                is RecipeUiEvent.Snackbar -> snackbarHostState.showSnackbar(event.message)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("已有食材管理") },
+                title = { Text("食材库存管理") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
@@ -103,9 +109,8 @@ fun PantryIngredientsManagerScreen(
                         )
                     ) {
                         Text(
-                            text = "暂无食材库存，可添加后用于菜谱推荐与计划。",
-                            modifier = Modifier.padding(12.dp),
-                            style = MaterialTheme.typography.bodyMedium
+                            text = "暂无食材库存，可添加后用于菜谱推荐与菜单生成。",
+                            modifier = Modifier.padding(12.dp)
                         )
                     }
                 }
@@ -114,13 +119,13 @@ fun PantryIngredientsManagerScreen(
                     items = uiState.pantryIngredients.sortedBy { it.expiresAt ?: Long.MAX_VALUE },
                     key = { it.id }
                 ) { pantry ->
-                    PantryIngredientManagerItem(
-                        item = pantry,
+                    PantryIngredientItem(
+                        itemName = pantry.name,
+                        quantityText = "${pantry.quantity}${pantry.unit}",
+                        expiryText = formatExpiryText(pantry.expiresAt),
+                        notes = pantry.notes,
                         onDelete = {
-                            viewModel.removePantryIngredient(pantry)
-                            scope.launch {
-                                snackbarHostState.showSnackbar("已删除：${pantry.name}")
-                            }
+                            viewModel.dispatch(RecipeAction.Pantry.DeleteIngredient(pantry))
                         }
                     )
                 }
@@ -129,20 +134,19 @@ fun PantryIngredientsManagerScreen(
     }
 
     if (showAddDialog) {
-        PantryIngredientDialog(
+        AddPantryIngredientDialog(
             onDismiss = { showAddDialog = false },
             onSave = { name, quantity, unit, daysToExpire, notes ->
-                viewModel.addPantryIngredient(
-                    name = name,
-                    quantity = quantity,
-                    unit = unit,
-                    daysToExpire = daysToExpire,
-                    notes = notes
+                viewModel.dispatch(
+                    RecipeAction.Pantry.AddIngredient(
+                        name = name,
+                        quantity = quantity,
+                        unit = unit,
+                        daysToExpire = daysToExpire,
+                        notes = notes
+                    )
                 )
                 showAddDialog = false
-                scope.launch {
-                    snackbarHostState.showSnackbar("已添加食材：$name")
-                }
             }
         )
     }
@@ -164,12 +168,8 @@ private fun PantryOverviewCard(
                 .padding(12.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            OverviewPill(title = "食材总数", value = totalCount.toString(), modifier = Modifier.weight(1f))
-            OverviewPill(
-                title = "3天内到期",
-                value = expiringSoonCount.toString(),
-                modifier = Modifier.weight(1f)
-            )
+            OverviewPill("食材总数", totalCount.toString(), Modifier.weight(1f))
+            OverviewPill("3天内到期", expiringSoonCount.toString(), Modifier.weight(1f))
         }
     }
 }
@@ -184,29 +184,20 @@ private fun OverviewPill(
         modifier = modifier.padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
-private fun PantryIngredientManagerItem(
-    item: PantryIngredient,
+private fun PantryIngredientItem(
+    itemName: String,
+    quantityText: String,
+    expiryText: String,
+    notes: String?,
     onDelete: () -> Unit
 ) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
-    ) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -217,16 +208,16 @@ private fun PantryIngredientManagerItem(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Inventory2, contentDescription = null)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(item.name, fontWeight = FontWeight.SemiBold)
+                    Text(itemName, fontWeight = FontWeight.SemiBold)
                 }
                 Text(
-                    text = "${item.quantity}${item.unit} · ${formatExpiryText(item.expiresAt)}",
+                    "$quantityText · $expiryText",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (!item.notes.isNullOrBlank()) {
+                if (!notes.isNullOrBlank()) {
                     Text(
-                        text = "备注：${item.notes}",
+                        "备注：$notes",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -240,7 +231,7 @@ private fun PantryIngredientManagerItem(
 }
 
 @Composable
-private fun PantryIngredientDialog(
+private fun AddPantryIngredientDialog(
     onDismiss: () -> Unit,
     onSave: (name: String, quantity: Float, unit: String, daysToExpire: Int?, notes: String?) -> Unit
 ) {

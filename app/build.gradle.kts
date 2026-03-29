@@ -24,6 +24,9 @@ android {
         
         // 构建时间
         buildConfigField("long", "BUILD_TIME", "${System.currentTimeMillis()}L")
+        // 非 Play 版本更新检查接口（返回JSON）
+        // 示例: {"latestVersionCode":2,"latestVersionName":"1.0.1","downloadUrl":"https://example.com/CalorieAI-v1.0.1.apk","changelog":"修复若干问题","forceUpdate":false}
+        buildConfigField("String", "UPDATE_CHECK_URL", "\"\"")
     }
 
     buildTypes {
@@ -66,6 +69,21 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+}
+
+tasks.named("preBuild") {
+    doFirst {
+        val legacyAssets = listOf(
+            file("src/main/assets/vosk-model-small-cn-0.22.zip"),
+            file("src/main/assets/vosk-model-cn-0.22.zip")
+        )
+        legacyAssets.forEach { asset ->
+            if (asset.exists()) {
+                logger.lifecycle("Removing bundled voice model asset: ${asset.absolutePath}")
+                asset.delete()
+            }
         }
     }
 }
@@ -144,6 +162,9 @@ dependencies {
 
     // Gson
     implementation("com.google.code.gson:gson:2.10.1")
+    
+    // Offline Speech Recognition (Vosk)
+    implementation("com.alphacephei:vosk-android:0.3.47")
 
     // Kotlin Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")

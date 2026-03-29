@@ -19,6 +19,7 @@ import com.calorieai.app.ui.screens.add.AddFoodScreen
 import com.calorieai.app.ui.screens.add.AddMethodSelectorScreen
 import com.calorieai.app.ui.screens.add.FavoriteRecipesScreen
 import com.calorieai.app.ui.screens.add.FavoriteRecipesManagerScreen
+import com.calorieai.app.ui.screens.add.MealPlanManagerScreen
 import com.calorieai.app.ui.screens.add.PantryIngredientsManagerScreen
 import com.calorieai.app.ui.screens.add.ManualAddScreen
 import com.calorieai.app.ui.screens.ai.AIChatScreen
@@ -71,6 +72,7 @@ sealed class Screen(val route: String) {
     object FavoriteRecipes : Screen("favorite_recipes")
     object FavoriteRecipesManager : Screen("favorite_recipes_manager")
     object PantryIngredientsManager : Screen("pantry_ingredients_manager")
+    object RecipePlanManager : Screen("recipe_plan_manager")
     object ManualAdd : Screen("manual_add")
     object AddFood : Screen("add_food?date={date}") {
         fun createRoute(date: String? = null): String {
@@ -83,7 +85,10 @@ sealed class Screen(val route: String) {
     }
     object Camera : Screen("camera")
     object PhotoAnalysis : Screen("photo_analysis/{photoUri}") {
-        fun createRoute(photoUri: String) = "photo_analysis/$photoUri"
+        fun createRoute(photoUri: String): String {
+            val encoded = android.net.Uri.encode(photoUri)
+            return "photo_analysis/$encoded"
+        }
     }
     object Result : Screen("result/{recordId}") {
         fun createRoute(recordId: String) = "result/$recordId"
@@ -426,6 +431,11 @@ fun NavGraph(navController: NavHostController) {
                             launchSingleTop = true
                         }
                     },
+                    onNavigateToMealPlanManager = {
+                        navController.navigate(Screen.RecipePlanManager.route) {
+                            launchSingleTop = true
+                        }
+                    },
                     showBackButton = showBackButton
                 )
             }
@@ -442,6 +452,15 @@ fun NavGraph(navController: NavHostController) {
             // 已有食材管理
             composable(Screen.PantryIngredientsManager.route) {
                 PantryIngredientsManagerScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            // 菜单计划管理
+            composable(Screen.RecipePlanManager.route) {
+                MealPlanManagerScreen(
                     onNavigateBack = {
                         navController.popBackStack()
                     }
@@ -490,7 +509,8 @@ fun NavGraph(navController: NavHostController) {
 
             // 照片分析
             composable(Screen.PhotoAnalysis.route) { backStackEntry ->
-                val photoUriString = backStackEntry.arguments?.getString("photoUri") ?: ""
+                val encodedPhotoUri = backStackEntry.arguments?.getString("photoUri") ?: ""
+                val photoUriString = android.net.Uri.decode(encodedPhotoUri)
                 val photoUri = android.net.Uri.parse(photoUriString)
                 PhotoAnalysisScreen(
                     photoUri = photoUri,
@@ -614,7 +634,16 @@ fun NavGraph(navController: NavHostController) {
             }
 
             // AI配置详情
-            composable(Screen.AIConfigDetail.route) { backStackEntry ->
+            composable(
+                route = Screen.AIConfigDetail.route,
+                arguments = listOf(
+                    androidx.navigation.navArgument("configId") {
+                        type = androidx.navigation.NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
                 val configId = backStackEntry.arguments?.getString("configId")
                 AIConfigDetailScreen(
                     configId = configId,

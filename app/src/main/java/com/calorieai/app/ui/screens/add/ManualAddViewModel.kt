@@ -31,7 +31,22 @@ class ManualAddViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             favoriteRecipeRepository.getAllFavorites().collect { favorites ->
-                updateState { it.copy(favoriteRecipes = favorites) }
+                val recipeMealTypeMap = buildMap<String, MealType> {
+                    favorites.forEach { favorite ->
+                        val mealType = foodRecordRepository
+                            .getRecordById(favorite.sourceRecordId)
+                            ?.mealType
+                        if (mealType != null) {
+                            put(favorite.id, mealType)
+                        }
+                    }
+                }
+                updateState {
+                    it.copy(
+                        favoriteRecipes = favorites,
+                        favoriteRecipeMealTypeMap = recipeMealTypeMap
+                    )
+                }
             }
         }
     }
@@ -150,5 +165,6 @@ data class ManualAddUiState(
     val mealType: MealType = MealType.LUNCH,
     val favoriteMealType: MealType = MealType.LUNCH,
     val notes: String = "",
-    val favoriteRecipes: List<FavoriteRecipe> = emptyList()
+    val favoriteRecipes: List<FavoriteRecipe> = emptyList(),
+    val favoriteRecipeMealTypeMap: Map<String, MealType> = emptyMap()
 )

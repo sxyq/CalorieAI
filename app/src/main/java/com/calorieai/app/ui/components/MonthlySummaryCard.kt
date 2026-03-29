@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,6 +46,8 @@ fun MonthlySummaryCard(
     onExpandClick: () -> Unit = {},
     onDayClick: ((LocalDate) -> Unit)? = null
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -93,8 +96,11 @@ fun MonthlySummaryCard(
             Spacer(modifier = Modifier.height(16.dp))
             
             // 热力图
-            CompactHeatmap(
+            MonthHeatmap(
+                yearMonth = summaryData.yearMonth,
                 data = heatmapData,
+                showWeekdayLabels = false,
+                isDark = isDark,
                 modifier = Modifier.fillMaxWidth()
             )
             
@@ -102,7 +108,9 @@ fun MonthlySummaryCard(
             
             // 图例
             HeatmapLegend(
-                modifier = Modifier.align(Alignment.End)
+                modifier = Modifier.align(Alignment.End),
+                labels = listOf("无", "强"),
+                isDark = isDark
             )
             
             Spacer(modifier = Modifier.height(16.dp))

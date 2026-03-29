@@ -155,14 +155,12 @@ fun HomeScreen(
                             items = uiState.records,
                             key = { _, record -> "food_" + record.id }
                         ) { index, record ->
-                            com.calorieai.app.ui.components.AnimatedListItem(index = index) {
-                                FoodRecordItem(
-                                    record = record,
-                                    onClick = { onNavigateToResult(record.id) },
-                                    onStarClick = { viewModel.toggleStarred(record) },
-                                    onDeleteClick = { viewModel.deleteRecord(record) }
-                                )
-                            }
+                            FoodRecordItem(
+                                record = record,
+                                onClick = { onNavigateToResult(record.id) },
+                                onStarClick = { viewModel.toggleStarred(record) },
+                                onDeleteClick = { viewModel.deleteRecord(record) }
+                            )
                         }
                     }
 
@@ -180,12 +178,10 @@ fun HomeScreen(
                             items = uiState.exerciseRecords,
                             key = { _, record -> "exercise_" + record.id }
                         ) { index, record ->
-                            com.calorieai.app.ui.components.AnimatedListItem(index = index + uiState.records.size) {
-                                ExerciseRecordItem(
-                                    record = record,
-                                    onDeleteClick = { viewModel.deleteExerciseRecord(record) }
-                                )
-                            }
+                            ExerciseRecordItem(
+                                record = record,
+                                onDeleteClick = { viewModel.deleteExerciseRecord(record) }
+                            )
                         }
                     }
                 }

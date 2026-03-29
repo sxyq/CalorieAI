@@ -162,18 +162,34 @@ class AIApiClient @Inject constructor(
         temperature: Double = 0.3,
         maxTokens: Int = 1000
     ): Pair<String, String> = withContext(Dispatchers.IO) {
-        // Vision 使用 Map 构建复杂结构
+        val isOmniModel = config.modelId.contains("omni", ignoreCase = true) ||
+            config.modelId.contains("o-mini", ignoreCase = true) ||
+            config.modelId.contains("omini", ignoreCase = true)
         val userContent = listOf(
             mapOf("type" to "text", "text" to userMessage),
             mapOf("type" to "image_url", "image_url" to mapOf("url" to "data:image/jpeg;base64,$base64Image"))
         )
 
-        val requestBody = mapOf(
-            "model" to config.modelId,
-            "messages" to listOf(
+        val messages = if (isOmniModel) {
+            listOf(
+                mapOf(
+                    "role" to "system",
+                    "content" to listOf(mapOf("type" to "text", "text" to systemPrompt))
+                ),
+                mapOf("role" to "user", "content" to userContent)
+            )
+        } else {
+            listOf(
                 mapOf("role" to "system", "content" to systemPrompt),
                 mapOf("role" to "user", "content" to userContent)
             )
+        }
+
+        val requestBody = mapOf(
+            "model" to config.modelId,
+            "messages" to messages,
+            "temperature" to temperature,
+            "max_tokens" to maxTokens
         )
 
         val body = gson.toJson(requestBody).toRequestBody(MEDIA_JSON.toMediaType())

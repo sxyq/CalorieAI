@@ -472,8 +472,9 @@ class StatsViewModel @Inject constructor(
     /**
      * 计算每日餐次记录数据（用于热力图）
      * 返回最近20周（140天）的每日餐次记录情况
-     * level: 0=无记录, 1=1个餐次, 2=2个餐次, 3=3个餐次, 4=4个及以上餐次
+     * level: 0=无记录, 1~10=记录强度（优先按真实记录条数映射）
      */
+    @Suppress("UNUSED_PARAMETER")
     private fun computeDailyMealRecords(
         foodRecords: List<com.calorieai.app.data.model.FoodRecord>,
         exerciseRecords: List<ExerciseRecord>,
@@ -491,30 +492,6 @@ class StatsViewModel @Inject constructor(
                 .toLocalDate()
         }
 
-        // 其余记录按日期聚合（用于补充活跃天）
-        val exerciseDates = exerciseRecords
-            .map {
-                java.time.Instant.ofEpochMilli(it.recordTime)
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDate()
-            }
-            .toSet()
-        val waterDates = waterRecords
-            .map {
-                val sourceTime = if (it.recordDate > 0L) it.recordDate else it.recordTime
-                java.time.Instant.ofEpochMilli(sourceTime)
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDate()
-            }
-            .toSet()
-        val weightDates = weightRecords
-            .map {
-                java.time.Instant.ofEpochMilli(it.recordDate)
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDate()
-            }
-            .toSet()
-        
         return (0 until daysToShow).map { dayOffset ->
             val date = startDate.plusDays(dayOffset.toLong())
             val dayRecords = foodRecordsByDate[date] ?: emptyList()
@@ -522,17 +499,17 @@ class StatsViewModel @Inject constructor(
             // 获取该日记录的所有餐次类型（去重）
             val mealTypes = dayRecords.map { it.mealType }.toSet()
             
-            val hasExercise = date in exerciseDates
-            val hasWater = date in waterDates
-            val hasWeight = date in weightDates
-
-            // 强度基于「餐次丰富度 + 其他记录类型覆盖度」
+            // 强度完全基于“食物记录真实提交条数”。
             val level = when {
-                mealTypes.isEmpty() && !hasExercise && !hasWater && !hasWeight -> 0
+                dayRecords.isEmpty() -> 0
                 else -> {
-                    val mealScore = mealTypes.size.coerceAtMost(4)
-                    val extraScore = listOf(hasExercise, hasWater, hasWeight).count { it }
-                    (mealScore + extraScore).coerceIn(1, 4)
+                    val foodCount = dayRecords.size
+                    val baseScore = when {
+                        foodCount <= 0 -> 1
+                        foodCount >= 10 -> 10
+                        else -> foodCount
+                    }
+                    baseScore.coerceIn(1, 10)
                 }
             }
             
@@ -904,11 +881,11 @@ private data class StatsSourceBundle(
 
 /**
  * 每日餐次记录数据（用于热力图）
- * level: 0=无记录, 1=1个餐次, 2=2个餐次, 3=3个餐次, 4=4个及以上餐次
+ * level: 0=无记录, 1~10=记录强度
  */
 data class DailyMealRecord(
     val date: LocalDate,
-    val level: Int, // 0-4
+    val level: Int, // 0-10
     val mealTypes: Set<MealType> = emptySet()
 )
 

@@ -40,6 +40,7 @@ import com.calorieai.app.ui.components.markdown.MarkdownConfig
 import com.calorieai.app.ui.screens.ai.AIChatViewModel
 import com.calorieai.app.ui.screens.ai.ChatMessage
 import com.calorieai.app.service.voice.VoiceInputHelper
+import com.calorieai.app.service.voice.VoiceModelManager
 import com.calorieai.app.service.voice.VoiceState
 import com.calorieai.app.ui.theme.GlassDarkColors
 import com.calorieai.app.ui.theme.GlassLightColors
@@ -167,7 +168,7 @@ private fun AIChatMiniWindow(
     var inputText by remember { mutableStateOf("") }
     val context = LocalContext.current
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val voiceHelper = remember { VoiceInputHelper() }
+    val voiceHelper = remember { VoiceInputHelper(VoiceModelManager(context.applicationContext)) }
     val voiceState by voiceHelper.voiceState.collectAsState()
     var showVoiceDialog by remember { mutableStateOf(false) }
     var isVoiceListening by remember { mutableStateOf(false) }
@@ -647,11 +648,6 @@ private fun startWidgetVoiceInput(
     onStart: () -> Unit,
     onText: (String) -> Unit
 ) {
-    if (!voiceHelper.isRecognitionAvailable(context)) {
-        android.widget.Toast.makeText(context, "设备不支持语音识别", android.widget.Toast.LENGTH_SHORT).show()
-        return
-    }
-
     onStart()
     voiceHelper.startListening(
         context = context,

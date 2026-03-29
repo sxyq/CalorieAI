@@ -26,9 +26,9 @@ class WeightRecordRepository @Inject constructor(
     
     fun getAllRecordsByDateAsc(): Flow<List<WeightRecord>> = weightRecordDao.getAllRecordsByDateAsc()
     
-    suspend fun insert(record: WeightRecord): Long = weightRecordDao.insert(record)
+    suspend fun insert(record: WeightRecord): Long = weightRecordDao.insert(sanitizeWeightRecord(record))
     
-    suspend fun update(record: WeightRecord) = weightRecordDao.update(record)
+    suspend fun update(record: WeightRecord) = weightRecordDao.update(sanitizeWeightRecord(record))
     
     suspend fun delete(record: WeightRecord) = weightRecordDao.delete(record)
     

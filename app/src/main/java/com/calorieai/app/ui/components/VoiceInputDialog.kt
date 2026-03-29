@@ -30,7 +30,9 @@ fun VoiceInputDialog(
     isVisible: Boolean,
     voiceState: VoiceState,
     onDismiss: () -> Unit,
-    onStopRecording: () -> Unit
+    onStopRecording: () -> Unit,
+    showDoneButton: Boolean = false,
+    onDone: (() -> Unit)? = null
 ) {
     if (!isVisible) return
 
@@ -133,6 +135,16 @@ fun VoiceInputDialog(
                             contentDescription = "停止录音",
                             modifier = Modifier.size(32.dp)
                         )
+                    }
+                }
+
+                if (showDoneButton && (voiceState is VoiceState.Success || voiceState is VoiceState.Partial)) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { onDone?.invoke() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("完成")
                     }
                 }
             }

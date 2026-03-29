@@ -35,6 +35,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.model.getMealTypeName
 import com.calorieai.app.service.voice.VoiceInputHelper
+import com.calorieai.app.service.voice.VoiceModelManager
 import com.calorieai.app.ui.components.VoiceInputDialog
 import com.calorieai.app.ui.components.interactiveScale
 import com.calorieai.app.ui.components.liquidGlass
@@ -65,7 +66,7 @@ fun AddFoodScreen(
     var showPermissionDialog by remember { mutableStateOf(false) }
     
     // 语音输入帮助类
-    val voiceHelper = remember { VoiceInputHelper() }
+    val voiceHelper = remember { VoiceInputHelper(VoiceModelManager(context.applicationContext)) }
     val voiceState by voiceHelper.voiceState.collectAsState()
     
     // 权限请求
@@ -90,7 +91,6 @@ fun AddFoodScreen(
                     if (uiState.foodDescription.isBlank()) state.text 
                     else "${uiState.foodDescription} ${state.text}"
                 )
-                showVoiceDialog = false
                 isListening = false
             }
             is com.calorieai.app.service.voice.VoiceState.Error -> {
@@ -211,6 +211,12 @@ fun AddFoodScreen(
         onStopRecording = {
             voiceHelper.stopListening()
             isListening = false
+        },
+        showDoneButton = true,
+        onDone = {
+            voiceHelper.stopListening()
+            isListening = false
+            showVoiceDialog = false
         }
     )
     
@@ -904,12 +910,6 @@ private fun startVoiceInput(
     viewModel: AddFoodViewModel,
     onStart: () -> Unit
 ) {
-    // 检查设备是否支持语音识别
-    if (!voiceHelper.isRecognitionAvailable(context)) {
-        android.widget.Toast.makeText(context, "设备不支持语音识别", android.widget.Toast.LENGTH_SHORT).show()
-        return
-    }
-    
     onStart()
     voiceHelper.startListening(
         context = context,

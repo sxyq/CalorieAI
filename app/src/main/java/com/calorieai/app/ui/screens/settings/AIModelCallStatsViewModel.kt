@@ -46,10 +46,11 @@ class AIModelCallStatsViewModel @Inject constructor(
         val totalCompletionTokens = records.sumOf { it.completionTokens }
         val totalCost = records.sumOf { it.cost }
         val avgDuration = if (records.isEmpty()) 0L else (records.sumOf { it.duration } / records.size)
+        val displayRecords = groupRecordsForDisplay(records).take(100)
 
         return AIModelCallStatsUiState(
             isLoading = false,
-            records = records.take(100),
+            records = displayRecords,
             totalCalls = totalCalls,
             successCalls = successCalls,
             failedCalls = failedCalls,
@@ -61,6 +62,130 @@ class AIModelCallStatsViewModel @Inject constructor(
             totalCost = totalCost,
             avgDuration = avgDuration
         )
+    }
+
+    private fun groupRecordsForDisplay(records: List<APICallRecord>): List<APICallRecord> {
+        if (records.isEmpty()) return emptyList()
+
+        val normalRecords = mutableListOf<APICallRecord>()
+        val batchGroups = linkedMapOf<String, MutableList<APICallRecord>>()
+
+        records.forEach { record ->
+            val key = deriveBatchKey(record)
+            if (key == null) {
+                normalRecords += record
+            } else {
+                batchGroups.getOrPut(key) { mutableListOf() }.add(record)
+            }
+        }
+
+        val mergedBatchRecords = batchGroups.values.map { batch ->
+            mergeBatch(batch)
+        }
+
+        return (normalRecords + mergedBatchRecords).sortedByDescending { it.timestamp }
+    }
+
+    private fun deriveBatchKey(record: APICallRecord): String? {
+        val input = record.inputText
+        val imageMarker = imageBatchRegex.find(input)?.groupValues?.getOrNull(1)
+        if (!imageMarker.isNullOrBlank()) {
+            return "img:$imageMarker"
+        }
+        val textMarker = textBatchRegex.find(input)?.groupValues?.getOrNull(1)
+        if (!textMarker.isNullOrBlank()) {
+            return "txt:$textMarker"
+        }
+
+        if (legacyImageAttemptRegex.containsMatchIn(input)) {
+            val normalizedPrompt = sanitizeImagePrompt(input)
+            val timeBucket = record.timestamp / 30_000L
+            return "legacy:${record.configId}:${record.modelId}:${normalizedPrompt.hashCode()}:$timeBucket"
+        }
+
+        return null
+    }
+
+    private fun mergeBatch(batch: List<APICallRecord>): APICallRecord {
+        val sorted = batch.sortedWith(
+            compareBy<APICallRecord> { extractAttemptNumber(it.inputText) }
+                .thenBy { it.timestamp }
+        )
+        val first = sorted.first()
+        val isTextBatch = textBatchRegex.containsMatchIn(first.inputText)
+        val title = if (isTextBatch) "文本导入并发任务" else "图片分析并发任务"
+
+        val mergedPrompt = buildString {
+            appendLine("【$title】共${sorted.size}次请求（已合并展示）")
+            sorted.forEach { record ->
+                val attempt = extractAttemptNumber(record.inputText)
+                appendLine()
+                appendLine("---- 尝试#$attempt Prompt ----")
+                appendLine(sanitizePrompt(record.inputText))
+            }
+        }.trim()
+
+        val mergedReply = buildString {
+            sorted.forEach { record ->
+                val attempt = extractAttemptNumber(record.inputText)
+                appendLine("---- 尝试#$attempt 回复 ----")
+                appendLine(record.outputText.ifBlank { "(无返回)" })
+                appendLine()
+            }
+        }.trim()
+
+        val mergedErrors = sorted
+            .filter { !it.isSuccess && !it.errorMessage.isNullOrBlank() }
+            .joinToString("\n") { record ->
+                val attempt = extractAttemptNumber(record.inputText)
+                "尝试#$attempt: ${record.errorMessage}"
+            }
+            .ifBlank { null }
+
+        return APICallRecord(
+            id = "merged-${first.id}",
+            timestamp = sorted.maxOf { it.timestamp },
+            configId = first.configId,
+            configName = first.configName,
+            modelId = first.modelId,
+            inputText = mergedPrompt,
+            outputText = mergedReply,
+            promptTokens = sorted.sumOf { it.promptTokens },
+            completionTokens = sorted.sumOf { it.completionTokens },
+            totalTokens = sorted.sumOf { it.totalTokens },
+            cost = sorted.sumOf { it.cost },
+            duration = sorted.sumOf { it.duration },
+            isSuccess = sorted.any { it.isSuccess },
+            errorMessage = mergedErrors
+        )
+    }
+
+    private fun sanitizePrompt(input: String): String {
+        return input
+            .replace(imageBatchRegex, "")
+            .replace(textBatchRegex, "")
+            .replace(imageAttemptRegex, "")
+            .replace(legacyImageAttemptRegex, "")
+            .trim()
+    }
+
+    private fun sanitizeImagePrompt(input: String): String {
+        return input
+            .replace(legacyImageAttemptRegex, "")
+            .trim()
+    }
+
+    private fun extractAttemptNumber(input: String): Int {
+        val markerAttempt = imageAttemptRegex.find(input)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        if (markerAttempt != null) return markerAttempt
+        return legacyImageAttemptRegex.find(input)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: Int.MAX_VALUE
+    }
+
+    companion object {
+        private val imageBatchRegex = Regex("\\[图片分析任务#([A-Za-z0-9-]+)]", RegexOption.IGNORE_CASE)
+        private val textBatchRegex = Regex("\\[文本分析任务#([A-Za-z0-9-]+)]", RegexOption.IGNORE_CASE)
+        private val imageAttemptRegex = Regex("\\[尝试#(\\d+)]")
+        private val legacyImageAttemptRegex = Regex("^图片分析请求\\(尝试#(\\d+)\\):\\s*", RegexOption.IGNORE_CASE)
     }
 }
 

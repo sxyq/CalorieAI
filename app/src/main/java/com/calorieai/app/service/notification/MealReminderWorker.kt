@@ -1,98 +1,103 @@
 package com.calorieai.app.service.notification
 
 import android.content.Context
+import android.util.Log
 import androidx.hilt.work.HiltWorker
-import androidx.work.*
+import androidx.work.CoroutineWorker
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
+/**
+ * 历史兼容 Worker：
+ * 旧版本使用 WorkManager 发送餐次提醒，这里只保留清理入口和兜底触发处理。
+ */
 @HiltWorker
 class MealReminderWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val notificationHelper: NotificationHelper
+    private val notificationScheduler: NotificationScheduler
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val mealTypeName = inputData.getString(KEY_MEAL_TYPE) ?: return Result.failure()
-        val reminderTime = inputData.getString(KEY_REMINDER_TIME) ?: return Result.failure()
-        val workTag = inputData.getString(KEY_WORK_TAG) ?: return Result.failure()
-        val mealType = MealType.valueOf(mealTypeName)
-
-        notificationHelper.showMealReminderNotification(mealType)
-        // 每次触发后续约下一次提醒，保证按天循环。
-        scheduleReminder(applicationContext, mealType, reminderTime, workTag)
-
-        return Result.success()
+        val rawMealType = inputData.getString(KEY_MEAL_TYPE)
+        val rawReminderTime = inputData.getString(KEY_REMINDER_TIME)
+        return try {
+            notificationScheduler.onMealReminderTriggered(
+                rawMealType = rawMealType,
+                rawReminderTime = rawReminderTime,
+                source = "fallback_worker"
+            )
+            Result.success()
+        } catch (t: Throwable) {
+            Log.e(TAG, "legacy worker failed", t)
+            Result.retry()
+        }
     }
 
     companion object {
         const val KEY_MEAL_TYPE = "meal_type"
         const val KEY_REMINDER_TIME = "reminder_time"
-        const val KEY_WORK_TAG = "work_tag"
 
         private const val WORK_TAG_BREAKFAST = "breakfast_reminder"
         private const val WORK_TAG_LUNCH = "lunch_reminder"
         private const val WORK_TAG_DINNER = "dinner_reminder"
+        private const val WORK_NAME_PREFIX = "meal_reminder_fallback_"
+        private const val TAG = "MealReminderWorker"
 
-        fun scheduleMealReminders(context: Context, breakfastTime: String, lunchTime: String, dinnerTime: String) {
-            cancelAllReminders(context)
+        fun scheduleReminder(
+            context: Context,
+            reminderType: MealReminderType,
+            reminderTime: String,
+            triggerAtMillis: Long
+        ) {
+            val delayMillis = (triggerAtMillis - System.currentTimeMillis())
+                .coerceAtLeast(TimeUnit.SECONDS.toMillis(10))
 
-            scheduleReminder(context, MealType.BREAKFAST, breakfastTime, WORK_TAG_BREAKFAST)
-            scheduleReminder(context, MealType.LUNCH, lunchTime, WORK_TAG_LUNCH)
-            scheduleReminder(context, MealType.DINNER, dinnerTime, WORK_TAG_DINNER)
-        }
-
-        fun cancelAllReminders(context: Context) {
-            val workManager = WorkManager.getInstance(context)
-            workManager.cancelAllWorkByTag(WORK_TAG_BREAKFAST)
-            workManager.cancelAllWorkByTag(WORK_TAG_LUNCH)
-            workManager.cancelAllWorkByTag(WORK_TAG_DINNER)
-        }
-
-        private fun scheduleReminder(context: Context, mealType: MealType, time: String, tag: String) {
-            val (hour, minute) = parseTime(time)
-
-            val currentTime = Calendar.getInstance()
-            val targetTime = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, hour)
-                set(Calendar.MINUTE, minute)
-                set(Calendar.SECOND, 0)
-            }
-
-            if (targetTime.before(currentTime)) {
-                targetTime.add(Calendar.DAY_OF_YEAR, 1)
-            }
-
-            val delay = targetTime.timeInMillis - currentTime.timeInMillis
-
-            val inputData = workDataOf(
-                KEY_MEAL_TYPE to mealType.name,
-                KEY_REMINDER_TIME to time,
-                KEY_WORK_TAG to tag
-            )
-
-            val reminderWork = OneTimeWorkRequestBuilder<MealReminderWorker>()
-                .setInitialDelay(delay, TimeUnit.MILLISECONDS)
-                .setInputData(inputData)
-                .addTag(tag)
+            val request = OneTimeWorkRequestBuilder<MealReminderWorker>()
+                .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
+                .addTag(tagFor(reminderType))
+                .setInputData(
+                    workDataOf(
+                        KEY_MEAL_TYPE to reminderType.name,
+                        KEY_REMINDER_TIME to reminderTime
+                    )
+                )
                 .build()
 
             WorkManager.getInstance(context).enqueueUniqueWork(
-                tag,
+                uniqueWorkName(reminderType),
                 ExistingWorkPolicy.REPLACE,
-                reminderWork
+                request
             )
         }
 
-        private fun parseTime(time: String): Pair<Int, Int> {
-            return try {
-                val parts = time.split(":")
-                Pair(parts[0].toInt(), parts[1].toInt())
-            } catch (_: Exception) {
-                Pair(8, 0)
+        fun cancelReminder(context: Context, reminderType: MealReminderType) {
+            val workManager = WorkManager.getInstance(context)
+            workManager.cancelUniqueWork(uniqueWorkName(reminderType))
+            workManager.cancelAllWorkByTag(tagFor(reminderType))
+        }
+
+        fun cancelAllReminders(context: Context) {
+            MealReminderType.entries.forEach { reminderType ->
+                cancelReminder(context, reminderType)
+            }
+        }
+
+        private fun uniqueWorkName(reminderType: MealReminderType): String {
+            return WORK_NAME_PREFIX + reminderType.name
+        }
+
+        private fun tagFor(reminderType: MealReminderType): String {
+            return when (reminderType) {
+                MealReminderType.BREAKFAST -> WORK_TAG_BREAKFAST
+                MealReminderType.LUNCH -> WORK_TAG_LUNCH
+                MealReminderType.DINNER -> WORK_TAG_DINNER
             }
         }
     }

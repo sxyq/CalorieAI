@@ -1,194 +1,257 @@
 package com.calorieai.app.service.voice
 
 import android.content.Context
-import android.content.Intent
-import android.os.Bundle
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
+import android.util.Log
+import androidx.core.content.ContextCompat
+import com.google.gson.JsonParser
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.Locale
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import org.vosk.Model
+import org.vosk.Recognizer
+import org.vosk.android.RecognitionListener
+import org.vosk.android.SpeechService
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class VoiceInputHelper @Inject constructor() {
+class VoiceInputHelper @Inject constructor(
+    private val voiceModelManager: VoiceModelManager
+) {
 
-    private var speechRecognizer: SpeechRecognizer? = null
-    private var isListening = false
-    private var accumulatedText = StringBuilder()
-    
     private val _voiceState = MutableStateFlow<VoiceState>(VoiceState.Idle)
     val voiceState: StateFlow<VoiceState> = _voiceState.asStateFlow()
 
-    /**
-     * 开始语音识别
-     * @param context 上下文
-     * @param onResult 识别成功回调
-     * @param onError 识别错误回调
-     * @param onPartialResult 部分结果回调（实时显示）
-     * @param enableContinuous 是否启用连续识别模式
-     */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val modelMutex = Mutex()
+
+    private var model: Model? = null
+    private var speechService: SpeechService? = null
+    private var recognizer: Recognizer? = null
+    private var currentSessionJob: Job? = null
+    private var isListening = false
+    private var accumulatedText = StringBuilder()
+
     fun startListening(
-        context: Context, 
-        onResult: (String) -> Unit, 
+        context: Context,
+        onResult: (String) -> Unit,
         onError: (String) -> Unit,
         onPartialResult: ((String) -> Unit)? = null,
         enableContinuous: Boolean = false
     ) {
-        if (speechRecognizer == null) {
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
-        }
-        
-        isListening = true
+        stopListening()
+        _voiceState.value = VoiceState.Processing
         accumulatedText.clear()
-        _voiceState.value = VoiceState.Listening
-        
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.CHINESE.toString())
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
-            // 提高识别准确度
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 500L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1000L)
+
+        currentSessionJob = scope.launch {
+            try {
+                val localModel = prepareModel(context.applicationContext)
+                startVoskListening(
+                    model = localModel,
+                    onResult = onResult,
+                    onError = onError,
+                    onPartialResult = onPartialResult,
+                    enableContinuous = enableContinuous
+                )
+            } catch (t: Throwable) {
+                Log.e(TAG, "startListening failed", t)
+                _voiceState.value = VoiceState.Error("内置语音模型初始化失败: ${t.message ?: "未知错误"}")
+                onError("内置语音模型初始化失败")
+                isListening = false
+            }
         }
-        
-        speechRecognizer?.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) {
-                _voiceState.value = VoiceState.Listening
+    }
+
+    fun stopListening() {
+        isListening = false
+        try {
+            speechService?.stop()
+        } catch (_: Throwable) {
+        }
+        releaseRecognizer()
+        _voiceState.value = VoiceState.Idle
+    }
+
+    fun cancel() {
+        stopListening()
+    }
+
+    fun destroy() {
+        isListening = false
+        currentSessionJob?.cancel()
+        currentSessionJob = null
+
+        try {
+            speechService?.stop()
+        } catch (_: Throwable) {
+        }
+        releaseRecognizer()
+
+        try {
+            model?.close()
+        } catch (_: Throwable) {
+        }
+        model = null
+
+        scope.cancel()
+        _voiceState.value = VoiceState.Idle
+    }
+
+    fun isRecognitionAvailable(context: Context): Boolean {
+        return ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.RECORD_AUDIO
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+
+    private suspend fun prepareModel(context: Context): Model = modelMutex.withLock {
+        model?.let { return it }
+
+        val modelDir = voiceModelManager.getInstalledModelDir()
+        if (modelDir == null || !isModelReady(modelDir)) {
+            throw IllegalStateException("语音模型未安装，请前往 设置 > AI配置 下载语音模型")
+        }
+
+        return withContext(Dispatchers.IO) {
+            Log.i(TAG, "loading downloaded voice model from ${modelDir.absolutePath}")
+            Model(modelDir.absolutePath).also { loaded ->
+                model = loaded
             }
-            
-            override fun onBeginningOfSpeech() {
-                _voiceState.value = VoiceState.Listening
-            }
-            
-            override fun onRmsChanged(rmsdB: Float) {
-                // 可以在这里更新音量指示器
-            }
-            
-            override fun onBufferReceived(buffer: ByteArray?) {}
-            
-            override fun onEndOfSpeech() {
-                _voiceState.value = VoiceState.Processing
-            }
-            
-            override fun onError(error: Int) {
+        }
+    }
+
+    private fun isModelReady(modelDir: File): Boolean {
+        if (!modelDir.exists() || !modelDir.isDirectory) return false
+        val required = listOf("am", "conf", "graph")
+        return required.all { File(modelDir, it).exists() }
+    }
+
+    private fun startVoskListening(
+        model: Model,
+        onResult: (String) -> Unit,
+        onError: (String) -> Unit,
+        onPartialResult: ((String) -> Unit)?,
+        enableContinuous: Boolean
+    ) {
+        releaseRecognizer()
+        recognizer = Recognizer(model, SAMPLE_RATE)
+        speechService = SpeechService(recognizer, SAMPLE_RATE)
+        isListening = true
+        _voiceState.value = VoiceState.Listening
+
+        speechService?.startListening(object : RecognitionListener {
+            override fun onPartialResult(hypothesis: String?) {
                 if (!isListening) return
-                
-                val errorMessage = when (error) {
-                    SpeechRecognizer.ERROR_AUDIO -> "音频录制失败，请检查麦克风"
-                    SpeechRecognizer.ERROR_CLIENT -> "识别客户端错误"
-                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "缺少录音权限"
-                    SpeechRecognizer.ERROR_NETWORK -> "网络连接失败"
-                    SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "网络请求超时"
-                    SpeechRecognizer.ERROR_NO_MATCH -> "未能识别语音，请再说一次"
-                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "识别器繁忙，请稍后再试"
-                    SpeechRecognizer.ERROR_SERVER -> "识别服务器错误"
-                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "说话时间太短"
-                    else -> "识别失败，请重试"
-                }
-                
-                // 如果是超时错误且已收集到部分文本，返回部分结果
-                if ((error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT || error == SpeechRecognizer.ERROR_NO_MATCH) 
-                    && accumulatedText.isNotEmpty()) {
-                    val finalText = accumulatedText.toString().trim()
-                    if (finalText.isNotEmpty()) {
-                        _voiceState.value = VoiceState.Success(finalText)
-                        onResult(finalText)
-                        return
-                    }
-                }
-                
-                _voiceState.value = VoiceState.Error(errorMessage)
-                onError(errorMessage)
-            }
-            
-            override fun onResults(results: Bundle?) {
-                if (!isListening) return
-                
-                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                val text = matches?.firstOrNull()?.trim() ?: ""
-                
-                if (text.isNotEmpty()) {
-                    accumulatedText.append(text)
-                    _voiceState.value = VoiceState.Success(accumulatedText.toString())
-                    onResult(accumulatedText.toString())
-                } else {
-                    onError("未能识别语音内容")
-                }
-            }
-            
-            override fun onPartialResults(partialResults: Bundle?) {
-                if (!isListening) return
-                
-                val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                val text = matches?.firstOrNull() ?: ""
-                
-                if (text.isNotEmpty()) {
+                val text = parseHypothesisText(hypothesis, partial = true)
+                if (text.isNotBlank()) {
                     _voiceState.value = VoiceState.Partial(text)
                     onPartialResult?.invoke(text)
                 }
             }
-            
-            override fun onEvent(eventType: Int, params: Bundle?) {}
+
+            override fun onResult(hypothesis: String?) {
+                if (!isListening) return
+                val text = parseHypothesisText(hypothesis, partial = false)
+                if (text.isNotBlank()) {
+                    if (accumulatedText.isNotEmpty()) {
+                        accumulatedText.append(" ")
+                    }
+                    accumulatedText.append(text)
+                }
+            }
+
+            override fun onFinalResult(hypothesis: String?) {
+                if (!isListening) return
+                val text = parseHypothesisText(hypothesis, partial = false)
+                if (text.isNotBlank()) {
+                    if (accumulatedText.isNotEmpty()) {
+                        accumulatedText.append(" ")
+                    }
+                    accumulatedText.append(text)
+                }
+
+                val finalText = accumulatedText.toString().trim()
+                if (finalText.isBlank()) {
+                    _voiceState.value = VoiceState.Error("未能识别语音，请再试一次")
+                    onError("未能识别语音，请再试一次")
+                } else {
+                    _voiceState.value = VoiceState.Success(finalText)
+                    onResult(finalText)
+                }
+
+                if (!enableContinuous) {
+                    stopListening()
+                } else {
+                    accumulatedText.clear()
+                    _voiceState.value = VoiceState.Listening
+                }
+            }
+
+            override fun onError(exception: Exception?) {
+                if (!isListening) return
+                val msg = exception?.message ?: "离线语音识别异常"
+                Log.e(TAG, "vosk error: $msg", exception)
+                _voiceState.value = VoiceState.Error(msg)
+                onError(msg)
+                stopListening()
+            }
+
+            override fun onTimeout() {
+                if (!isListening) return
+                val finalText = accumulatedText.toString().trim()
+                if (finalText.isNotBlank()) {
+                    _voiceState.value = VoiceState.Success(finalText)
+                    onResult(finalText)
+                } else {
+                    _voiceState.value = VoiceState.Error("说话时间太短")
+                    onError("说话时间太短")
+                }
+                stopListening()
+            }
         })
-        
-        try {
-            speechRecognizer?.startListening(intent)
-        } catch (e: Exception) {
-            _voiceState.value = VoiceState.Error("启动识别失败: ${e.message}")
-            onError("启动识别失败")
+    }
+
+    private fun parseHypothesisText(raw: String?, partial: Boolean): String {
+        if (raw.isNullOrBlank()) return ""
+        return try {
+            val json = JsonParser.parseString(raw).asJsonObject
+            when {
+                partial -> json.get("partial")?.asString.orEmpty()
+                else -> json.get("text")?.asString.orEmpty()
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "failed to parse hypothesis: $raw", t)
+            ""
         }
     }
-    
-    /**
-     * 停止语音识别
-     */
-    fun stopListening() {
-        isListening = false
+
+    private fun releaseRecognizer() {
         try {
-            speechRecognizer?.stopListening()
-        } catch (e: Exception) {
-            // 忽略停止时的错误
+            speechService?.stop()
+        } catch (_: Throwable) {
         }
-        _voiceState.value = VoiceState.Idle
-    }
-    
-    /**
-     * 取消语音识别
-     */
-    fun cancel() {
-        isListening = false
+        speechService = null
+
         try {
-            speechRecognizer?.cancel()
-        } catch (e: Exception) {
-            // 忽略取消时的错误
+            recognizer?.close()
+        } catch (_: Throwable) {
         }
-        _voiceState.value = VoiceState.Idle
+        recognizer = null
     }
-    
-    /**
-     * 释放资源
-     */
-    fun destroy() {
-        isListening = false
-        try {
-            speechRecognizer?.destroy()
-        } catch (e: Exception) {
-            // 忽略销毁时的错误
-        }
-        speechRecognizer = null
-    }
-    
-    /**
-     * 检查设备是否支持语音识别
-     */
-    fun isRecognitionAvailable(context: Context): Boolean {
-        return SpeechRecognizer.isRecognitionAvailable(context)
+
+    companion object {
+        private const val TAG = "VoiceInputHelper"
+        private const val SAMPLE_RATE = 16000f
     }
 }
 
