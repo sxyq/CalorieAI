@@ -11,11 +11,12 @@ import com.calorieai.app.data.repository.AIConfigRepository
 import com.calorieai.app.data.repository.AITokenUsageRepository
 import com.calorieai.app.service.ai.common.AIApiClient
 import com.calorieai.app.service.ai.common.AIApiException
+import com.calorieai.app.service.ai.common.AIErrorCategory
+import com.calorieai.app.service.ai.common.AIErrorClassifier
 import com.calorieai.app.utils.SecureLogger
 import com.google.gson.Gson
+import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -34,8 +35,7 @@ class FoodImageAnalysisService @Inject constructor(
 
     companion object {
         private const val TAG = "FoodImageAnalysis"
-        private const val CONCURRENT_CALLS = 5
-        
+
         private const val SYSTEM_PROMPT = """你是一个专业的营养师，擅长通过图片识别食物并分析其营养成分。请仔细分析图片中的食物，提供详细的营养信息。
 
 【严格要求 - 必须遵守】
@@ -78,7 +78,7 @@ class FoodImageAnalysisService @Inject constructor(
         imageUri: Uri,
         context: Context,
         userHint: String = "",
-        maxRetries: Int = 2,
+        maxRetries: Int = 1,
         onRetry: ((attempt: Int, maxAttempts: Int, reason: String) -> Unit)? = null
     ): Result<FoodAnalysisResult> = withContext(Dispatchers.IO) {
         try {
@@ -101,92 +101,98 @@ class FoodImageAnalysisService @Inject constructor(
                 "请分析这张图片中的食物。"
             }
 
-            // 并发调用5次
-            val results = mutableListOf<FoodAnalysisResult>()
-            val errors = mutableListOf<String>()
             val batchId = UUID.randomUUID().toString().substring(0, 8)
-            
-            val deferredResults = (1..CONCURRENT_CALLS).map { index ->
-                async {
-                    val startTime = System.currentTimeMillis()
-                    try {
-                        val (responseText, rawResponse) = aiApiClient.visionRaw(
-                            config = config,
-                            systemPrompt = SYSTEM_PROMPT,
-                            userMessage = userMessage,
-                            base64Image = base64Image,
-                            temperature = 0.3,
-                            maxTokens = 1000
-                        )
-                        val parsedUsage = parseUsage(rawResponse, config.protocol.name, config.modelId)
-                        if (parsedUsage.promptTokens > 0 || parsedUsage.completionTokens > 0) {
-                            recordTokenUsage(config.id, config.name, parsedUsage)
-                        }
-                        val result = parseAnalysisResult(responseText)
-                        val validation = validateNutritionData(result)
-                        if (validation.isValid) {
-                            recordApiCall(
-                                configId = config.id,
-                                configName = config.name,
-                                modelId = config.modelId,
-                                inputText = "[图片分析任务#$batchId][尝试#$index] $userMessage",
-                                outputText = responseText,
-                                promptTokens = parsedUsage.promptTokens,
-                                completionTokens = parsedUsage.completionTokens,
-                                cost = parsedUsage.cost,
-                                duration = System.currentTimeMillis() - startTime,
-                                isSuccess = true
-                            )
-                            Result.success(result)
-                        } else {
-                            recordApiCall(
-                                configId = config.id,
-                                configName = config.name,
-                                modelId = config.modelId,
-                                inputText = "[图片分析任务#$batchId][尝试#$index] $userMessage",
-                                outputText = responseText,
-                                promptTokens = parsedUsage.promptTokens,
-                                completionTokens = parsedUsage.completionTokens,
-                                cost = parsedUsage.cost,
-                                duration = System.currentTimeMillis() - startTime,
-                                isSuccess = false,
-                                errorMessage = validation.errorMessage
-                            )
-                            Result.failure<FoodAnalysisResult>(Exception(validation.errorMessage))
-                        }
-                    } catch (e: Exception) {
+            val maxAttempts = (maxRetries + 1).coerceAtLeast(1)
+            var lastError: Throwable? = null
+
+            for (attempt in 1..maxAttempts) {
+                val startTime = System.currentTimeMillis()
+                try {
+                    val (responseText, rawResponse) = aiApiClient.visionRaw(
+                        config = config,
+                        systemPrompt = SYSTEM_PROMPT,
+                        userMessage = userMessage,
+                        base64Image = base64Image,
+                        temperature = 0.3,
+                        maxTokens = 1000
+                    )
+                    val parsedUsage = parseUsage(rawResponse, config.protocol.name, config.modelId)
+                    if (parsedUsage.promptTokens > 0 || parsedUsage.completionTokens > 0) {
+                        recordTokenUsage(config.id, config.name, parsedUsage)
+                    }
+
+                    val parsedResult = parseAnalysisResult(responseText)
+                    val normalized = normalizeNutritionData(parsedResult)
+                    val validation = validateNutritionData(normalized)
+
+                    if (validation.isValid) {
                         recordApiCall(
                             configId = config.id,
                             configName = config.name,
-                                modelId = config.modelId,
-                                inputText = "[图片分析任务#$batchId][尝试#$index] $userMessage",
-                                outputText = "",
-                                promptTokens = 0,
-                                completionTokens = 0,
-                                cost = 0.0,
-                                duration = System.currentTimeMillis() - startTime,
-                                isSuccess = false,
-                                errorMessage = e.message
+                            modelId = config.modelId,
+                            inputText = "[图片分析任务#$batchId][尝试#$attempt] $userMessage",
+                            outputText = responseText,
+                            promptTokens = parsedUsage.promptTokens,
+                            completionTokens = parsedUsage.completionTokens,
+                            cost = parsedUsage.cost,
+                            duration = System.currentTimeMillis() - startTime,
+                            isSuccess = true
                         )
-                        Result.failure<FoodAnalysisResult>(e)
+                        return@withContext Result.success(normalized)
                     }
+
+                    lastError = AIApiException(
+                        message = validation.errorMessage,
+                        category = AIErrorCategory.VALIDATION,
+                        retryEligible = true
+                    )
+                    val errorInfo = AIErrorClassifier.classify(lastError)
+                    recordApiCall(
+                        configId = config.id,
+                        configName = config.name,
+                        modelId = config.modelId,
+                        inputText = "[图片分析任务#$batchId][尝试#$attempt] $userMessage",
+                        outputText = responseText,
+                        promptTokens = parsedUsage.promptTokens,
+                        completionTokens = parsedUsage.completionTokens,
+                        cost = parsedUsage.cost,
+                        duration = System.currentTimeMillis() - startTime,
+                        isSuccess = false,
+                        errorMessage = errorInfo.toLogMessage()
+                    )
+                } catch (e: Exception) {
+                    lastError = e
+                    val errorInfo = AIErrorClassifier.classify(e)
+                    recordApiCall(
+                        configId = config.id,
+                        configName = config.name,
+                        modelId = config.modelId,
+                        inputText = "[图片分析任务#$batchId][尝试#$attempt] $userMessage",
+                        outputText = "",
+                        promptTokens = 0,
+                        completionTokens = 0,
+                        cost = 0.0,
+                        duration = System.currentTimeMillis() - startTime,
+                        isSuccess = false,
+                        errorMessage = errorInfo.toLogMessage()
+                    )
+                }
+
+                val errorInfo = AIErrorClassifier.classify(lastError)
+                if (attempt < maxAttempts && errorInfo.retryEligible) {
+                    val retryReason = errorInfo.detail.ifBlank { "返回结果不完整" }
+                    onRetry?.invoke(attempt, maxAttempts, retryReason)
+                    SecureLogger.w(
+                        TAG,
+                        "image_analysis_retry | attempt=$attempt/$maxAttempts | category=${errorInfo.category} | reason=$retryReason"
+                    )
+                } else if (errorInfo.category == AIErrorCategory.NETWORK) {
+                    break
                 }
             }
-            
-            deferredResults.awaitAll().forEach { result ->
-                result.fold(
-                    onSuccess = { results.add(it) },
-                    onFailure = { errors.add(it.message ?: "未知错误") }
-                )
-            }
 
-            if (results.isEmpty()) {
-                return@withContext Result.failure(Exception("所有分析尝试失败: ${errors.take(3).joinToString("; ")}"))
-            }
-
-            // 计算平均值
-            val averagedResult = calculateAverageResult(results)
-            Result.success(averagedResult)
+            val finalError = AIErrorClassifier.classify(lastError)
+            Result.failure(Exception(finalError.userMessage))
 
         } catch (e: AIApiException) {
             Result.failure(Exception("AI图片分析失败: ${e.message}"))
@@ -213,44 +219,6 @@ class FoodImageAnalysisService @Inject constructor(
             modelId.contains("omni") || modelId.contains("o-mini") || modelId.contains("omini")
         } ?: imageConfigs.first()
     }
-    
-    /**
-     * 计算多次分析结果的平均值
-     */
-    private fun calculateAverageResult(results: List<FoodAnalysisResult>): FoodAnalysisResult {
-        if (results.isEmpty()) return FoodAnalysisResult(foodName = "未知食物")
-        if (results.size == 1) return results.first()
-        
-        // 选择出现最多的食物名称
-        val foodNames = results.map { it.foodName }.groupingBy { it }.eachCount()
-        val mostCommonName = foodNames.maxByOrNull { it.value }?.key ?: "未知食物"
-        
-        // 计算数值字段的平均值
-        fun averageOf(selector: (FoodAnalysisResult) -> Float): Float {
-            val values = results.map(selector)
-            return values.sum() / values.size
-        }
-        
-        return FoodAnalysisResult(
-            foodName = mostCommonName,
-            estimatedWeight = (results.map { it.estimatedWeight }.sum() / results.size),
-            calories = averageOf { it.calories },
-            protein = averageOf { it.protein },
-            carbs = averageOf { it.carbs },
-            fat = averageOf { it.fat },
-            fiber = averageOf { it.fiber },
-            sugar = averageOf { it.sugar },
-            saturatedFat = averageOf { it.saturatedFat },
-            cholesterol = averageOf { it.cholesterol },
-            sodium = averageOf { it.sodium },
-            potassium = averageOf { it.potassium },
-            calcium = averageOf { it.calcium },
-            iron = averageOf { it.iron },
-            vitaminA = averageOf { it.vitaminA },
-            vitaminC = averageOf { it.vitaminC }
-        )
-    }
-
     private fun uriToBase64(uri: Uri, context: Context): String? {
         return try {
             val inputStream = context.contentResolver.openInputStream(uri)
@@ -297,28 +265,222 @@ class FoodImageAnalysisService @Inject constructor(
 
     private fun parseAnalysisResult(content: String): FoodAnalysisResult {
         val jsonString = extractJsonFromText(content)
+        var cleanedJson = normalizeJsonText(jsonString)
+
+        val fieldNameMappings = mapOf(
+            "食物名称" to "foodName",
+            "名称" to "foodName",
+            "重量" to "estimatedWeight",
+            "估计重量" to "estimatedWeight",
+            "热量" to "calories",
+            "卡路里" to "calories",
+            "蛋白质" to "protein",
+            "碳水" to "carbs",
+            "碳水化合物" to "carbs",
+            "脂肪" to "fat",
+            "膳食纤维" to "fiber",
+            "纤维" to "fiber",
+            "糖分" to "sugar",
+            "糖" to "sugar",
+            "饱和脂肪" to "saturatedFat",
+            "胆固醇" to "cholesterol",
+            "钠" to "sodium",
+            "钾" to "potassium",
+            "钙" to "calcium",
+            "铁" to "iron",
+            "维生素A" to "vitaminA",
+            "维生素C" to "vitaminC"
+        )
+        fieldNameMappings.forEach { (chineseName, englishName) ->
+            cleanedJson = cleanedJson.replace("\"$chineseName\"\\s*:".toRegex(), "\"$englishName\":")
+        }
+
+        val numericFields = listOf(
+            "estimatedWeight",
+            "calories",
+            "protein",
+            "carbs",
+            "fat",
+            "fiber",
+            "sugar",
+            "saturatedFat",
+            "cholesterol",
+            "sodium",
+            "potassium",
+            "calcium",
+            "iron",
+            "vitaminA",
+            "vitaminC"
+        )
+        numericFields.forEach { field ->
+            val quotedRegex = Regex("\"$field\"\\s*:\\s*['\"]([^'\"]+)['\"]")
+            cleanedJson = quotedRegex.replace(cleanedJson) { matchResult ->
+                val raw = matchResult.groupValues[1]
+                normalizeNumericLiteral(raw)?.let { "\"$field\":$it" } ?: "\"$field\":0"
+            }
+
+            val rawRegex = Regex("\"$field\"\\s*:\\s*([^,}\\n]+)")
+            cleanedJson = rawRegex.replace(cleanedJson) { matchResult ->
+                val raw = matchResult.groupValues[1]
+                normalizeNumericLiteral(raw)?.let { "\"$field\":$it" } ?: "\"$field\":0"
+            }
+        }
 
         return try {
-            gson.fromJson(jsonString, FoodAnalysisResult::class.java)
-                ?: FoodAnalysisResult()
+            gson.fromJson(cleanedJson, FoodAnalysisResult::class.java) ?: parseAnalysisResultFallback(cleanedJson)
         } catch (e: Exception) {
-            FoodAnalysisResult(foodName = "未知食物")
+            parseAnalysisResultFallback(cleanedJson)
         }
+    }
+
+    private fun parseAnalysisResultFallback(cleanedJson: String): FoodAnalysisResult {
+        return runCatching {
+            val obj = JsonParser.parseString(cleanedJson).asJsonObject
+
+            fun text(vararg keys: String): String {
+                return keys.firstNotNullOfOrNull { key ->
+                    obj.get(key)?.takeIf { !it.isJsonNull }?.asString
+                }.orEmpty()
+            }
+
+            fun numeric(vararg keys: String): Float {
+                return keys.firstNotNullOfOrNull { key ->
+                    obj.get(key)?.takeIf { !it.isJsonNull }?.let { element ->
+                        if (element.isJsonPrimitive && element.asJsonPrimitive.isNumber) {
+                            element.asFloat
+                        } else {
+                            normalizeNumericLiteral(element.asString)?.toFloatOrNull()
+                        }
+                    }
+                } ?: 0f
+            }
+
+            FoodAnalysisResult(
+                foodName = text("foodName", "name"),
+                estimatedWeight = numeric("estimatedWeight", "weight").toInt().coerceAtLeast(0),
+                calories = numeric("calories"),
+                protein = numeric("protein"),
+                carbs = numeric("carbs"),
+                fat = numeric("fat"),
+                fiber = numeric("fiber"),
+                sugar = numeric("sugar"),
+                saturatedFat = numeric("saturatedFat"),
+                cholesterol = numeric("cholesterol"),
+                sodium = numeric("sodium"),
+                potassium = numeric("potassium"),
+                calcium = numeric("calcium"),
+                iron = numeric("iron"),
+                vitaminA = numeric("vitaminA"),
+                vitaminC = numeric("vitaminC"),
+                description = text("description")
+            )
+        }.getOrDefault(FoodAnalysisResult())
+    }
+
+    private fun normalizeJsonText(json: String): String {
+        val normalized = toHalfWidth(json)
+            .replace("，", ",")
+            .replace("：", ":")
+            .replace("；", ",")
+            .replace("“", "\"")
+            .replace("”", "\"")
+            .replace("‘", "\"")
+            .replace("’", "\"")
+
+        val quotedKeys = Regex("([\\{,]\\s*)([A-Za-z_\\u4e00-\\u9fa5][A-Za-z0-9_\\u4e00-\\u9fa5]*)\\s*:")
+            .replace(normalized) { match ->
+                "${match.groupValues[1]}\"${match.groupValues[2]}\":"
+            }
+
+        return Regex(":\\s*'([^']*)'").replace(quotedKeys) { match ->
+            ":\"${match.groupValues[1]}\""
+        }
+    }
+
+    private fun normalizeNumericLiteral(raw: String): String? {
+        val normalized = toHalfWidth(raw)
+            .replace(",", "")
+            .replace(" ", "")
+            .replace("千卡", "")
+            .replace("大卡", "")
+            .replace("kcal", "", ignoreCase = true)
+            .replace("卡路里", "")
+            .replace("毫克", "")
+            .replace("mg", "", ignoreCase = true)
+            .replace("克", "")
+            .replace("g", "", ignoreCase = true)
+            .replace("μg", "", ignoreCase = true)
+            .replace("ug", "", ignoreCase = true)
+            .replace("IU", "", ignoreCase = true)
+
+        val match = Regex("-?\\d+(\\.\\d+)?").find(normalized)?.value ?: return null
+        return match.toFloatOrNull()
+            ?.coerceAtLeast(0f)
+            ?.toString()
+    }
+
+    private fun toHalfWidth(input: String): String {
+        val result = StringBuilder(input.length)
+        input.forEach { ch ->
+            when (ch) {
+                in '０'..'９' -> result.append(('0'.code + (ch.code - '０'.code)).toChar())
+                '．' -> result.append('.')
+                '－' -> result.append('-')
+                '＋' -> result.append('+')
+                else -> result.append(ch)
+            }
+        }
+        return result.toString()
+    }
+
+    private fun normalizeNutritionData(result: FoodAnalysisResult): FoodAnalysisResult {
+        val protein = sanitizeNumeric(result.protein)
+        val carbs = sanitizeNumeric(result.carbs)
+        val fat = sanitizeNumeric(result.fat)
+        var calories = sanitizeNumeric(result.calories)
+        if (calories <= 0f) {
+            val estimatedCalories = protein * 4f + carbs * 4f + fat * 9f
+            if (estimatedCalories > 0f) {
+                calories = estimatedCalories
+            }
+        }
+
+        return result.copy(
+            foodName = result.foodName.trim().ifBlank { "未知食物" }.take(30),
+            estimatedWeight = result.estimatedWeight.coerceAtLeast(0),
+            calories = calories,
+            protein = protein,
+            carbs = carbs,
+            fat = fat,
+            fiber = sanitizeNumeric(result.fiber),
+            sugar = sanitizeNumeric(result.sugar),
+            saturatedFat = sanitizeNumeric(result.saturatedFat),
+            cholesterol = sanitizeNumeric(result.cholesterol),
+            sodium = sanitizeNumeric(result.sodium),
+            potassium = sanitizeNumeric(result.potassium),
+            calcium = sanitizeNumeric(result.calcium),
+            iron = sanitizeNumeric(result.iron),
+            vitaminA = sanitizeNumeric(result.vitaminA),
+            vitaminC = sanitizeNumeric(result.vitaminC)
+        )
+    }
+
+    private fun sanitizeNumeric(value: Float): Float {
+        if (value.isNaN() || value.isInfinite()) return 0f
+        return value.coerceAtLeast(0f)
     }
 
     private fun validateNutritionData(result: FoodAnalysisResult): ValidationResult {
         if (result.foodName.isBlank()) {
             return ValidationResult(false, "食物名称为空")
         }
-        if (result.calories <= 0) {
-            return ValidationResult(false, "热量数据无效")
+
+        val hasCalories = result.calories > 0f
+        val hasMacroNutrients = result.protein > 0f || result.carbs > 0f || result.fat > 0f
+        if (!hasCalories && !hasMacroNutrients) {
+            return ValidationResult(false, "热量和宏量营养素均无效")
         }
-        
-        val basicNutrients = listOf(result.protein, result.carbs, result.fat)
-        if (basicNutrients.all { it <= 0 }) {
-            return ValidationResult(false, "基础营养素（蛋白质、碳水、脂肪）数据无效，全部为0")
-        }
-        
+
         return ValidationResult(true, "数据有效")
     }
     

@@ -13,6 +13,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Help
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -159,7 +161,7 @@ fun AboutScreen(
                 AboutItem(
                     title = "使用手册",
                     subtitle = "查看完整用户操作教程",
-                    icon = Icons.Default.MenuBook,
+                    icon = Icons.AutoMirrored.Filled.MenuBook,
                     showArrow = true,
                     onClick = { showUsageDocDialog = true }
                 )
@@ -167,7 +169,7 @@ fun AboutScreen(
                 AboutItem(
                     title = "常见问题",
                     subtitle = "FAQ",
-                    icon = Icons.Default.Help,
+                    icon = Icons.AutoMirrored.Filled.Help,
                     showArrow = true,
                     onClick = { showFaqDialog = true }
                 )

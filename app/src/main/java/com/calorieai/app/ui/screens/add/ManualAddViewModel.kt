@@ -9,9 +9,12 @@ import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.repository.FavoriteRecipeRepository
 import com.calorieai.app.data.repository.FoodRecordRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -23,6 +26,8 @@ class ManualAddViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(ManualAddUiState())
     val uiState: StateFlow<ManualAddUiState> = _uiState.asStateFlow()
+    private val _events = MutableSharedFlow<ManualAddEvent>(extraBufferCapacity = 1)
+    val events: SharedFlow<ManualAddEvent> = _events.asSharedFlow()
 
     private inline fun updateState(update: (ManualAddUiState) -> ManualAddUiState) {
         _uiState.value = update(_uiState.value)
@@ -31,12 +36,16 @@ class ManualAddViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             favoriteRecipeRepository.getAllFavorites().collect { favorites ->
+                val sourceIds = favorites
+                    .map { it.sourceRecordId }
+                    .filter { it.isNotBlank() }
+                    .distinct()
+                val sourceRecordMap = foodRecordRepository
+                    .getRecordsByIds(sourceIds)
+                    .associateBy { it.id }
                 val recipeMealTypeMap = buildMap<String, MealType> {
                     favorites.forEach { favorite ->
-                        val mealType = foodRecordRepository
-                            .getRecordById(favorite.sourceRecordId)
-                            ?.mealType
-                        if (mealType != null) {
+                        sourceRecordMap[favorite.sourceRecordId]?.mealType?.let { mealType ->
                             put(favorite.id, mealType)
                         }
                     }
@@ -106,44 +115,61 @@ class ManualAddViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            foodRecordRepository.addRecord(record)
+            runCatching {
+                foodRecordRepository.addRecord(record)
+            }.onSuccess {
+                _events.emit(ManualAddEvent.ManualSaveSuccess(state.foodName))
+            }.onFailure { error ->
+                _events.emit(ManualAddEvent.ManualSaveFailed(error.message ?: "保存失败"))
+            }
         }
     }
 
-    fun addFavoriteRecipeToToday(recipe: FavoriteRecipe, onDone: () -> Unit = {}) {
+    fun addFavoriteRecipeToToday(recipe: FavoriteRecipe) {
         viewModelScope.launch {
-            val now = System.currentTimeMillis()
-            val mealType = _uiState.value.favoriteMealType
-            val record = FoodRecord(
-                foodName = recipe.foodName,
-                userInput = recipe.userInput,
-                totalCalories = recipe.totalCalories,
-                protein = recipe.protein,
-                carbs = recipe.carbs,
-                fat = recipe.fat,
-                fiber = recipe.fiber,
-                sugar = recipe.sugar,
-                sodium = recipe.sodium,
-                cholesterol = recipe.cholesterol,
-                saturatedFat = recipe.saturatedFat,
-                calcium = recipe.calcium,
-                iron = recipe.iron,
-                vitaminC = recipe.vitaminC,
-                vitaminA = recipe.vitaminA,
-                potassium = recipe.potassium,
-                mealType = mealType,
-                recordTime = now
-            )
-            foodRecordRepository.addRecord(record)
-            favoriteRecipeRepository.upsert(
-                recipe.copy(
-                    lastUsedAt = now,
-                    useCount = recipe.useCount + 1
+            try {
+                val now = System.currentTimeMillis()
+                val mealType = _uiState.value.favoriteMealType
+                val record = FoodRecord(
+                    foodName = recipe.foodName,
+                    userInput = recipe.userInput,
+                    totalCalories = recipe.totalCalories,
+                    protein = recipe.protein,
+                    carbs = recipe.carbs,
+                    fat = recipe.fat,
+                    fiber = recipe.fiber,
+                    sugar = recipe.sugar,
+                    sodium = recipe.sodium,
+                    cholesterol = recipe.cholesterol,
+                    saturatedFat = recipe.saturatedFat,
+                    calcium = recipe.calcium,
+                    iron = recipe.iron,
+                    vitaminC = recipe.vitaminC,
+                    vitaminA = recipe.vitaminA,
+                    potassium = recipe.potassium,
+                    mealType = mealType,
+                    recordTime = now
                 )
-            )
-            onDone()
+                foodRecordRepository.addRecord(record)
+                favoriteRecipeRepository.upsert(
+                    recipe.copy(
+                        lastUsedAt = now,
+                        useCount = recipe.useCount + 1
+                    )
+                )
+                _events.emit(ManualAddEvent.FavoriteQuickAddSuccess(recipe.foodName))
+            } catch (e: Exception) {
+                _events.emit(ManualAddEvent.FavoriteQuickAddFailed(e.message ?: "添加失败"))
+            }
         }
     }
+}
+
+sealed interface ManualAddEvent {
+    data class ManualSaveSuccess(val foodName: String) : ManualAddEvent
+    data class ManualSaveFailed(val message: String) : ManualAddEvent
+    data class FavoriteQuickAddSuccess(val foodName: String) : ManualAddEvent
+    data class FavoriteQuickAddFailed(val message: String) : ManualAddEvent
 }
 
 data class ManualAddUiState(

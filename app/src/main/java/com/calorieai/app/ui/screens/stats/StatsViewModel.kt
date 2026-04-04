@@ -9,6 +9,7 @@ import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.model.PantryIngredient
 import com.calorieai.app.data.model.RecipePlan
+import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.model.WaterRecord
 import com.calorieai.app.data.model.WeightRecord
 import com.calorieai.app.data.model.getSimplifiedMealTypeName
@@ -49,6 +50,10 @@ class StatsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(StatsUiState())
     val uiState: StateFlow<StatsUiState> = _uiState.asStateFlow()
     private var statsLoadJob: Job? = null
+    private var snapshotInitialized = false
+    private var latestFoodRecords: List<FoodRecord> = emptyList()
+    private var latestExerciseRecords: List<ExerciseRecord> = emptyList()
+    private var latestSettings: UserSettings? = null
 
     init {
         loadStats()
@@ -58,14 +63,15 @@ class StatsViewModel @Inject constructor(
         statsLoadJob?.cancel()
         statsLoadJob = viewModelScope.launch {
             combine(
-                foodRecordRepository.getAllRecords(),
-                exerciseRecordRepository.getAllRecords(),
-                weightRecordRepository.getAllRecords(),
-                waterRecordRepository.getAllRecords(),
-                favoriteRecipeRepository.getAllFavorites(),
-                pantryIngredientRepository.getAll(),
-                recipePlanRepository.getAll()
-            ) { recordsArray: Array<List<Any>> ->
+                foodRecordRepository.getAllRecords().distinctUntilChanged(),
+                exerciseRecordRepository.getAllRecords().distinctUntilChanged(),
+                weightRecordRepository.getAllRecords().distinctUntilChanged(),
+                waterRecordRepository.getAllRecords().distinctUntilChanged(),
+                favoriteRecipeRepository.getAllFavorites().distinctUntilChanged(),
+                pantryIngredientRepository.getAll().distinctUntilChanged(),
+                recipePlanRepository.getAll().distinctUntilChanged(),
+                userSettingsRepository.getSettings().distinctUntilChanged()
+            ) { recordsArray: Array<Any?> ->
                 @Suppress("UNCHECKED_CAST")
                 StatsSourceBundle(
                     foodRecords = recordsArray[0] as List<FoodRecord>,
@@ -74,7 +80,8 @@ class StatsViewModel @Inject constructor(
                     waterRecords = recordsArray[3] as List<WaterRecord>,
                     favoriteRecipes = recordsArray[4] as List<FavoriteRecipe>,
                     pantryIngredients = recordsArray[5] as List<PantryIngredient>,
-                    recipePlans = recordsArray[6] as List<RecipePlan>
+                    recipePlans = recordsArray[6] as List<RecipePlan>,
+                    settings = recordsArray[7] as UserSettings?
                 )
             }.collectLatest { sources ->
                 val foodRecords = sources.foodRecords
@@ -84,7 +91,11 @@ class StatsViewModel @Inject constructor(
                 val favoriteRecipes = sources.favoriteRecipes
                 val pantryIngredients = sources.pantryIngredients
                 val recipePlans = sources.recipePlans
-                val settings = userSettingsRepository.getSettingsOnce()
+                val settings = sources.settings
+                latestFoodRecords = foodRecords
+                latestExerciseRecords = exerciseRecords
+                latestSettings = settings
+                snapshotInitialized = true
                 val targetCalories = settings?.dailyCalorieGoal ?: 2000
                 val latestWeight = weightRecords.maxByOrNull { it.recordDate }
                 val userWeight = latestWeight?.weight ?: settings?.userWeight
@@ -156,8 +167,6 @@ class StatsViewModel @Inject constructor(
 
                 val trendData = withContext(Dispatchers.Default) {
                     computeTrendData(
-                        foodRecords,
-                        exerciseRecords,
                         currentState.trendTimeDimension,
                         currentState.trendStartDate,
                         currentState.trendEndDate
@@ -211,8 +220,6 @@ class StatsViewModel @Inject constructor(
      * 计算趋势图表数据
      */
     private suspend fun computeTrendData(
-        foodRecords: List<com.calorieai.app.data.model.FoodRecord>,
-        exerciseRecords: List<ExerciseRecord>,
         timeDimension: TimeDimension,
         startDate: LocalDate?,
         endDate: LocalDate?
@@ -222,11 +229,22 @@ class StatsViewModel @Inject constructor(
         val actualEndDate = if (rawEndDate.isAfter(today)) today else rawEndDate
         val rawStartDate = startDate ?: today.minusDays(30)
         val actualStartDate = if (rawStartDate.isAfter(actualEndDate)) actualEndDate else rawStartDate
+        val zoneId = ZoneId.systemDefault()
+        val startMillis = actualStartDate.atStartOfDay(zoneId).toInstant().toEpochMilli()
+        val endMillis = actualEndDate.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+
+        val calorieByDate = foodRecordRepository
+            .getDailyCaloriesByDateRangeSync(startMillis, endMillis)
+            .associate { row -> LocalDate.parse(row.date) to row.totalCalories.toFloat() }
+
+        val exerciseByDate = exerciseRecordRepository
+            .getDailyCaloriesBetweenSync(startMillis, endMillis)
+            .associate { row -> LocalDate.parse(row.date) to row.totalCalories.toFloat() }
 
         return when (timeDimension) {
-            TimeDimension.DAY -> computeDailyTrend(foodRecords, exerciseRecords, actualStartDate, actualEndDate)
-            TimeDimension.WEEK -> computeWeeklyTrendData(foodRecords, exerciseRecords, actualStartDate, actualEndDate)
-            TimeDimension.MONTH -> computeMonthlyTrendData(foodRecords, exerciseRecords, actualStartDate, actualEndDate)
+            TimeDimension.DAY -> computeDailyTrend(calorieByDate, exerciseByDate, actualStartDate, actualEndDate)
+            TimeDimension.WEEK -> computeWeeklyTrendData(calorieByDate, exerciseByDate, actualStartDate, actualEndDate)
+            TimeDimension.MONTH -> computeMonthlyTrendData(calorieByDate, exerciseByDate, actualStartDate, actualEndDate)
         }
     }
 
@@ -234,8 +252,8 @@ class StatsViewModel @Inject constructor(
      * 计算每日趋势数据
      */
     private suspend fun computeDailyTrend(
-        foodRecords: List<com.calorieai.app.data.model.FoodRecord>,
-        exerciseRecords: List<ExerciseRecord>,
+        calorieByDate: Map<LocalDate, Float>,
+        exerciseByDate: Map<LocalDate, Float>,
         startDate: LocalDate,
         endDate: LocalDate
     ): TrendChartData {
@@ -248,35 +266,25 @@ class StatsViewModel @Inject constructor(
         val startMillis = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val endMillis = endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val weightRecords = weightRecordRepository.getRecordsBetweenSync(startMillis, endMillis)
-        val weightMap = weightRecords.associateBy { 
-            java.time.Instant.ofEpochMilli(it.recordDate)
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate()
-        }
+
+        val zoneId = ZoneId.systemDefault()
+
+        val weightMap = weightRecords
+            .groupBy {
+                java.time.Instant.ofEpochMilli(it.recordDate)
+                    .atZone(zoneId)
+                    .toLocalDate()
+            }
+            .mapValues { (_, records) ->
+                records.maxByOrNull { it.recordDate }?.weight
+            }
 
         var current = startDate
         while (!current.isAfter(endDate)) {
             dates.add(current)
-
-            val dayStart = current.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            val dayEnd = current.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
-
-            // 热量摄入
-            val intake = foodRecords
-                .filter { it.recordTime in dayStart..dayEnd }
-                .sumOf { it.totalCalories }
-                .toFloat()
-            calorieIntake.add(intake)
-
-            // 运动消耗
-            val exercise = exerciseRecords
-                .filter { it.recordTime in dayStart..dayEnd }
-                .sumOf { it.caloriesBurned }
-                .toFloat()
-            exerciseCalories.add(exercise)
-
-            // 体重数据
-            weightData.add(weightMap[current]?.weight)
+            calorieIntake.add(calorieByDate[current] ?: 0f)
+            exerciseCalories.add(exerciseByDate[current] ?: 0f)
+            weightData.add(weightMap[current])
 
             current = current.plusDays(1)
         }
@@ -288,8 +296,8 @@ class StatsViewModel @Inject constructor(
      * 计算每周趋势数据
      */
     private suspend fun computeWeeklyTrendData(
-        foodRecords: List<com.calorieai.app.data.model.FoodRecord>,
-        exerciseRecords: List<ExerciseRecord>,
+        calorieByDate: Map<LocalDate, Float>,
+        exerciseByDate: Map<LocalDate, Float>,
         startDate: LocalDate,
         endDate: LocalDate
     ): TrendChartData {
@@ -303,34 +311,39 @@ class StatsViewModel @Inject constructor(
         val startMillis = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val endMillis = endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val weightRecords = weightRecordRepository.getRecordsBetweenSync(startMillis, endMillis)
+        val zoneId = ZoneId.systemDefault()
+
+        fun weekStartOf(date: LocalDate): LocalDate = date.with(weekFields.dayOfWeek(), 1)
+
+        val foodByWeek = calorieByDate
+            .asSequence()
+            .map { (date, calories) -> weekStartOf(date) to calories }
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (_, values) -> values.sumOf { it.toDouble() }.toFloat() }
+
+        val exerciseByWeek = exerciseByDate
+            .asSequence()
+            .map { (date, calories) -> weekStartOf(date) to calories }
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (_, values) -> values.sumOf { it.toDouble() }.toFloat() }
+
+        val weightByWeek = weightRecords
+            .groupBy {
+                val date = java.time.Instant.ofEpochMilli(it.recordDate)
+                    .atZone(zoneId)
+                    .toLocalDate()
+                weekStartOf(date)
+            }
+            .mapValues { (_, records) ->
+                if (records.isEmpty()) null else records.map { it.weight }.average().toFloat()
+            }
 
         var currentWeekStart = startDate.with(weekFields.dayOfWeek(), 1)
         while (!currentWeekStart.isAfter(endDate)) {
-            val weekEnd = currentWeekStart.plusDays(6)
             dates.add(currentWeekStart)
-
-            val weekStartMillis = currentWeekStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            val weekEndMillis = weekEnd.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
-
-            // 热量摄入
-            val intake = foodRecords
-                .filter { it.recordTime in weekStartMillis..weekEndMillis }
-                .sumOf { it.totalCalories }
-                .toFloat()
-            calorieIntake.add(intake)
-
-            // 运动消耗
-            val exercise = exerciseRecords
-                .filter { it.recordTime in weekStartMillis..weekEndMillis }
-                .sumOf { it.caloriesBurned }
-                .toFloat()
-            exerciseCalories.add(exercise)
-
-            // 体重数据（取周平均值）
-            val weekWeights = weightRecords.filter { 
-                it.recordDate in weekStartMillis..weekEndMillis 
-            }.map { it.weight }
-            weightData.add(if (weekWeights.isNotEmpty()) weekWeights.average().toFloat() else null)
+            calorieIntake.add(foodByWeek[currentWeekStart] ?: 0f)
+            exerciseCalories.add(exerciseByWeek[currentWeekStart] ?: 0f)
+            weightData.add(weightByWeek[currentWeekStart])
 
             currentWeekStart = currentWeekStart.plusWeeks(1)
         }
@@ -342,8 +355,8 @@ class StatsViewModel @Inject constructor(
      * 计算每月趋势数据
      */
     private suspend fun computeMonthlyTrendData(
-        foodRecords: List<com.calorieai.app.data.model.FoodRecord>,
-        exerciseRecords: List<ExerciseRecord>,
+        calorieByDate: Map<LocalDate, Float>,
+        exerciseByDate: Map<LocalDate, Float>,
         startDate: LocalDate,
         endDate: LocalDate
     ): TrendChartData {
@@ -356,34 +369,39 @@ class StatsViewModel @Inject constructor(
         val startMillis = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val endMillis = endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val weightRecords = weightRecordRepository.getRecordsBetweenSync(startMillis, endMillis)
+        val zoneId = ZoneId.systemDefault()
+
+        fun monthStartOf(date: LocalDate): LocalDate = date.withDayOfMonth(1)
+
+        val foodByMonth = calorieByDate
+            .asSequence()
+            .map { (date, calories) -> monthStartOf(date) to calories }
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (_, values) -> values.sumOf { it.toDouble() }.toFloat() }
+
+        val exerciseByMonth = exerciseByDate
+            .asSequence()
+            .map { (date, calories) -> monthStartOf(date) to calories }
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (_, values) -> values.sumOf { it.toDouble() }.toFloat() }
+
+        val weightByMonth = weightRecords
+            .groupBy {
+                val date = java.time.Instant.ofEpochMilli(it.recordDate)
+                    .atZone(zoneId)
+                    .toLocalDate()
+                monthStartOf(date)
+            }
+            .mapValues { (_, records) ->
+                if (records.isEmpty()) null else records.map { it.weight }.average().toFloat()
+            }
 
         var currentMonth = startDate.withDayOfMonth(1)
         while (!currentMonth.isAfter(endDate)) {
             dates.add(currentMonth)
-
-            val monthStartMillis = currentMonth.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            val monthEnd = currentMonth.withDayOfMonth(currentMonth.lengthOfMonth())
-            val monthEndMillis = monthEnd.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
-
-            // 热量摄入
-            val intake = foodRecords
-                .filter { it.recordTime in monthStartMillis..monthEndMillis }
-                .sumOf { it.totalCalories }
-                .toFloat()
-            calorieIntake.add(intake)
-
-            // 运动消耗
-            val exercise = exerciseRecords
-                .filter { it.recordTime in monthStartMillis..monthEndMillis }
-                .sumOf { it.caloriesBurned }
-                .toFloat()
-            exerciseCalories.add(exercise)
-
-            // 体重数据（取月平均值）
-            val monthWeights = weightRecords.filter { 
-                it.recordDate in monthStartMillis..monthEndMillis 
-            }.map { it.weight }
-            weightData.add(if (monthWeights.isNotEmpty()) monthWeights.average().toFloat() else null)
+            calorieIntake.add(foodByMonth[currentMonth] ?: 0f)
+            exerciseCalories.add(exerciseByMonth[currentMonth] ?: 0f)
+            weightData.add(weightByMonth[currentMonth])
 
             currentMonth = currentMonth.plusMonths(1)
         }
@@ -404,9 +422,12 @@ class StatsViewModel @Inject constructor(
      */
     private fun refreshMonthSummary() {
         viewModelScope.launch {
-            val foodRecords = foodRecordRepository.getAllRecordsOnce()
-            val exerciseRecords = exerciseRecordRepository.getAllRecordsOnce()
-            val settings = userSettingsRepository.getSettingsOnce()
+            if (!ensureSnapshotLoaded()) {
+                return@launch
+            }
+            val foodRecords = latestFoodRecords
+            val exerciseRecords = latestExerciseRecords
+            val settings = latestSettings
             val offset = _uiState.value.selectedMonthOffset
             val summary = withContext(Dispatchers.Default) {
                 StatsUtils.computeMonthSummary(foodRecords, exerciseRecords, offset, settings?.userWeight)
@@ -442,17 +463,11 @@ class StatsViewModel @Inject constructor(
      */
     private fun refreshTrendData() {
         viewModelScope.launch {
-            val foodRecords = foodRecordRepository.getAllRecordsOnce()
-            val exerciseRecords = exerciseRecordRepository.getAllRecordsOnce()
-            val trendData = withContext(Dispatchers.Default) {
-                computeTrendData(
-                    foodRecords,
-                    exerciseRecords,
-                    _uiState.value.trendTimeDimension,
-                    _uiState.value.trendStartDate,
-                    _uiState.value.trendEndDate
-                )
-            }
+            val trendData = computeTrendData(
+                _uiState.value.trendTimeDimension,
+                _uiState.value.trendStartDate,
+                _uiState.value.trendEndDate
+            )
             _uiState.value = _uiState.value.copy(trendChartData = trendData)
         }
     }
@@ -616,8 +631,15 @@ class StatsViewModel @Inject constructor(
         val dayStart = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val dayEnd = date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
 
-        return foodRecords
-            .filter { it.recordTime in dayStart..dayEnd }
+        return buildFoodRecordTableRows(
+            dayFoodRecords = foodRecords.filter { it.recordTime in dayStart..dayEnd }
+        )
+    }
+
+    private fun buildFoodRecordTableRows(
+        dayFoodRecords: List<FoodRecord>
+    ): List<FoodRecordTableRow> {
+        return dayFoodRecords
             .groupBy { getSimplifiedMealTypeName(it.mealType) }
             .map { (mealType, records) ->
                 FoodRecordTableRow(
@@ -736,9 +758,12 @@ class StatsViewModel @Inject constructor(
      */
     private fun refreshOverviewStats() {
         viewModelScope.launch {
-            val foodRecords = foodRecordRepository.getAllRecordsOnce()
-            val exerciseRecords = exerciseRecordRepository.getAllRecordsOnce()
-            val settings = userSettingsRepository.getSettingsOnce()
+            if (!ensureSnapshotLoaded()) {
+                return@launch
+            }
+            val foodRecords = latestFoodRecords
+            val exerciseRecords = latestExerciseRecords
+            val settings = latestSettings
             val targetCalories = settings?.dailyCalorieGoal ?: 2000
             val selectedDate = _uiState.value.selectedOverviewDate
 
@@ -812,7 +837,7 @@ class StatsViewModel @Inject constructor(
                     weeklyGoalDays = weeklyGoalDays,
                     weeklyActiveDays = weeklyActiveDays,
                     weeklyRecordCount = weeklyRecordCount,
-                    foodRecordTableRows = computeFoodRecordTableRows(foodRecords, selectedDate),
+                    foodRecordTableRows = buildFoodRecordTableRows(dayFoodRecords),
                     topFoodRows = computeTopFoodRows(foodRecords, 14),
                     achievementBadges = badges
                 )
@@ -829,6 +854,10 @@ class StatsViewModel @Inject constructor(
                 achievementBadges = refreshBundle.achievementBadges
             )
         }
+    }
+
+    private fun ensureSnapshotLoaded(): Boolean {
+        return snapshotInitialized
     }
 }
 
@@ -876,7 +905,8 @@ private data class StatsSourceBundle(
     val waterRecords: List<WaterRecord>,
     val favoriteRecipes: List<FavoriteRecipe>,
     val pantryIngredients: List<PantryIngredient>,
-    val recipePlans: List<RecipePlan>
+    val recipePlans: List<RecipePlan>,
+    val settings: UserSettings?
 )
 
 /**

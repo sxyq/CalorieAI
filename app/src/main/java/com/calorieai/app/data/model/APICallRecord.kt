@@ -1,13 +1,21 @@
 package com.calorieai.app.data.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
  * API调用记录
  * 记录每次AI API调用的详细信息，包括输入输出文本
  */
-@Entity(tableName = "api_call_records")
+@Entity(
+    tableName = "api_call_records",
+    indices = [
+        Index(value = ["timestamp"]),
+        Index(value = ["configId"]),
+        Index(value = ["configId", "timestamp"])
+    ]
+)
 data class APICallRecord(
     @PrimaryKey
     val id: String = java.util.UUID.randomUUID().toString(),

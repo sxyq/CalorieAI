@@ -40,6 +40,9 @@ interface FoodRecordDao {
     @Query("SELECT * FROM food_records WHERE id = :id")
     suspend fun getRecordById(id: String): FoodRecord?
 
+    @Query("SELECT * FROM food_records WHERE id IN (:ids)")
+    suspend fun getRecordsByIds(ids: List<String>): List<FoodRecord>
+
     @Query("SELECT SUM(totalCalories) FROM food_records WHERE recordTime BETWEEN :startTime AND :endTime")
     fun getTotalCaloriesBetween(startTime: Long, endTime: Long): Flow<Int?>
 
@@ -52,6 +55,16 @@ interface FoodRecordDao {
         GROUP BY date
     """)
     fun getCalorieDataByDateRange(startTime: Long, endTime: Long): Flow<List<DailyCalorieData>>
+
+    @Query("""
+        SELECT
+            date(recordTime / 1000, 'unixepoch', 'localtime') as date,
+            SUM(totalCalories) as totalCalories
+        FROM food_records
+        WHERE recordTime BETWEEN :startTime AND :endTime
+        GROUP BY date
+    """)
+    suspend fun getCalorieDataByDateRangeSync(startTime: Long, endTime: Long): List<DailyCalorieData>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRecord(record: FoodRecord)

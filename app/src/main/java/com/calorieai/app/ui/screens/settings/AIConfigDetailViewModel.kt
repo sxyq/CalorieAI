@@ -8,6 +8,7 @@ import com.calorieai.app.data.model.AIConfigPresets
 import com.calorieai.app.data.model.AIProtocol
 import com.calorieai.app.data.repository.APICallRecordRepository
 import com.calorieai.app.data.repository.AIConfigRepository
+import com.calorieai.app.service.ai.common.AIApiClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.Job
@@ -17,7 +18,8 @@ import javax.inject.Inject
 @HiltViewModel
 class AIConfigDetailViewModel @Inject constructor(
     private val aiConfigRepository: AIConfigRepository,
-    private val apiCallRecordRepository: APICallRecordRepository
+    private val apiCallRecordRepository: APICallRecordRepository,
+    private val aiApiClient: AIApiClient
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AIConfigDetailUiState())
@@ -94,20 +96,39 @@ class AIConfigDetailViewModel @Inject constructor(
                 isTesting = true,
                 testResult = null
             )
+            val state = _uiState.value
+            if (state.apiUrl.isBlank() || state.apiKey.isBlank() || state.modelId.isBlank()) {
+                _uiState.value = state.copy(
+                    isTesting = false,
+                    testResult = TestResult.Error("请填写完整的API信息")
+                )
+                return@launch
+            }
 
-            // 模拟测试连接
-            kotlinx.coroutines.delay(1500)
+            val tempConfig = AIConfig(
+                id = "connection_test",
+                name = state.name.ifBlank { "连接测试" },
+                icon = state.selectedIcon,
+                protocol = state.protocol,
+                apiUrl = state.apiUrl,
+                apiKey = state.apiKey,
+                modelId = state.modelId,
+                isImageUnderstanding = state.isImageUnderstanding,
+                isDefault = false,
+                isPreset = false
+            )
 
-            val isSuccess = _uiState.value.apiUrl.isNotBlank() &&
-                    _uiState.value.apiKey.isNotBlank() &&
-                    _uiState.value.modelId.isNotBlank()
+            val result = aiApiClient.testConnection(
+                config = tempConfig,
+                timeoutSeconds = 5
+            )
 
             _uiState.value = _uiState.value.copy(
                 isTesting = false,
-                testResult = if (isSuccess) {
-                    TestResult.Success("连接成功")
+                testResult = if (result.success) {
+                    TestResult.Success(result.message)
                 } else {
-                    TestResult.Error("请填写完整的API信息")
+                    TestResult.Error(result.message)
                 }
             )
         }

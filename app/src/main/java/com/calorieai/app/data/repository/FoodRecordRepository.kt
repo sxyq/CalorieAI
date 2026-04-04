@@ -1,6 +1,7 @@
 package com.calorieai.app.data.repository
 
 import com.calorieai.app.data.local.FoodRecordDao
+import com.calorieai.app.data.local.DailyCalorieData
 import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
 import kotlinx.coroutines.flow.Flow
@@ -32,6 +33,10 @@ class FoodRecordRepository @Inject constructor(
     fun getTotalCaloriesByDateRange(startTime: Long, endTime: Long): Flow<Int?> {
         return foodRecordDao.getTotalCaloriesBetween(startTime, endTime)
     }
+
+    suspend fun getDailyCaloriesByDateRangeSync(startTime: Long, endTime: Long): List<DailyCalorieData> {
+        return foodRecordDao.getCalorieDataByDateRangeSync(startTime, endTime)
+    }
     
     fun getRecordsByMealType(mealType: MealType): Flow<List<FoodRecord>> {
         val (startOfDay, endOfDay) = getTodayRange()
@@ -44,6 +49,11 @@ class FoodRecordRepository @Inject constructor(
     }
     
     suspend fun getRecordById(id: String): FoodRecord? = foodRecordDao.getRecordById(id)
+
+    suspend fun getRecordsByIds(ids: List<String>): List<FoodRecord> {
+        if (ids.isEmpty()) return emptyList()
+        return foodRecordDao.getRecordsByIds(ids)
+    }
     
     /**
      * 获取所有记录（一次性）

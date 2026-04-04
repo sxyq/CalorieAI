@@ -4,17 +4,19 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calorieai.app.data.model.FoodAnalysisResult
 import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
-import com.calorieai.app.data.model.FoodAnalysisResult
 import com.calorieai.app.data.repository.FoodRecordRepository
 import com.calorieai.app.service.ai.FoodImageAnalysisService
+import com.calorieai.app.service.ai.common.AIErrorCategory
+import com.calorieai.app.service.ai.common.AIErrorClassifier
+import com.calorieai.app.utils.inferMainMealType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.util.Calendar
 import javax.inject.Inject
 
 @HiltViewModel
@@ -22,7 +24,6 @@ class PhotoAnalysisViewModel @Inject constructor(
     private val foodImageAnalysisService: FoodImageAnalysisService,
     private val foodRecordRepository: FoodRecordRepository
 ) : ViewModel() {
-
     private val _uiState = MutableStateFlow(PhotoAnalysisUiState())
     val uiState: StateFlow<PhotoAnalysisUiState> = _uiState.asStateFlow()
 
@@ -39,14 +40,16 @@ class PhotoAnalysisViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
+            val maxRetries = _uiState.value.maxRetries.coerceAtLeast(0)
             val result = foodImageAnalysisService.analyzeFoodImage(
                 imageUri = photoUri,
                 context = context,
                 userHint = _uiState.value.userHint,
-                maxRetries = 2,
+                maxRetries = maxRetries,
                 onRetry = { attempt, maxAttempts, reason ->
+                    val totalRetries = (maxAttempts - 1).coerceAtLeast(0)
                     _uiState.value = _uiState.value.copy(
-                        retryMessage = "第 $attempt/$maxAttempts 次重试: $reason",
+                        retryMessage = "结果不稳定，正在补救重试（${attempt}/${totalRetries}）：$reason",
                         retryAttempt = attempt
                     )
                 }
@@ -62,9 +65,15 @@ class PhotoAnalysisViewModel @Inject constructor(
                     )
                 },
                 onFailure = { error ->
+                    val errorInfo = AIErrorClassifier.classify(error)
+                    val uiMessage = when (errorInfo.category) {
+                        AIErrorCategory.PARSE,
+                        AIErrorCategory.VALIDATION -> "AI返回结果不稳定，请重试或更换更清晰的图片。"
+                        else -> errorInfo.userMessage
+                    }
                     _uiState.value = _uiState.value.copy(
                         isAnalyzing = false,
-                        error = error.message ?: "分析失败",
+                        error = uiMessage,
                         retryMessage = null
                     )
                 }
@@ -90,8 +99,13 @@ class PhotoAnalysisViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(editedResult = result)
     }
 
+    fun onMealTypeChange(mealType: MealType) {
+        _uiState.value = _uiState.value.copy(selectedMealType = mealType)
+    }
+
     fun saveRecord(onComplete: () -> Unit) {
-        val result = _uiState.value.editedResult ?: return
+        val state = _uiState.value
+        val result = state.editedResult ?: return
 
         viewModelScope.launch {
             val record = FoodRecord(
@@ -101,22 +115,22 @@ class PhotoAnalysisViewModel @Inject constructor(
                 protein = result.protein,
                 carbs = result.carbs,
                 fat = result.fat,
-                mealType = inferMealType(),
+                fiber = result.fiber,
+                sugar = result.sugar,
+                sodium = result.sodium,
+                cholesterol = result.cholesterol,
+                saturatedFat = result.saturatedFat,
+                calcium = result.calcium,
+                iron = result.iron,
+                vitaminC = result.vitaminC,
+                vitaminA = result.vitaminA,
+                potassium = result.potassium,
+                mealType = state.selectedMealType,
                 recordTime = System.currentTimeMillis()
             )
 
             foodRecordRepository.addRecord(record)
             onComplete()
-        }
-    }
-
-    private fun inferMealType(): MealType {
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        return when (hour) {
-            in 5..10 -> MealType.BREAKFAST
-            in 11..14 -> MealType.LUNCH
-            in 17..21 -> MealType.DINNER
-            else -> MealType.SNACK
         }
     }
 }
@@ -129,5 +143,7 @@ data class PhotoAnalysisUiState(
     val userHint: String = "",
     val isEditMode: Boolean = false,
     val retryMessage: String? = null,
-    val retryAttempt: Int = 0
+    val retryAttempt: Int = 0,
+    val maxRetries: Int = 1,
+    val selectedMealType: MealType = inferMainMealType(System.currentTimeMillis())
 )

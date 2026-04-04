@@ -41,6 +41,7 @@ class VoiceInputHelper @Inject constructor(
     private var currentSessionJob: Job? = null
     private var isListening = false
     private var accumulatedText = StringBuilder()
+    private var lastPartialText: String = ""
 
     fun startListening(
         context: Context,
@@ -52,6 +53,7 @@ class VoiceInputHelper @Inject constructor(
         stopListening()
         _voiceState.value = VoiceState.Processing
         accumulatedText.clear()
+        lastPartialText = ""
 
         currentSessionJob = scope.launch {
             try {
@@ -153,7 +155,8 @@ class VoiceInputHelper @Inject constructor(
             override fun onPartialResult(hypothesis: String?) {
                 if (!isListening) return
                 val text = parseHypothesisText(hypothesis, partial = true)
-                if (text.isNotBlank()) {
+                if (text.isNotBlank() && text != lastPartialText) {
+                    lastPartialText = text
                     _voiceState.value = VoiceState.Partial(text)
                     onPartialResult?.invoke(text)
                 }
@@ -161,24 +164,13 @@ class VoiceInputHelper @Inject constructor(
 
             override fun onResult(hypothesis: String?) {
                 if (!isListening) return
-                val text = parseHypothesisText(hypothesis, partial = false)
-                if (text.isNotBlank()) {
-                    if (accumulatedText.isNotEmpty()) {
-                        accumulatedText.append(" ")
-                    }
-                    accumulatedText.append(text)
-                }
+                appendRecognizedText(parseHypothesisText(hypothesis, partial = false))
             }
 
             override fun onFinalResult(hypothesis: String?) {
                 if (!isListening) return
-                val text = parseHypothesisText(hypothesis, partial = false)
-                if (text.isNotBlank()) {
-                    if (accumulatedText.isNotEmpty()) {
-                        accumulatedText.append(" ")
-                    }
-                    accumulatedText.append(text)
-                }
+                appendRecognizedText(parseHypothesisText(hypothesis, partial = false))
+                lastPartialText = ""
 
                 val finalText = accumulatedText.toString().trim()
                 if (finalText.isBlank()) {
@@ -193,6 +185,7 @@ class VoiceInputHelper @Inject constructor(
                     stopListening()
                 } else {
                     accumulatedText.clear()
+                    lastPartialText = ""
                     _voiceState.value = VoiceState.Listening
                 }
             }
@@ -221,6 +214,18 @@ class VoiceInputHelper @Inject constructor(
         })
     }
 
+    private fun appendRecognizedText(text: String) {
+        if (text.isBlank()) return
+        val normalized = text.trim()
+        if (accumulatedText.toString().endsWith(normalized)) {
+            return
+        }
+        if (accumulatedText.isNotEmpty()) {
+            accumulatedText.append(" ")
+        }
+        accumulatedText.append(normalized)
+    }
+
     private fun parseHypothesisText(raw: String?, partial: Boolean): String {
         if (raw.isNullOrBlank()) return ""
         return try {
@@ -228,7 +233,7 @@ class VoiceInputHelper @Inject constructor(
             when {
                 partial -> json.get("partial")?.asString.orEmpty()
                 else -> json.get("text")?.asString.orEmpty()
-            }
+            }.trim()
         } catch (t: Throwable) {
             Log.w(TAG, "failed to parse hypothesis: $raw", t)
             ""

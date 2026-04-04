@@ -25,6 +25,8 @@ import androidx.compose.foundation.background
 import com.calorieai.app.ui.components.liquidGlass
 import coil.compose.rememberAsyncImagePainter
 import com.calorieai.app.data.model.FoodAnalysisResult
+import com.calorieai.app.data.model.MealType
+import com.calorieai.app.data.model.getMealTypeName
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,7 +62,7 @@ fun PhotoAnalysisScreen(
         ) {
             when {
                 uiState.isAnalyzing -> {
-                    AnalyzingContent()
+                    AnalyzingContent(retryMessage = uiState.retryMessage)
                 }
                 uiState.error != null -> {
                     ErrorContent(
@@ -80,7 +82,9 @@ fun PhotoAnalysisScreen(
                         onEdit = viewModel::enableEditMode,
                         isEditMode = uiState.isEditMode,
                         editedResult = uiState.editedResult,
-                        onEditResult = viewModel::updateEditedResult
+                        onEditResult = viewModel::updateEditedResult,
+                        selectedMealType = uiState.selectedMealType,
+                        onMealTypeChange = viewModel::onMealTypeChange
                     )
                 }
             }
@@ -90,7 +94,7 @@ fun PhotoAnalysisScreen(
 }
 
 @Composable
-private fun AnalyzingContent() {
+private fun AnalyzingContent(retryMessage: String?) {
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -109,6 +113,12 @@ private fun AnalyzingContent() {
         Text(
             text = "请稍候，正在识别食物并计算营养成分",
             style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = retryMessage ?: "优先执行单次识别，必要时自动补救一次",
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
@@ -172,7 +182,9 @@ private fun AnalysisResultContent(
     onEdit: () -> Unit,
     isEditMode: Boolean,
     editedResult: FoodAnalysisResult?,
-    onEditResult: (FoodAnalysisResult) -> Unit
+    onEditResult: (FoodAnalysisResult) -> Unit,
+    selectedMealType: MealType,
+    onMealTypeChange: (MealType) -> Unit
 ) {
     val displayResult = editedResult ?: result
     val scrollState = rememberScrollState()
@@ -266,6 +278,13 @@ private fun AnalysisResultContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        MealTypeSelectorCard(
+            selectedMealType = selectedMealType,
+            onMealTypeChange = onMealTypeChange
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // 保存按钮
         Button(
             onClick = onSave,
@@ -275,6 +294,32 @@ private fun AnalysisResultContent(
             Icon(Icons.Default.Save, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
             Text("保存记录")
+        }
+    }
+}
+
+@Composable
+private fun MealTypeSelectorCard(
+    selectedMealType: MealType,
+    onMealTypeChange: (MealType) -> Unit
+) {
+    val mealTypes = listOf(MealType.BREAKFAST, MealType.LUNCH, MealType.DINNER, MealType.SNACK)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "餐次",
+            style = MaterialTheme.typography.titleSmall
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            mealTypes.forEach { type ->
+                FilterChip(
+                    selected = type == selectedMealType,
+                    onClick = { onMealTypeChange(type) },
+                    label = { Text(getMealTypeName(type)) }
+                )
+            }
         }
     }
 }

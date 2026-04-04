@@ -1,6 +1,7 @@
 package com.calorieai.app.data.local
 
 import androidx.room.*
+import androidx.room.ColumnInfo
 import com.calorieai.app.data.model.ExerciseRecord
 import com.calorieai.app.data.model.ExerciseType
 import kotlinx.coroutines.flow.Flow
@@ -40,6 +41,16 @@ interface ExerciseRecordDao {
     @Query("SELECT SUM(durationMinutes) FROM exercise_records WHERE recordTime >= :startTime AND recordTime < :endTime")
     suspend fun getTotalDurationBetween(startTime: Long, endTime: Long): Int?
 
+    @Query("""
+        SELECT
+            date(recordTime / 1000, 'unixepoch', 'localtime') as date,
+            SUM(caloriesBurned) as totalCalories
+        FROM exercise_records
+        WHERE recordTime >= :startTime AND recordTime < :endTime
+        GROUP BY date
+    """)
+    suspend fun getDailyCaloriesBetweenSync(startTime: Long, endTime: Long): List<DailyExerciseCalorieData>
+
     @Query("SELECT exerciseType, COUNT(*) as count FROM exercise_records GROUP BY exerciseType ORDER BY count DESC LIMIT 5")
     suspend fun getMostFrequentExerciseTypes(): List<ExerciseTypeCount>
 
@@ -50,4 +61,9 @@ interface ExerciseRecordDao {
 data class ExerciseTypeCount(
     val exerciseType: ExerciseType,
     val count: Int
+)
+
+data class DailyExerciseCalorieData(
+    @ColumnInfo(name = "date") val date: String,
+    @ColumnInfo(name = "totalCalories") val totalCalories: Int
 )

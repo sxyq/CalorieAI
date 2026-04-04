@@ -8,7 +8,6 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -34,12 +33,10 @@ import androidx.compose.ui.draw.scale
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.model.getMealTypeName
-import com.calorieai.app.service.voice.VoiceInputHelper
-import com.calorieai.app.service.voice.VoiceModelManager
+import com.calorieai.app.service.voice.VoiceState
 import com.calorieai.app.ui.components.VoiceInputDialog
 import com.calorieai.app.ui.components.interactiveScale
 import com.calorieai.app.ui.components.liquidGlass
-import javax.inject.Inject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,29 +52,23 @@ fun AddFoodScreen(
     
     // 设置选中的日期
     LaunchedEffect(selectedDate) {
-        selectedDate?.let {
-            viewModel.setSelectedDate(it)
-        }
+        viewModel.setDateContext(selectedDate)
     }
     
     // 语音输入状态
     var showVoiceDialog by remember { mutableStateOf(false) }
     var isListening by remember { mutableStateOf(false) }
     var showPermissionDialog by remember { mutableStateOf(false) }
-    
-    // 语音输入帮助类
-    val voiceHelper = remember { VoiceInputHelper(VoiceModelManager(context.applicationContext)) }
-    val voiceState by voiceHelper.voiceState.collectAsState()
+    val voiceState by viewModel.voiceState.collectAsState()
     
     // 权限请求
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            startVoiceInput(context, voiceHelper, viewModel, onStart = {
-                isListening = true
-                showVoiceDialog = true
-            })
+            viewModel.startVoiceInput(context)
+            isListening = true
+            showVoiceDialog = true
         } else {
             showPermissionDialog = true
         }
@@ -85,15 +76,9 @@ fun AddFoodScreen(
     
     // 监听语音状态
     LaunchedEffect(voiceState) {
-        when (val state = voiceState) {
-            is com.calorieai.app.service.voice.VoiceState.Success -> {
-                viewModel.onFoodDescriptionChange(
-                    if (uiState.foodDescription.isBlank()) state.text 
-                    else "${uiState.foodDescription} ${state.text}"
-                )
-                isListening = false
-            }
-            is com.calorieai.app.service.voice.VoiceState.Error -> {
+        when (voiceState) {
+            is VoiceState.Success,
+            is VoiceState.Error -> {
                 isListening = false
             }
             else -> {}
@@ -128,15 +113,14 @@ fun AddFoodScreen(
                     onVoiceClick = {
                         when {
                             isListening -> {
-                                voiceHelper.stopListening()
+                                viewModel.stopVoiceInput()
                                 isListening = false
                                 showVoiceDialog = false
                             }
                             androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED -> {
-                                startVoiceInput(context, voiceHelper, viewModel, onStart = {
-                                    isListening = true
-                                    showVoiceDialog = true
-                                })
+                                viewModel.startVoiceInput(context)
+                                isListening = true
+                                showVoiceDialog = true
                             }
                             else -> {
                                 permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
@@ -146,7 +130,12 @@ fun AddFoodScreen(
                     isVoiceListening = isListening
                 )
                 
-                // 餐次选择 - 软玻璃分段按钮
+                AutoMealTypeHintCard(
+                    autoMealType = uiState.autoMealType,
+                    selectedMealType = uiState.selectedMealType,
+                    isHistoricalDateMode = uiState.isHistoricalDateMode
+                )
+
                 SoftMealTypeSelector(
                     selectedMealType = uiState.selectedMealType,
                     onMealTypeSelected = viewModel::onMealTypeChange
@@ -184,7 +173,7 @@ fun AddFoodScreen(
                     onClick = { 
                         viewModel.saveFoodRecord(
                             onSuccess = onNavigateToResult,
-                            onError = { error ->
+                            onError = { _ ->
                                 // 错误已在UI状态中显示
                             }
                         )
@@ -204,17 +193,17 @@ fun AddFoodScreen(
         isVisible = showVoiceDialog,
         voiceState = voiceState,
         onDismiss = {
-            voiceHelper.stopListening()
+            viewModel.stopVoiceInput()
             isListening = false
             showVoiceDialog = false
         },
         onStopRecording = {
-            voiceHelper.stopListening()
+            viewModel.stopVoiceInput()
             isListening = false
         },
         showDoneButton = true,
         onDone = {
-            voiceHelper.stopListening()
+            viewModel.stopVoiceInput()
             isListening = false
             showVoiceDialog = false
         }
@@ -249,7 +238,43 @@ fun AddFoodScreen(
     
     DisposableEffect(Unit) {
         onDispose {
-            voiceHelper.destroy()
+            viewModel.stopVoiceInput()
+        }
+    }
+}
+
+@Composable
+private fun AutoMealTypeHintCard(
+    autoMealType: MealType,
+    selectedMealType: MealType,
+    isHistoricalDateMode: Boolean
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .liquidGlass(
+                shape = RoundedCornerShape(20.dp),
+                tint = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.32f),
+                blurRadius = 20f,
+                borderAlpha = 0.25f
+            )
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = if (isHistoricalDateMode) "历史记录餐次可手动调整" else "今日记录默认按时间判定餐次",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = if (isHistoricalDateMode) {
+                    "当前选择：${getMealTypeName(selectedMealType)}"
+                } else {
+                    "系统推荐：${getMealTypeName(autoMealType)}，当前记录：${getMealTypeName(selectedMealType)}"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -548,7 +573,6 @@ private fun SoftSaveButton(
     enabled: Boolean
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
     
     val backgroundTint = if (enabled) {
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
@@ -901,28 +925,3 @@ private fun AIAnalysisAnimation(
     }
 }
 
-/**
- * 开始语音输入
- */
-private fun startVoiceInput(
-    context: android.content.Context,
-    voiceHelper: VoiceInputHelper,
-    viewModel: AddFoodViewModel,
-    onStart: () -> Unit
-) {
-    onStart()
-    voiceHelper.startListening(
-        context = context,
-        onResult = { result ->
-            // 识别成功，更新食物描述
-            viewModel.onFoodDescriptionChange(result)
-        },
-        onError = { error ->
-            android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
-        },
-        onPartialResult = { partialText ->
-            // 实时显示部分识别结果
-            viewModel.onFoodDescriptionChange(partialText)
-        }
-    )
-}

@@ -36,7 +36,7 @@ import com.calorieai.app.data.model.AIChatHistory
         PantryIngredient::class,
         RecipePlan::class
     ],
-    version = 21,
+    version = 22,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -504,6 +504,42 @@ abstract class AppDatabase : RoomDatabase() {
                 )
 
                 db.execSQL("DROP TABLE IF EXISTS recipe_guides")
+            }
+        }
+
+        /**
+         * 从版本21迁移到版本22
+         * 为高频查询字段补充索引，优化统计页/首页/日志页查询性能
+         */
+        val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_food_records_recordTime ON food_records(recordTime)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_food_records_mealType_recordTime ON food_records(mealType, recordTime)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_exercise_records_recordTime ON exercise_records(recordTime)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_weight_records_recordDate ON weight_records(recordDate)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_water_records_recordTime ON water_records(recordTime)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_water_records_recordDate ON water_records(recordDate)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_api_call_records_timestamp ON api_call_records(timestamp)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_api_call_records_configId ON api_call_records(configId)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_api_call_records_configId_timestamp ON api_call_records(configId, timestamp)"
+                )
             }
         }
     }

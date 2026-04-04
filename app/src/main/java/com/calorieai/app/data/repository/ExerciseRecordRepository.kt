@@ -1,6 +1,7 @@
 package com.calorieai.app.data.repository
 
 import com.calorieai.app.data.local.ExerciseRecordDao
+import com.calorieai.app.data.local.DailyExerciseCalorieData
 import com.calorieai.app.data.model.ExerciseRecord
 import com.calorieai.app.data.model.ExerciseType
 import kotlinx.coroutines.flow.Flow
@@ -53,6 +54,10 @@ class ExerciseRecordRepository @Inject constructor(
 
     suspend fun getTotalDurationBetween(startTime: Long, endTime: Long): Int {
         return exerciseRecordDao.getTotalDurationBetween(startTime, endTime) ?: 0
+    }
+
+    suspend fun getDailyCaloriesBetweenSync(startTime: Long, endTime: Long): List<DailyExerciseCalorieData> {
+        return exerciseRecordDao.getDailyCaloriesBetweenSync(startTime, endTime)
     }
 
     suspend fun getMostFrequentExerciseTypes(): List<Pair<ExerciseType, Int>> {

@@ -7,6 +7,8 @@ import com.calorieai.app.data.repository.AIConfigRepository
 import com.calorieai.app.data.repository.AITokenUsageRepository
 import com.calorieai.app.service.ai.common.AIApiClient
 import com.calorieai.app.service.ai.common.AIApiException
+import com.calorieai.app.service.ai.common.AIErrorCategory
+import com.calorieai.app.service.ai.common.AIErrorClassifier
 import com.calorieai.app.utils.SecureLogger
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
@@ -145,7 +147,12 @@ class FoodTextAnalysisService @Inject constructor(
                             )
                         )
                     }
-                    lastError = Exception("AI返回结果为空或无效")
+                    lastError = AIApiException(
+                        message = "AI返回结果为空或无效",
+                        category = AIErrorCategory.VALIDATION,
+                        retryEligible = true
+                    )
+                    val errorInfo = AIErrorClassifier.classify(lastError)
                     recordApiCall(
                         configId = config.id,
                         configName = config.name,
@@ -157,10 +164,11 @@ class FoodTextAnalysisService @Inject constructor(
                         cost = parsedUsage.cost,
                         duration = System.currentTimeMillis() - startTime,
                         isSuccess = false,
-                        errorMessage = lastError?.message
+                        errorMessage = errorInfo.toLogMessage()
                     )
                 } catch (e: Exception) {
                     lastError = e
+                    val errorInfo = AIErrorClassifier.classify(e)
                     recordApiCall(
                         configId = config.id,
                         configName = config.name,
@@ -172,20 +180,24 @@ class FoodTextAnalysisService @Inject constructor(
                         cost = 0.0,
                         duration = System.currentTimeMillis() - startTime,
                         isSuccess = false,
-                        errorMessage = e.message
+                        errorMessage = errorInfo.toLogMessage()
                     )
                 }
 
-                if (attempt < maxAttempts) {
+                val errorInfo = AIErrorClassifier.classify(lastError)
+                if (attempt < maxAttempts && errorInfo.retryEligible) {
                     onRetry?.invoke(attempt, maxAttempts)
                     SecureLogger.w(
                         TAG,
-                        "batch_analysis_retry | attempt=$attempt/$maxAttempts | reason=${lastError?.message}"
+                        "batch_analysis_retry | attempt=$attempt/$maxAttempts | category=${errorInfo.category} | reason=${errorInfo.detail}"
                     )
+                } else if (errorInfo.category == AIErrorCategory.NETWORK) {
+                    break
                 }
             }
 
-            Result.failure(lastError ?: Exception("AI分析失败"))
+            val finalError = AIErrorClassifier.classify(lastError)
+            Result.failure(Exception(finalError.userMessage))
 
         } catch (e: AIApiException) {
             Result.failure(Exception("AI分析失败: ${e.message}"))

@@ -114,53 +114,16 @@ fun OnboardingScreen3(
         )
     )
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = { Text("生活习惯") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp)
-        ) {
-            OnboardingProgressIndicator(currentStep = 2, totalSteps = 4, isDark = isDark)
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "您的生活习惯",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Text(
-                text = "选择您的日常活动水平，我们将为您计算推荐热量",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
+    OnboardingStepRenderer(
+        config = OnboardingStepLayoutConfig(
+            appBarTitle = "生活习惯",
+            headline = "您的生活习惯",
+            subtitle = "选择您的日常活动水平，我们将为您计算推荐热量",
+            currentStep = 2,
+            totalSteps = 4
+        ),
+        onBack = onBack
+    ) {
             // 活动水平选择
             Text(
                 text = "日常活动水平",
@@ -261,7 +224,6 @@ fun OnboardingScreen3(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
-        }
     }
 }
 

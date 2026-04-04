@@ -1,12 +1,19 @@
 package com.calorieai.app.data.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
  * 饮水记录数据模型
  */
-@Entity(tableName = "water_records")
+@Entity(
+    tableName = "water_records",
+    indices = [
+        Index(value = ["recordTime"]),
+        Index(value = ["recordDate"])
+    ]
+)
 data class WaterRecord(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,

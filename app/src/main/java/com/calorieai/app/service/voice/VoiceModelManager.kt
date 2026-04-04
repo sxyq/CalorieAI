@@ -97,10 +97,14 @@ class VoiceModelManager @Inject constructor(
         modelDir.mkdirs()
 
         val extractRoot = modelDir.parentFile ?: modelDir
+        val canonicalRoot = extractRoot.canonicalFile
         ZipInputStream(zipFile.inputStream()).use { zis ->
             var entry = zis.nextEntry
             while (entry != null) {
-                val entryFile = File(extractRoot, entry.name)
+                val entryFile = resolveZipEntryTarget(
+                    canonicalRoot = canonicalRoot,
+                    entryName = entry.name
+                )
                 if (entry.isDirectory) {
                     entryFile.mkdirs()
                 } else {
@@ -134,6 +138,18 @@ class VoiceModelManager @Inject constructor(
         if (!isModelReady(modelDir)) {
             throw IllegalStateException("模型安装不完整")
         }
+    }
+
+    private fun resolveZipEntryTarget(canonicalRoot: File, entryName: String): File {
+        if (entryName.isBlank()) {
+            throw IllegalStateException("模型压缩包包含非法空路径")
+        }
+        val target = File(canonicalRoot, entryName).canonicalFile
+        val rootPath = canonicalRoot.path.trimEnd(File.separatorChar) + File.separator
+        if (!target.path.startsWith(rootPath)) {
+            throw IllegalStateException("检测到非法压缩路径: $entryName")
+        }
+        return target
     }
 
     private fun isModelReady(modelDir: File): Boolean {

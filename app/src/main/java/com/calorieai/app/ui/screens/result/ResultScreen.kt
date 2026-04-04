@@ -5,6 +5,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -28,6 +29,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.FoodRecord
+import com.calorieai.app.data.model.MealType
+import com.calorieai.app.data.model.getMealTypeName
 import com.calorieai.app.ui.components.interactiveScale
 import com.calorieai.app.ui.components.liquidGlass
 
@@ -140,6 +143,7 @@ fun ResultContent(
     var vitaminC by remember { mutableStateOf(record.vitaminC.toString()) }
     var vitaminA by remember { mutableStateOf(record.vitaminA.toString()) }
     var potassium by remember { mutableStateOf(record.potassium.toString()) }
+    var mealType by remember { mutableStateOf(record.mealType) }
 
     LaunchedEffect(record) {
         calories = record.totalCalories.toString()
@@ -156,6 +160,7 @@ fun ResultContent(
         vitaminC = record.vitaminC.toString()
         vitaminA = record.vitaminA.toString()
         potassium = record.potassium.toString()
+        mealType = record.mealType
     }
 
     Column(
@@ -167,6 +172,11 @@ fun ResultContent(
     ) {
         // 食物名称卡片 - 大标题样式
         FoodNameCard(foodName = record.foodName)
+
+        MealTypeCard(
+            selectedMealType = mealType,
+            onMealTypeSelected = { mealType = it }
+        )
 
         // 热量主卡片 - 突出显示
         CaloriesCard(
@@ -230,7 +240,8 @@ fun ResultContent(
                     iron = iron.toFloatOrNull() ?: 0f,
                     vitaminC = vitaminC.toFloatOrNull() ?: 0f,
                     vitaminA = vitaminA.toFloatOrNull() ?: 0f,
-                    potassium = potassium.toFloatOrNull() ?: 0f
+                    potassium = potassium.toFloatOrNull() ?: 0f,
+                    mealType = mealType
                 )
                 onSave(updatedRecord)
             }
@@ -249,6 +260,55 @@ fun ResultContent(
         RegenerateButton(onClick = onRegenerate, isLoading = isRegenerating)
 
         Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MealTypeCard(
+    selectedMealType: MealType,
+    onMealTypeSelected: (MealType) -> Unit
+) {
+    val mealTypes = listOf(
+        MealType.BREAKFAST,
+        MealType.BREAKFAST_SNACK,
+        MealType.LUNCH,
+        MealType.LUNCH_SNACK,
+        MealType.DINNER,
+        MealType.DINNER_SNACK,
+        MealType.SNACK
+    )
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.35f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "餐次",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                mealTypes.forEach { option ->
+                    FilterChip(
+                        selected = selectedMealType == option,
+                        onClick = { onMealTypeSelected(option) },
+                        label = { Text(getMealTypeName(option)) }
+                    )
+                }
+            }
+        }
     }
 }
 

@@ -93,17 +93,19 @@ class HomeViewModel @Inject constructor(
             
             // 使用 DateUtils 获取日期范围
             val (startOfDay, endOfDay) = DateUtils.getDayRange(date)
+            val calendarRange = getCalendarRange(date)
             
             // 加载当前日期数据
             combine(
                 foodRecordRepository.getRecordsByDateRange(startOfDay, endOfDay),
                 foodRecordRepository.getTotalCaloriesByDateRange(startOfDay, endOfDay),
-                exerciseRecordRepository.getRecordsBetween(startOfDay, endOfDay)
-            ) { records, totalCalories, exerciseRecords ->
-                Triple(records, totalCalories, exerciseRecords)
-            }.collectLatest { (records, totalCalories, exerciseRecords) ->
+                exerciseRecordRepository.getRecordsBetween(startOfDay, endOfDay),
+                foodRecordRepository.getRecordsByDateRange(calendarRange.startMillis, calendarRange.endMillis)
+            ) { records, totalCalories, exerciseRecords, heatmapRecords ->
+                Quadruple(records, totalCalories, exerciseRecords, heatmapRecords)
+            }.collectLatest { (records, totalCalories, exerciseRecords, heatmapRecords) ->
                 val calendarData = withContext(Dispatchers.Default) {
-                    buildCalendarData(records)
+                    buildCalendarData(heatmapRecords)
                 }
 
                 // 计算运动消耗和时长
@@ -127,11 +129,8 @@ class HomeViewModel @Inject constructor(
      * 加载日历数据（最近30天）
      */
     private fun buildCalendarData(records: List<FoodRecord>): Map<LocalDate, Int> {
-        val (startOfRange, endOfRange) = DateUtils.getDateRange(30)
-
         return records
-            .filter { it.recordTime in startOfRange..endOfRange }
-            .groupBy { 
+            .groupBy {
                 java.time.Instant.ofEpochMilli(it.recordTime)
                     .atZone(ZoneId.systemDefault())
                     .toLocalDate()
@@ -140,6 +139,24 @@ class HomeViewModel @Inject constructor(
                 dayRecords.sumOf { it.totalCalories }
             }
     }
+
+    private fun getCalendarRange(endDate: LocalDate): CalendarRange {
+        val zoneId = ZoneId.systemDefault()
+        val start = endDate.minusDays(29)
+            .atStartOfDay(zoneId)
+            .toInstant()
+            .toEpochMilli()
+        val end = endDate.plusDays(1)
+            .atStartOfDay(zoneId)
+            .toInstant()
+            .toEpochMilli() - 1
+        return CalendarRange(startMillis = start, endMillis = end)
+    }
+
+    private data class CalendarRange(
+        val startMillis: Long,
+        val endMillis: Long
+    )
 
     /**
      * 切换收藏状态
@@ -207,6 +224,13 @@ class HomeViewModel @Inject constructor(
         }
     }
 }
+
+private data class Quadruple<A, B, C, D>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D
+)
 
 data class HomeUiState(
     val records: List<FoodRecord> = emptyList(),

@@ -83,51 +83,17 @@ fun OnboardingScreen4(
         )
     )
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = { Text("健康目标") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            OnboardingProgressIndicator(currentStep = 3, totalSteps = 4, isDark = isDark)
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Text(
-                text = "您的健康目标",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-
-            Text(
-                text = "选择您想要达成的目标，我们将为您制定个性化方案",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
+    OnboardingStepRenderer(
+        config = OnboardingStepLayoutConfig(
+            appBarTitle = "健康目标",
+            headline = "您的健康目标",
+            subtitle = "选择您想要达成的目标，我们将为您制定个性化方案",
+            currentStep = 3,
+            totalSteps = 4,
+            horizontalPadding = 20.dp
+        ),
+        onBack = onBack
+    ) {
             goalOptions.forEach { option ->
                 GoalTypeCard(
                     option = option,
@@ -153,7 +119,6 @@ fun OnboardingScreen4(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
-        }
     }
 }
 

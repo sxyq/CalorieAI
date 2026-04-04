@@ -115,51 +115,17 @@ fun OnboardingScreen5(
         GoalType.MAINTAIN -> Color(0xFF9C27B0)
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = { Text("细化目标") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            OnboardingProgressIndicator(currentStep = 4, totalSteps = 4, isDark = isDark)
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Text(
-                text = "设定具体目标",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-
-            Text(
-                text = "根据您的选择，让我们制定更精确的计划",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
+    OnboardingStepRenderer(
+        config = OnboardingStepLayoutConfig(
+            appBarTitle = "细化目标",
+            headline = "设定具体目标",
+            subtitle = "根据您的选择，让我们制定更精确的计划",
+            currentStep = 4,
+            totalSteps = 4,
+            horizontalPadding = 20.dp
+        ),
+        onBack = onBack
+    ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -285,7 +251,6 @@ fun OnboardingScreen5(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
-        }
     }
 }
 

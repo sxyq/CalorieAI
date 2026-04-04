@@ -8,7 +8,13 @@ import androidx.room.TypeConverters
 // 导入 ExerciseType 用于 Converters 类
 import com.calorieai.app.data.model.ExerciseType
 
-@Entity(tableName = "food_records")
+@Entity(
+    tableName = "food_records",
+    indices = [
+        Index(value = ["recordTime"]),
+        Index(value = ["mealType", "recordTime"])
+    ]
+)
 @TypeConverters(Converters::class)
 data class FoodRecord(
     @PrimaryKey

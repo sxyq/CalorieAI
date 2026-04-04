@@ -1,13 +1,17 @@
 package com.calorieai.app.data.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
  * 体重记录
  * 用于存储用户的历史体重数据
  */
-@Entity(tableName = "weight_records")
+@Entity(
+    tableName = "weight_records",
+    indices = [Index(value = ["recordDate"])]
+)
 data class WeightRecord(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,

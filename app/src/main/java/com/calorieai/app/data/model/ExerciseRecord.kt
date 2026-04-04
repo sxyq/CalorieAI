@@ -1,12 +1,16 @@
 package com.calorieai.app.data.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
  * 运动记录实体
  */
-@Entity(tableName = "exercise_records")
+@Entity(
+    tableName = "exercise_records",
+    indices = [Index(value = ["recordTime"])]
+)
 data class ExerciseRecord(
     @PrimaryKey
     val id: String = java.util.UUID.randomUUID().toString(),

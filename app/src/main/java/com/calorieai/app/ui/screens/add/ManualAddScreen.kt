@@ -40,6 +40,7 @@ import com.calorieai.app.data.model.UserBodyProfile
 import com.calorieai.app.data.model.getMealTypeName
 import com.calorieai.app.ui.components.interactiveScale
 import com.calorieai.app.ui.components.liquidGlass
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * 手动录入页面 - 美化版
@@ -49,10 +50,29 @@ import com.calorieai.app.ui.components.liquidGlass
 @Composable
 fun ManualAddScreen(
     onNavigateBack: () -> Unit,
-    onSaveComplete: () -> Unit,
     viewModel: ManualAddViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collectLatest { event ->
+            when (event) {
+                is ManualAddEvent.ManualSaveSuccess -> {
+                    snackbarHostState.showSnackbar("已保存记录：${event.foodName}")
+                }
+                is ManualAddEvent.ManualSaveFailed -> {
+                    snackbarHostState.showSnackbar("保存失败：${event.message}")
+                }
+                is ManualAddEvent.FavoriteQuickAddSuccess -> {
+                    snackbarHostState.showSnackbar("已成功添加：${event.foodName}")
+                }
+                is ManualAddEvent.FavoriteQuickAddFailed -> {
+                    snackbarHostState.showSnackbar("添加失败：${event.message}")
+                }
+            }
+        }
+    }
 
     // 获取营养素参考值（使用默认用户数据）
     val nutritionReferences by remember {
@@ -76,6 +96,7 @@ fun ManualAddScreen(
     ) {
         Scaffold(
             containerColor = Color.Transparent,
+            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
             topBar = {
                 TopAppBar(
                     title = { Text("手动录入") },
@@ -106,7 +127,7 @@ fun ManualAddScreen(
                     selectedMealType = uiState.favoriteMealType,
                     onMealTypeSelected = viewModel::updateFavoriteMealType,
                     onQuickAdd = { recipe ->
-                        viewModel.addFavoriteRecipeToToday(recipe, onSaveComplete)
+                        viewModel.addFavoriteRecipeToToday(recipe)
                     }
                 )
 
@@ -266,7 +287,6 @@ fun ManualAddScreen(
                 SaveButton(
                     onClick = {
                         viewModel.saveRecord()
-                        onSaveComplete()
                     },
                     enabled = uiState.foodName.isNotBlank() && uiState.calories.isNotBlank()
                 )
@@ -327,7 +347,7 @@ private fun FavoriteRecipeQuickEntryCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.MenuBook,
+                            imageVector = Icons.Filled.MenuBook,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.tertiary
                         )
@@ -422,8 +442,6 @@ private fun FoodNameInput(
     onValueChange: (String) -> Unit,
     placeholder: String
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -769,8 +787,6 @@ private fun NutritionInputCard(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-
     Box(
         modifier = modifier
             .height(100.dp)

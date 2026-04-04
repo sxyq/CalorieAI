@@ -52,42 +52,6 @@ fun OnboardingScreen2(
     var weightError by remember { mutableStateOf<String?>(null) }
     var heightError by remember { mutableStateOf<String?>(null) }
 
-    // 实时验证
-    fun validateWeight(value: String): String? {
-        if (value.isBlank()) return null
-        val num = value.toFloatOrNull()
-        return when {
-            num == null -> "请输入有效数字"
-            weightUnit == "kg" && (num < 30 || num > 200) -> "体重范围：30-200kg"
-            weightUnit == "lb" && (num < 66 || num > 440) -> "体重范围：66-440lb"
-            else -> null
-        }
-    }
-
-    fun validateHeight(value: String): String? {
-        if (value.isBlank()) return null
-        val num = value.toFloatOrNull()
-        return when {
-            num == null -> "请输入有效数字"
-            heightUnit == "cm" && (num < 100 || num > 250) -> "身高范围：100-250cm"
-            heightUnit == "ft" && (num < 3.3 || num > 8.2) -> "身高范围：3.3-8.2ft"
-            else -> null
-        }
-    }
-
-    // 单位转换
-    fun convertWeight(value: Float, from: String, to: String): Float {
-        return if (from == to) value
-        else if (from == "kg" && to == "lb") value * 2.20462f
-        else value / 2.20462f
-    }
-
-    fun convertHeight(value: Float, from: String, to: String): Float {
-        return if (from == to) value
-        else if (from == "cm" && to == "ft") value / 30.48f
-        else value * 30.48f
-    }
-
     // 表单验证
     val isFormValid = weightInput.isNotBlank() &&
                       heightInput.isNotBlank() &&
@@ -144,16 +108,16 @@ fun OnboardingScreen2(
                 value = weightInput,
                 onValueChange = {
                     weightInput = it
-                    weightError = validateWeight(it)
+                    weightError = OnboardingValidators.validateWeight(it, weightUnit)
                 },
                 unit = weightUnit,
                 onUnitChange = { newUnit ->
                     weightInput.toFloatOrNull()?.let { currentValue ->
-                        val converted = convertWeight(currentValue, weightUnit, newUnit)
+                        val converted = OnboardingValidators.convertWeight(currentValue, weightUnit, newUnit)
                         weightInput = String.format("%.1f", converted)
                     }
                     weightUnit = newUnit
-                    weightError = validateWeight(weightInput)
+                    weightError = OnboardingValidators.validateWeight(weightInput, weightUnit)
                 },
                 units = listOf("kg", "lb"),
                 error = weightError,
@@ -171,12 +135,12 @@ fun OnboardingScreen2(
                 value = heightInput,
                 onValueChange = {
                     heightInput = it
-                    heightError = validateHeight(it)
+                    heightError = OnboardingValidators.validateHeight(it, heightUnit)
                 },
                 unit = heightUnit,
                 onUnitChange = { newUnit ->
                     heightInput.toFloatOrNull()?.let { currentValue ->
-                        val converted = convertHeight(currentValue, heightUnit, newUnit)
+                        val converted = OnboardingValidators.convertHeight(currentValue, heightUnit, newUnit)
                         heightInput = if (newUnit == "ft") {
                             String.format("%.2f", converted)
                         } else {
@@ -184,7 +148,7 @@ fun OnboardingScreen2(
                         }
                     }
                     heightUnit = newUnit
-                    heightError = validateHeight(heightInput)
+                    heightError = OnboardingValidators.validateHeight(heightInput, heightUnit)
                 },
                 units = listOf("cm", "ft"),
                 error = heightError,

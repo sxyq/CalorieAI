@@ -19,6 +19,10 @@ class FavoriteRecipeRepository @Inject constructor(
         return favoriteRecipeDao.getBySourceRecordId(sourceRecordId)
     }
 
+    suspend fun getById(id: String): FavoriteRecipe? {
+        return favoriteRecipeDao.getById(id)
+    }
+
     suspend fun upsert(recipe: FavoriteRecipe) {
         favoriteRecipeDao.insert(sanitizeFavoriteRecipe(recipe))
     }

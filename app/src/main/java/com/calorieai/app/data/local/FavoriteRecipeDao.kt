@@ -17,6 +17,9 @@ interface FavoriteRecipeDao {
     @Query("SELECT * FROM favorite_recipes WHERE sourceRecordId = :sourceRecordId LIMIT 1")
     suspend fun getBySourceRecordId(sourceRecordId: String): FavoriteRecipe?
 
+    @Query("SELECT * FROM favorite_recipes WHERE id = :id LIMIT 1")
+    suspend fun getById(id: String): FavoriteRecipe?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(recipe: FavoriteRecipe)
 

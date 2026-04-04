@@ -6,6 +6,7 @@ import com.calorieai.app.data.repository.AIConfigRepository
 import com.calorieai.app.data.repository.AITokenUsageRepository
 import com.calorieai.app.service.ai.common.AIApiClient
 import com.calorieai.app.service.ai.common.AIApiException
+import com.calorieai.app.service.ai.common.AIErrorClassifier
 import com.calorieai.app.utils.SecureLogger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -105,6 +106,7 @@ class AIChatService @Inject constructor(
 
             return content
         } catch (e: AIApiException) {
+            val errorInfo = AIErrorClassifier.classify(e)
             recordApiCall(
                 configId = config.id,
                 configName = config.name,
@@ -115,10 +117,11 @@ class AIChatService @Inject constructor(
                 protocol = config.protocol.name,
                 duration = System.currentTimeMillis() - startTime,
                 isSuccess = false,
-                errorMessage = e.message
+                errorMessage = errorInfo.toLogMessage()
             )
-            throw Exception("API调用失败: ${e.message}")
+            throw Exception(errorInfo.userMessage)
         } catch (e: Exception) {
+            val errorInfo = AIErrorClassifier.classify(e)
             recordApiCall(
                 configId = config.id,
                 configName = config.name,
@@ -129,9 +132,9 @@ class AIChatService @Inject constructor(
                 protocol = config.protocol.name,
                 duration = System.currentTimeMillis() - startTime,
                 isSuccess = false,
-                errorMessage = e.message
+                errorMessage = errorInfo.toLogMessage()
             )
-            throw e
+            throw Exception(errorInfo.userMessage, e)
         }
     }
 
@@ -187,6 +190,7 @@ class AIChatService @Inject constructor(
                     isSuccess = true
                 )
             } catch (e: AIApiException) {
+                val errorInfo = AIErrorClassifier.classify(e)
                 recordApiCall(
                     configId = config.id,
                     configName = config.name,
@@ -197,10 +201,11 @@ class AIChatService @Inject constructor(
                     protocol = config.protocol.name,
                     duration = System.currentTimeMillis() - startTime,
                     isSuccess = false,
-                    errorMessage = e.message
+                    errorMessage = errorInfo.toLogMessage()
                 )
-                throw Exception("API调用失败: ${e.message}")
+                throw Exception(errorInfo.userMessage)
             } catch (e: Exception) {
+                val errorInfo = AIErrorClassifier.classify(e)
                 recordApiCall(
                     configId = config.id,
                     configName = config.name,
@@ -211,9 +216,9 @@ class AIChatService @Inject constructor(
                     protocol = config.protocol.name,
                     duration = System.currentTimeMillis() - startTime,
                     isSuccess = false,
-                    errorMessage = e.message
+                    errorMessage = errorInfo.toLogMessage()
                 )
-                throw e
+                throw Exception(errorInfo.userMessage, e)
             }
         }
     }
@@ -360,6 +365,7 @@ class AIChatService @Inject constructor(
 
             return content
         } catch (e: AIApiException) {
+            val errorInfo = AIErrorClassifier.classify(e)
             recordApiCall(
                 configId = config.id,
                 configName = config.name,
@@ -370,10 +376,11 @@ class AIChatService @Inject constructor(
                 protocol = config.protocol.name,
                 duration = System.currentTimeMillis() - startTime,
                 isSuccess = false,
-                errorMessage = e.message
+                errorMessage = errorInfo.toLogMessage()
             )
-            throw Exception("API调用失败: ${e.message}")
+            throw Exception(errorInfo.userMessage)
         } catch (e: Exception) {
+            val errorInfo = AIErrorClassifier.classify(e)
             recordApiCall(
                 configId = config.id,
                 configName = config.name,
@@ -384,9 +391,9 @@ class AIChatService @Inject constructor(
                 protocol = config.protocol.name,
                 duration = System.currentTimeMillis() - startTime,
                 isSuccess = false,
-                errorMessage = e.message
+                errorMessage = errorInfo.toLogMessage()
             )
-            throw e
+            throw Exception(errorInfo.userMessage, e)
         }
     }
 

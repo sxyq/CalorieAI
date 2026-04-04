@@ -3,11 +3,7 @@ package com.calorieai.app.ui.screens.ai
 import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calorieai.app.data.model.ChatMessageData
-import com.calorieai.app.data.model.ChatSessionSummary
-import com.calorieai.app.data.repository.AIChatHistoryRepository
 import com.calorieai.app.service.ai.AIChatService
-import com.calorieai.app.service.ai.AIChatService.ConversationMessage
 import com.calorieai.app.utils.SecureLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.NonCancellable
@@ -20,7 +16,9 @@ import javax.inject.Inject
 @HiltViewModel
 class AIChatViewModel @Inject constructor(
     private val aiChatService: AIChatService,
-    private val aiChatHistoryRepository: AIChatHistoryRepository
+    private val sendMessageUseCase: AIChatSendMessageUseCase,
+    private val sessionUseCase: AIChatSessionUseCase,
+    private val errorMapper: AIChatErrorMapper
 ) : ViewModel() {
     companion object {
         private const val TAG = "AIChatViewModel"
@@ -41,10 +39,10 @@ class AIChatViewModel @Inject constructor(
 
     private fun loadChatSessions() {
         viewModelScope.launch {
-            aiChatHistoryRepository.getAllHistory().collect { sessions ->
+            sessionUseCase.observeSessions().collect { sessions ->
                 SecureLogger.event(TAG, "chat_sessions_updated", "count" to sessions.size)
                 _uiState.value = _uiState.value.copy(
-                    chatSessions = sessions.map { it.toChatSessionInfo() }
+                    chatSessions = sessions
                 )
             }
         }
@@ -73,7 +71,7 @@ class AIChatViewModel @Inject constructor(
             }
 
             // 创建并持久化一个新会话，确保“+号新对话”有实际效果
-            val sessionId = aiChatHistoryRepository.createNewSession("新对话")
+            val sessionId = sessionUseCase.createNewSession("新对话")
             SecureLogger.event(TAG, "new_session_created", "sessionId" to sessionId)
             _uiState.value = _uiState.value.copy(
                 currentSessionId = sessionId,
@@ -90,19 +88,19 @@ class AIChatViewModel @Inject constructor(
         
         viewModelScope.launch {
             SecureLogger.event(TAG, "load_session_start", "sessionId" to sessionId)
-            val (history, messages) = aiChatHistoryRepository.getHistoryBySessionId(sessionId)
-            if (history != null) {
+            val session = sessionUseCase.loadSession(sessionId)
+            if (session != null) {
                 SecureLogger.event(
                     TAG,
                     "load_session_success",
                     "sessionId" to sessionId,
-                    "messageCount" to messages.size,
-                    "title" to history.title
+                    "messageCount" to session.messages.size,
+                    "title" to session.title
                 )
                 _uiState.value = _uiState.value.copy(
                     currentSessionId = sessionId,
-                    currentSessionTitle = history.title,
-                    messages = messages.map { it.toChatMessage() }
+                    currentSessionTitle = session.title,
+                    messages = session.messages
                 )
             } else {
                 SecureLogger.w(TAG, "load_session_not_found | sessionId=$sessionId")
@@ -113,7 +111,7 @@ class AIChatViewModel @Inject constructor(
     fun deleteSession(sessionId: String) {
         viewModelScope.launch {
             SecureLogger.event(TAG, "delete_session_start", "sessionId" to sessionId)
-            aiChatHistoryRepository.deleteSession(sessionId)
+            sessionUseCase.deleteSession(sessionId)
             SecureLogger.event(TAG, "delete_session_done", "sessionId" to sessionId)
             if (sessionId == _uiState.value.currentSessionId) {
                 startNewSession(skipSaveCurrent = true)
@@ -128,7 +126,7 @@ class AIChatViewModel @Inject constructor(
 
     fun togglePinSession(sessionId: String) {
         viewModelScope.launch {
-            aiChatHistoryRepository.togglePin(sessionId)
+            sessionUseCase.togglePinSession(sessionId)
         }
     }
 
@@ -139,22 +137,15 @@ class AIChatViewModel @Inject constructor(
     }
 
     private suspend fun saveCurrentSessionInternal(state: AIChatUiState) {
-        if (state.messages.isNotEmpty()) {
-            val title = state.messages.firstOrNull { it.isFromUser }?.content?.take(30) ?: "新对话"
-            val messages = state.messages.map { it.toChatMessageData() }
-            SecureLogger.event(
-                TAG,
-                "save_session",
-                "sessionId" to state.currentSessionId,
-                "title" to title,
-                "messageCount" to messages.size
-            )
-            aiChatHistoryRepository.saveChatSession(
-                sessionId = state.currentSessionId,
-                title = title,
-                messages = messages
-            )
-        }
+        if (state.messages.isEmpty()) return
+        SecureLogger.event(
+            TAG,
+            "save_session",
+            "sessionId" to state.currentSessionId,
+            "title" to (state.messages.firstOrNull { it.isFromUser }?.content?.take(30) ?: "新对话"),
+            "messageCount" to state.messages.size
+        )
+        sessionUseCase.saveCurrentSession(state)
     }
 
     fun persistCurrentSession() {
@@ -186,13 +177,10 @@ class AIChatViewModel @Inject constructor(
             content = message,
             isFromUser = true
         )
-        val conversationHistory = (_uiState.value.messages + userMessage).map { chatMessage ->
-            ConversationMessage(
-                role = if (chatMessage.isFromUser) "user" else "assistant",
-                content = chatMessage.content,
-                timestamp = chatMessage.timestamp
-            )
-        }
+        val conversationHistory = sendMessageUseCase.buildConversationHistory(
+            existingMessages = _uiState.value.messages,
+            userMessage = userMessage
+        )
         val startAt = SystemClock.elapsedRealtime()
         val activeSessionId = _uiState.value.currentSessionId
         SecureLogger.event(
@@ -243,8 +231,7 @@ class AIChatViewModel @Inject constructor(
                 var pendingLength = 0
                 var lastUiUpdateAt = 0L
 
-                aiChatService.sendMessageStream(message, conversationHistory).collect { chunk ->
-                    val piece = chunk.toString()
+                sendMessageUseCase.streamAssistantReply(message, conversationHistory) { piece ->
                     fullResponse.append(piece)
                     pendingLength += piece.length
 
@@ -292,16 +279,8 @@ class AIChatViewModel @Inject constructor(
                     "send_failed | sessionId=$activeSessionId | inputLength=${message.length} | elapsedMs=$elapsed | error=${e.message}",
                     e
                 )
-                
-                val errorMsg = when {
-                    e.message?.contains("未配置AI服务") == true -> "未配置AI服务，请先在设置中配置AI服务"
-                    e.message?.contains("API调用次数已用完") == true -> e.message!!
-                    e.message?.contains("API调用失败") == true -> e.message!!
-                    e.message?.contains("API返回为空") == true -> "AI服务返回为空，请检查网络连接"
-                    e.message?.contains("Unable to resolve host") == true -> "网络连接失败，请检查网络设置"
-                    e.message != null -> "抱歉，我遇到了一些问题：${e.message}"
-                    else -> "未知错误，请检查网络连接或AI配置。错误类型：${e.javaClass.simpleName}"
-                }
+
+                val errorMsg = errorMapper.map(e)
                 
                 val errorMessage = ChatMessage(
                     content = errorMsg,
@@ -316,209 +295,46 @@ class AIChatViewModel @Inject constructor(
             }
         }
     }
-
-    fun startCalorieAssessment() {
-        val userMessage = "请帮我评估最近一周的热量消耗是否合理"
-        val displayMessage = ChatMessage(
-            content = userMessage,
-            isFromUser = true
-        )
-
-        _uiState.value = _uiState.value.copy(
-            messages = _uiState.value.messages + displayMessage,
-            inputText = "",
-            isLoading = true,
-            isTyping = true
-        )
-
-        if (_uiState.value.currentSessionTitle.isBlank()) {
-            _uiState.value = _uiState.value.copy(
-                currentSessionTitle = userMessage.take(30)
-            )
-        }
-
-        viewModelScope.launch {
-            try {
-                val response = aiChatService.assessCalorieIntake()
-
-                val aiMessage = ChatMessage(
-                    content = response,
-                    isFromUser = false
-                )
-
-                _uiState.value = _uiState.value.copy(
-                    messages = _uiState.value.messages + aiMessage,
-                    isLoading = false,
-                    isTyping = false
-                )
-
-                updateRemainingCalls()
-                saveCurrentSession()
-            } catch (e: Exception) {
-                val errorMessage = ChatMessage(
-                    content = "抱歉，评估失败：${e.message}",
-                    isFromUser = false
-                )
-                _uiState.value = _uiState.value.copy(
-                    messages = _uiState.value.messages + errorMessage,
-                    isLoading = false,
-                    isTyping = false
-                )
-            }
-        }
+    fun startCalorieAssessment() = runQuickAction(
+        userMessage = "\u8BF7\u5E2E\u6211\u8BC4\u4F30\u6700\u8FD1\u4E00\u5468\u7684\u70ED\u91CF\u6D88\u8017\u662F\u5426\u5408\u7406",
+        actionName = "calorie_assessment"
+    ) {
+        assessCalorieIntake()
     }
 
-    fun startMealPlanning() {
-        val userMessage = "请帮我规划今天的健康菜谱"
-        val displayMessage = ChatMessage(
-            content = userMessage,
-            isFromUser = true
-        )
-
-        _uiState.value = _uiState.value.copy(
-            messages = _uiState.value.messages + displayMessage,
-            inputText = "",
-            isLoading = true,
-            isTyping = true
-        )
-
-        if (_uiState.value.currentSessionTitle.isBlank()) {
-            _uiState.value = _uiState.value.copy(
-                currentSessionTitle = userMessage.take(30)
-            )
-        }
-
-        viewModelScope.launch {
-            try {
-                val response = aiChatService.planHealthyMeals()
-
-                val aiMessage = ChatMessage(
-                    content = response,
-                    isFromUser = false
-                )
-
-                _uiState.value = _uiState.value.copy(
-                    messages = _uiState.value.messages + aiMessage,
-                    isLoading = false,
-                    isTyping = false
-                )
-
-                updateRemainingCalls()
-                saveCurrentSession()
-            } catch (e: Exception) {
-                val errorMessage = ChatMessage(
-                    content = "抱歉，规划失败：${e.message}",
-                    isFromUser = false
-                )
-                _uiState.value = _uiState.value.copy(
-                    messages = _uiState.value.messages + errorMessage,
-                    isLoading = false,
-                    isTyping = false
-                )
-            }
-        }
+    fun startMealPlanning() = runQuickAction(
+        userMessage = "\u8BF7\u5E2E\u6211\u89C4\u5212\u4ECA\u5929\u7684\u5065\u5EB7\u83DC\u8C31",
+        actionName = "meal_planning"
+    ) {
+        planHealthyMeals()
     }
 
-    fun startWeeklyMealPlanning() {
-        val userMessage = "请帮我制定未来7天菜谱周计划"
-        val displayMessage = ChatMessage(
-            content = userMessage,
-            isFromUser = true
-        )
-
-        _uiState.value = _uiState.value.copy(
-            messages = _uiState.value.messages + displayMessage,
-            inputText = "",
-            isLoading = true,
-            isTyping = true
-        )
-
-        if (_uiState.value.currentSessionTitle.isBlank()) {
-            _uiState.value = _uiState.value.copy(
-                currentSessionTitle = userMessage.take(30)
-            )
-        }
-
-        viewModelScope.launch {
-            try {
-                val response = aiChatService.planWeeklyMeals()
-                val aiMessage = ChatMessage(
-                    content = response,
-                    isFromUser = false
-                )
-
-                _uiState.value = _uiState.value.copy(
-                    messages = _uiState.value.messages + aiMessage,
-                    isLoading = false,
-                    isTyping = false
-                )
-                updateRemainingCalls()
-                saveCurrentSession()
-            } catch (e: Exception) {
-                val errorMessage = ChatMessage(
-                    content = "抱歉，周计划生成失败：${e.message}",
-                    isFromUser = false
-                )
-                _uiState.value = _uiState.value.copy(
-                    messages = _uiState.value.messages + errorMessage,
-                    isLoading = false,
-                    isTyping = false
-                )
-            }
-        }
+    fun startWeeklyMealPlanning() = runQuickAction(
+        userMessage = "\u8BF7\u5E2E\u6211\u5236\u5B9A\u672A\u67653\u5929\u83DC\u8C31\u5468\u8BA1\u5212",
+        actionName = "weekly_meal_planning"
+    ) {
+        planWeeklyMeals()
     }
 
-    fun startNextMealRecommendation() {
-        val userMessage = "请给我下一餐智能推荐"
-        val displayMessage = ChatMessage(
-            content = userMessage,
-            isFromUser = true
-        )
-
-        _uiState.value = _uiState.value.copy(
-            messages = _uiState.value.messages + displayMessage,
-            inputText = "",
-            isLoading = true,
-            isTyping = true
-        )
-
-        if (_uiState.value.currentSessionTitle.isBlank()) {
-            _uiState.value = _uiState.value.copy(
-                currentSessionTitle = userMessage.take(30)
-            )
-        }
-
-        viewModelScope.launch {
-            try {
-                val response = aiChatService.recommendNextMeal()
-                val aiMessage = ChatMessage(
-                    content = response,
-                    isFromUser = false
-                )
-
-                _uiState.value = _uiState.value.copy(
-                    messages = _uiState.value.messages + aiMessage,
-                    isLoading = false,
-                    isTyping = false
-                )
-                updateRemainingCalls()
-                saveCurrentSession()
-            } catch (e: Exception) {
-                val errorMessage = ChatMessage(
-                    content = "抱歉，下一餐推荐失败：${e.message}",
-                    isFromUser = false
-                )
-                _uiState.value = _uiState.value.copy(
-                    messages = _uiState.value.messages + errorMessage,
-                    isLoading = false,
-                    isTyping = false
-                )
-            }
-        }
+    fun startNextMealRecommendation() = runQuickAction(
+        userMessage = "\u8BF7\u7ED9\u6211\u4E0B\u4E00\u9910\u667A\u80FD\u63A8\u8350",
+        actionName = "next_meal_recommendation"
+    ) {
+        recommendNextMeal()
     }
 
-    fun startHealthConsult() {
-        val userMessage = "我想咨询一些营养健康问题"
+    fun startHealthConsult() = runQuickAction(
+        userMessage = "\u6211\u60F3\u54A8\u8BE2\u4E00\u4E9B\u8425\u517B\u5065\u5EB7\u95EE\u9898",
+        actionName = "health_consult"
+    ) {
+        healthConsult()
+    }
+
+    private fun runQuickAction(
+        userMessage: String,
+        actionName: String,
+        request: suspend AIChatService.() -> String
+    ) {
         val displayMessage = ChatMessage(
             content = userMessage,
             isFromUser = true
@@ -539,8 +355,7 @@ class AIChatViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                val response = aiChatService.healthConsult()
-
+                val response = aiChatService.request()
                 val aiMessage = ChatMessage(
                     content = response,
                     isFromUser = false
@@ -555,8 +370,14 @@ class AIChatViewModel @Inject constructor(
                 updateRemainingCalls()
                 saveCurrentSession()
             } catch (e: Exception) {
+                SecureLogger.e(
+                    TAG,
+                    "quick_action_failed | action=$actionName | error=${e.message}",
+                    e
+                )
+
                 val errorMessage = ChatMessage(
-                    content = "抱歉，咨询失败：${e.message}",
+                    content = errorMapper.map(e),
                     isFromUser = false
                 )
                 _uiState.value = _uiState.value.copy(
@@ -597,35 +418,6 @@ class AIChatViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(messages = updatedMessages)
     }
 
-    private fun ChatMessage.toChatMessageData(): ChatMessageData {
-        return ChatMessageData(
-            id = this.id,
-            content = this.content,
-            isFromUser = this.isFromUser,
-            timestamp = this.timestamp,
-            type = "TEXT"
-        )
-    }
-
-    private fun ChatMessageData.toChatMessage(): ChatMessage {
-        return ChatMessage(
-            id = this.id,
-            content = this.content,
-            isFromUser = this.isFromUser,
-            timestamp = this.timestamp
-        )
-    }
-
-    private fun ChatSessionSummary.toChatSessionInfo(): ChatSessionInfo {
-        return ChatSessionInfo(
-            sessionId = this.sessionId,
-            title = this.title,
-            lastMessage = this.lastMessage,
-            updatedAt = this.updatedAt,
-            messageCount = this.messageCount,
-            isPinned = this.isPinned
-        )
-    }
 }
 
 data class AIChatUiState(
@@ -640,3 +432,4 @@ data class AIChatUiState(
     val remainingCalls: Int = 10,
     val dailyLimit: Int = 10
 )
+

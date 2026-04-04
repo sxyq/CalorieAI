@@ -654,8 +654,7 @@ private fun startWidgetVoiceInput(
         onResult = { result -> onText(result) },
         onError = { error ->
             android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
-        },
-        onPartialResult = { partial -> onText(partial) }
+        }
     )
 }
 

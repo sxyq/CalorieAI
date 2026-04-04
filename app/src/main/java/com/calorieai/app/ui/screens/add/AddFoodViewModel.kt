@@ -1,5 +1,7 @@
 package com.calorieai.app.ui.screens.add
 
+import android.content.Context
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.FoodRecord
@@ -7,6 +9,13 @@ import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.repository.FoodRecordRepository
 import com.calorieai.app.service.ai.FoodTextAnalysisService
 import com.calorieai.app.data.model.FoodAnalysisResult
+import com.calorieai.app.service.ai.common.AIErrorCategory
+import com.calorieai.app.service.ai.common.AIErrorClassifier
+import com.calorieai.app.service.voice.VoiceInputHelper
+import com.calorieai.app.service.voice.VoiceState
+import com.calorieai.app.utils.buildRecordTimeForDateAndMeal
+import com.calorieai.app.utils.inferMainMealType
+import com.calorieai.app.utils.isSameLocalDate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,7 +32,8 @@ class AddFoodViewModel @Inject constructor(
     private val foodRecordRepository: FoodRecordRepository,
     private val foodTextAnalysisService: FoodTextAnalysisService,
     private val aiTokenUsageRepository: com.calorieai.app.data.repository.AITokenUsageRepository,
-    private val aiConfigRepository: com.calorieai.app.data.repository.AIConfigRepository
+    private val aiConfigRepository: com.calorieai.app.data.repository.AIConfigRepository,
+    private val voiceInputHelper: VoiceInputHelper
 ) : ViewModel() {
     private companion object {
         const val MAX_FOOD_DESCRIPTION_LENGTH = 2000
@@ -31,6 +41,7 @@ class AddFoodViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(AddFoodUiState())
     val uiState: StateFlow<AddFoodUiState> = _uiState.asStateFlow()
+    val voiceState: StateFlow<VoiceState> = voiceInputHelper.voiceState
 
     fun onFoodDescriptionChange(description: String) {
         _uiState.value = _uiState.value.copy(
@@ -42,6 +53,28 @@ class AddFoodViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(selectedMealType = mealType)
     }
 
+    fun startVoiceInput(context: Context) {
+        voiceInputHelper.startListening(
+            context = context,
+            onResult = { result ->
+                val currentFoodDescription = _uiState.value.foodDescription
+                val mergedText = if (currentFoodDescription.isBlank()) {
+                    result
+                } else {
+                    "$currentFoodDescription $result"
+                }
+                onFoodDescriptionChange(mergedText.trim())
+            },
+            onError = { error ->
+                Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    fun stopVoiceInput() {
+        voiceInputHelper.stopListening()
+    }
+
     fun clearError() {
         _uiState.value = _uiState.value.copy(errorMessage = null, retryMessage = null)
     }
@@ -50,25 +83,53 @@ class AddFoodViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(retryMessage = null)
     }
 
-    fun setSelectedDate(dateStr: String) {
-        try {
-            // 解析日期字符串 (格式: yyyy-MM-dd)
-            val parts = dateStr.split("-")
-            if (parts.size == 3) {
-                val year = parts[0].toInt()
-                val month = parts[1].toInt() - 1 // Calendar月份从0开始
-                val day = parts[2].toInt()
-                
-                val calendar = Calendar.getInstance()
-                calendar.set(year, month, day, 12, 0, 0)
-                calendar.set(Calendar.MILLISECOND, 0)
-                
-                _uiState.value = _uiState.value.copy(selectedDate = calendar.timeInMillis)
-            }
-        } catch (e: Exception) {
-            // 解析失败，使用当前时间
-            _uiState.value = _uiState.value.copy(selectedDate = System.currentTimeMillis())
+    fun setDateContext(dateStr: String?) {
+        if (dateStr.isNullOrBlank()) {
+            val now = System.currentTimeMillis()
+            val autoMealType = inferMainMealType(now)
+            _uiState.value = _uiState.value.copy(
+                selectedDate = now,
+                isHistoricalDateMode = false,
+                autoMealType = autoMealType,
+                selectedMealType = autoMealType
+            )
+            return
         }
+
+        try {
+            val parts = dateStr.split("-")
+            if (parts.size != 3) {
+                setDateContext(null)
+                return
+            }
+
+            val year = parts[0].toInt()
+            val month = parts[1].toInt() - 1
+            val day = parts[2].toInt()
+
+            val calendar = Calendar.getInstance()
+            calendar.set(year, month, day, 12, 0, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+
+            val selectedDateMillis = calendar.timeInMillis
+            val now = System.currentTimeMillis()
+            val autoMealType = inferMainMealType(now)
+            val isHistoricalDateMode = !isSameLocalDate(selectedDateMillis, now)
+            val currentState = _uiState.value
+
+            _uiState.value = currentState.copy(
+                selectedDate = selectedDateMillis,
+                isHistoricalDateMode = isHistoricalDateMode,
+                autoMealType = autoMealType,
+                selectedMealType = if (isHistoricalDateMode) currentState.selectedMealType else autoMealType
+            )
+        } catch (e: Exception) {
+            setDateContext(null)
+        }
+    }
+
+    fun setSelectedDate(dateStr: String) {
+        setDateContext(dateStr)
     }
 
     fun saveFoodRecord(
@@ -85,8 +146,25 @@ class AddFoodViewModel @Inject constructor(
             return
         }
 
-        _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null, retryMessage = null, retryAttempt = 0)
-        val maxRetries = _uiState.value.maxRetries.coerceAtLeast(0)
+        val currentState = _uiState.value
+        val now = System.currentTimeMillis()
+        val autoMealType = inferMainMealType(now)
+        val isHistoricalDateMode = currentState.isHistoricalDateMode
+        val effectiveMealType = currentState.selectedMealType
+        val baseRecordTime = if (isHistoricalDateMode) {
+            buildRecordTimeForDateAndMeal(currentState.selectedDate, effectiveMealType)
+        } else {
+            now
+        }
+        val maxRetries = currentState.maxRetries.coerceAtLeast(0)
+
+        _uiState.value = currentState.copy(
+            isLoading = true,
+            errorMessage = null,
+            retryMessage = null,
+            retryAttempt = 0,
+            autoMealType = autoMealType
+        )
 
         viewModelScope.launch {
             try {
@@ -99,7 +177,7 @@ class AddFoodViewModel @Inject constructor(
                         onRetry = { attempt, maxAttempts ->
                             val totalRetries = (maxAttempts - 1).coerceAtLeast(0)
                             _uiState.value = _uiState.value.copy(
-                                retryMessage = "AI返回数据不完整，正在重试（${attempt}/${totalRetries}）...",
+                                retryMessage = "结果不稳定，正在补救重试（${attempt}/${totalRetries}）...",
                                 retryAttempt = attempt
                             )
                         }
@@ -107,12 +185,18 @@ class AddFoodViewModel @Inject constructor(
 
                     if (analysisResult.isFailure) {
                         val error = analysisResult.exceptionOrNull()
+                        val errorInfo = AIErrorClassifier.classify(error)
+                        val uiMessage = when (errorInfo.category) {
+                            AIErrorCategory.PARSE,
+                            AIErrorCategory.VALIDATION -> "AI\u8FD4\u56DE\u7ED3\u679C\u4E0D\u7A33\u5B9A\uFF0C\u8BF7\u91CD\u8BD5\u6216\u8C03\u6574\u63CF\u8FF0\u540E\u518D\u8BD5\u3002"
+                            else -> errorInfo.userMessage
+                        }
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            errorMessage = error?.message ?: "AI分析失败，请检查网络连接或AI配置",
+                            errorMessage = uiMessage,
                             retryMessage = null
                         )
-                        onError(error?.message ?: "AI分析失败")
+                        onError(uiMessage)
                         return@withContext
                     }
 
@@ -190,8 +274,16 @@ class AddFoodViewModel @Inject constructor(
                             vitaminC = item.vitaminC,
                             vitaminA = item.vitaminA,
                             potassium = item.potassium,
-                            mealType = _uiState.value.selectedMealType,
-                            recordTime = _uiState.value.selectedDate + index
+                            mealType = effectiveMealType,
+                            recordTime = if (isHistoricalDateMode) {
+                                buildRecordTimeForDateAndMeal(
+                                    dateMillis = currentState.selectedDate,
+                                    mealType = effectiveMealType,
+                                    sequenceOffsetSeconds = index
+                                )
+                            } else {
+                                baseRecordTime + index
+                            }
                         )
                     }
 
@@ -245,16 +337,24 @@ class AddFoodViewModel @Inject constructor(
         // 4. 截取前20个字符，如果为空返回默认名称
         return finalName.take(20).takeIf { it.isNotBlank() } ?: "未命名食物${index + 1}"
     }
+
+    override fun onCleared() {
+        super.onCleared()
+        voiceInputHelper.stopListening()
+    }
 }
 
 data class AddFoodUiState(
     val foodDescription: String = "",
-    val selectedMealType: MealType = MealType.LUNCH,
+    val selectedMealType: MealType = inferMainMealType(),
+    val autoMealType: MealType = inferMainMealType(),
+    val isHistoricalDateMode: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val analysisResult: FoodAnalysisResult? = null,
     val retryMessage: String? = null,  // 重试提示信息
     val retryAttempt: Int = 0,  // 当前重试次数
     val maxRetries: Int = 2,  // 最大重试次数
-    val selectedDate: Long = System.currentTimeMillis()  // 选中的日期
+    val selectedDate: Long = System.currentTimeMillis()  // 历史日期模式时的目标日期
 )
+
