@@ -48,8 +48,18 @@ class NotificationHelper @Inject constructor(
             description = "应用通用通知"
         }
 
+        val waterChannel = NotificationChannel(
+            CHANNEL_ID_WATER,
+            "楗按鎻愰啋",
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = "鎸夋椂娈垫垨闂撮殧鎻愰啋楗按"
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 200, 120, 200)
+        }
+
         context.getSystemService(NotificationManager::class.java)
-            .createNotificationChannels(listOf(mealChannel, generalChannel))
+            .createNotificationChannels(listOf(mealChannel, generalChannel, waterChannel))
     }
 
     fun showMealReminderNotification(reminderType: MealReminderType) {
@@ -115,6 +125,39 @@ class NotificationHelper @Inject constructor(
         }
     }
 
+    fun showWaterReminderNotification(reminderLabel: String? = null) {
+        val manager = NotificationManagerCompat.from(context)
+        if (!canPostNotifications(manager)) {
+            Log.w(TAG, "skip water notification: permission denied")
+            return
+        }
+
+        val contentText = if (reminderLabel.isNullOrBlank()) {
+            "璇ヨˉ鍏呮按鍒嗕簡锛屼繚鎸佷粖澶╅ギ姘寸洰鏍囪繘搴?;"
+        } else {
+            "[$reminderLabel] 璇ヨˉ鍏呮按鍒嗕簡锛屼繚鎸佷粖澶╅ギ姘寸洰鏍囪繘搴?;"
+        }
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID_WATER)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("楗按鎻愰啋")
+            .setContentText(contentText)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setContentIntent(buildContentIntent(requestCode = 4001, mealType = null))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(contentText))
+            .build()
+
+        try {
+            manager.notify(4001, notification)
+            Log.i(TAG, "water notification sent")
+        } catch (t: Throwable) {
+            Log.e(TAG, "water notification failed", t)
+        }
+    }
+
     fun cancelMealReminderNotification(reminderType: MealReminderType) {
         NotificationManagerCompat.from(context).cancel(reminderType.notificationId)
     }
@@ -147,6 +190,7 @@ class NotificationHelper @Inject constructor(
     companion object {
         const val CHANNEL_ID_MEAL = "meal_reminder_channel"
         const val CHANNEL_ID_GENERAL = "general_channel"
+        const val CHANNEL_ID_WATER = "water_reminder_channel"
         private const val TAG = "NotificationHelper"
     }
 }

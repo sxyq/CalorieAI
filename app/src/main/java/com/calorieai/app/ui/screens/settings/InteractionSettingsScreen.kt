@@ -1,14 +1,25 @@
-package com.calorieai.app.ui.screens.settings
+﻿package com.calorieai.app.ui.screens.settings
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.calorieai.app.ui.components.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.calorieai.app.ui.components.EnumSelectorCard
+import com.calorieai.app.ui.components.SettingsSection
+import com.calorieai.app.ui.components.SettingsSwitchItem
+import com.calorieai.app.ui.components.SettingsTopAppBar
+import com.calorieai.app.ui.feedback.rememberAppHapticController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -16,7 +27,8 @@ fun InteractionSettingsScreen(
     onNavigateBack: () -> Unit,
     viewModel: InteractionSettingsViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val haptics = rememberAppHapticController()
 
     Scaffold(
         topBar = {
@@ -36,7 +48,10 @@ fun InteractionSettingsScreen(
                 title = "操作反馈",
                 items = FeedbackType.entries,
                 selectedItem = uiState.feedbackType,
-                onItemSelected = viewModel::updateFeedbackType,
+                onItemSelected = {
+                    viewModel.updateFeedbackType(it)
+                    haptics.click()
+                },
                 itemLabel = { it.label },
                 itemDescription = { it.description }
             )
@@ -44,18 +59,24 @@ fun InteractionSettingsScreen(
             SettingsSection(title = "振动") {
                 SettingsSwitchItem(
                     title = "启用振动反馈",
-                    subtitle = "操作完成时提供振动反馈",
+                    subtitle = "点击、切页和关键操作会有振动反馈",
                     checked = uiState.enableVibration,
-                    onCheckedChange = viewModel::updateEnableVibration
+                    onCheckedChange = {
+                        viewModel.updateEnableVibration(it)
+                        haptics.click()
+                    }
                 )
             }
 
             SettingsSection(title = "声音") {
                 SettingsSwitchItem(
                     title = "启用声音反馈",
-                    subtitle = "操作完成时播放提示音",
+                    subtitle = "关键操作可播放提示音",
                     checked = uiState.enableSound,
-                    onCheckedChange = viewModel::updateEnableSound
+                    onCheckedChange = {
+                        viewModel.updateEnableSound(it)
+                        haptics.click()
+                    }
                 )
             }
 
@@ -63,7 +84,10 @@ fun InteractionSettingsScreen(
                 title = "后台行为",
                 items = BackgroundBehavior.entries,
                 selectedItem = uiState.backgroundBehavior,
-                onItemSelected = viewModel::updateBackgroundBehavior,
+                onItemSelected = {
+                    viewModel.updateBackgroundBehavior(it)
+                    haptics.click()
+                },
                 itemLabel = { it.label },
                 itemDescription = { it.description }
             )
@@ -72,28 +96,40 @@ fun InteractionSettingsScreen(
                 title = "启动页面",
                 items = StartupPage.entries,
                 selectedItem = uiState.startupPage,
-                onItemSelected = viewModel::updateStartupPage,
+                onItemSelected = {
+                    viewModel.updateStartupPage(it)
+                    haptics.click()
+                },
                 itemLabel = { it.label }
             )
 
             SettingsSection(title = "底栏长按跳转") {
                 SettingsSwitchItem(
                     title = "长按首页进入添加",
-                    subtitle = "长按底栏“首页”直接进入添加界面",
+                    subtitle = "长按底栏“首页”直接进入记录入口",
                     checked = uiState.enableLongPressHomeToAdd,
-                    onCheckedChange = viewModel::updateEnableLongPressHomeToAdd
+                    onCheckedChange = {
+                        viewModel.updateEnableLongPressHomeToAdd(it)
+                        haptics.click()
+                    }
                 )
                 SettingsSwitchItem(
-                    title = "长按概览进入详细概览",
-                    subtitle = "长按底栏“概览”跳转到详细概览页面",
+                    title = "长按概览进入统计",
+                    subtitle = "长按底栏“概览”进入详细统计页",
                     checked = uiState.enableLongPressOverviewToStats,
-                    onCheckedChange = viewModel::updateEnableLongPressOverviewToStats
+                    onCheckedChange = {
+                        viewModel.updateEnableLongPressOverviewToStats(it)
+                        haptics.click()
+                    }
                 )
                 SettingsSwitchItem(
-                    title = "长按我的进入个人信息编辑",
-                    subtitle = "长按底栏“我的”跳转到个人信息编辑页",
+                    title = "长按我的进入资料编辑",
+                    subtitle = "长按底栏“我的”直接进入个人资料页",
                     checked = uiState.enableLongPressMyToProfileEdit,
-                    onCheckedChange = viewModel::updateEnableLongPressMyToProfileEdit
+                    onCheckedChange = {
+                        viewModel.updateEnableLongPressMyToProfileEdit(it)
+                        haptics.click()
+                    }
                 )
             }
 
@@ -103,16 +139,16 @@ fun InteractionSettingsScreen(
 }
 
 enum class FeedbackType(val label: String, val description: String) {
-    NONE("无反馈", "操作时不提供任何反馈"),
-    VIBRATION("仅振动", "操作时仅提供振动反馈"),
-    SOUND("仅声音", "操作时仅播放提示音"),
-    BOTH("振动和声音", "操作时同时提供振动和声音反馈")
+    NONE("无反馈", "不提供振动或声音反馈"),
+    VIBRATION("仅振动", "仅提供振动反馈"),
+    SOUND("仅声音", "仅提供声音反馈"),
+    BOTH("振动+声音", "同时提供振动和声音反馈")
 }
 
 enum class BackgroundBehavior(val label: String, val description: String) {
     STANDARD("标准", "系统默认后台行为"),
-    KEEP_ALIVE("保持运行", "保持应用在后台运行，及时提醒"),
-    BATTERY_SAVER("省电模式", "减少后台活动，延长电池续航")
+    KEEP_ALIVE("保持运行", "尽量保持后台活跃，便于提醒及时"),
+    BATTERY_SAVER("省电模式", "降低后台活动，延长续航")
 }
 
 enum class StartupPage(val label: String) {

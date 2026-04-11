@@ -32,6 +32,7 @@ import androidx.compose.foundation.Canvas
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.viewmodel.WeightHistoryViewModel
 import com.calorieai.app.data.model.WeightRecord
+import com.calorieai.app.ui.components.rememberFabAwareBottomPadding
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +43,10 @@ fun WeightHistoryScreen(
     val isDark = isSystemInDarkTheme()
     val weightRecords by viewModel.weightRecords.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    val listBottomSafePadding = rememberFabAwareBottomPadding(
+        fabVisible = true,
+        extraPadding = 8.dp
+    )
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -96,6 +101,10 @@ fun WeightHistoryScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = true),
+                    contentPadding = PaddingValues(bottom = listBottomSafePadding),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(weightRecords.reversed()) { record ->

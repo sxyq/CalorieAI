@@ -15,6 +15,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.calorieai.app.ui.animations.PageTransitions
 import com.calorieai.app.ui.components.BottomNavBar
 import com.calorieai.app.ui.components.NavItem
 
@@ -187,7 +188,11 @@ fun NavGraph(navController: NavHostController) {
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = Modifier.padding(paddingValues)
+            modifier = Modifier.padding(paddingValues),
+            enterTransition = PageTransitions.enterFromRight,
+            exitTransition = PageTransitions.exitToLeft,
+            popEnterTransition = PageTransitions.popEnter,
+            popExitTransition = PageTransitions.popExit
         ) {
             registerAppRoutes(
                 navController = navController,

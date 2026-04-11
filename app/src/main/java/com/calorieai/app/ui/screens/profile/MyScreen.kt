@@ -1,4 +1,4 @@
-package com.calorieai.app.ui.screens.profile
+﻿package com.calorieai.app.ui.screens.profile
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.calorieai.app.BuildConfig
 import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.ui.theme.*
 import com.calorieai.app.viewmodel.MyViewModel
@@ -40,7 +41,7 @@ fun MyScreen(
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val userSettings by viewModel.userSettings.collectAsState()
 
-    // 页面获得焦点时刷新数据
+    // 椤甸潰鑾峰緱鐒︾偣鏃跺埛鏂版暟鎹?
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -60,7 +61,7 @@ fun MyScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = "我的",
+                        text = "鎴戠殑",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -81,17 +82,17 @@ fun MyScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 用户资料卡片 - 不可点击，显示头像
+            // 鐢ㄦ埛璧勬枡鍗＄墖 - 涓嶅彲鐐瑰嚮锛屾樉绀哄ご鍍?
             UserProfileHeader(userSettings, isDark)
 
-            // 功能菜单 - 只保留身体档案和设置
+            // 鍔熻兘鑿滃崟 - 鍙繚鐣欒韩浣撴。妗堝拰璁剧疆
             FunctionMenu(
                 onNavigateToBodyProfile = onNavigateToBodyProfile,
                 onNavigateToSettings = onNavigateToSettings,
                 isDark = isDark
             )
 
-            // 应用信息
+            // 搴旂敤淇℃伅
             AppInfoCard(isDark)
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -118,7 +119,7 @@ private fun UserProfileHeader(
                 .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 头像
+            // 澶村儚
             Box(
                 modifier = Modifier
                     .size(100.dp)
@@ -136,7 +137,7 @@ private fun UserProfileHeader(
                 if (!userSettings?.userAvatarUri.isNullOrBlank()) {
                     AsyncImage(
                         model = userSettings?.userAvatarUri,
-                        contentDescription = "头像",
+                        contentDescription = "澶村儚",
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
@@ -151,16 +152,16 @@ private fun UserProfileHeader(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 用户名
+            // 鐢ㄦ埛鍚?
             Text(
-                text = userSettings?.userName ?: "健康用户",
+                text = userSettings?.userName ?: "鍋ュ悍鐢ㄦ埛",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 身体数据摘要
+            // 韬綋鏁版嵁鎽樿
             Text(
                 text = userSettings?.let {
                     val height = it.userHeight?.roundToInt()
@@ -168,10 +169,10 @@ private fun UserProfileHeader(
                     val bmi = it.bmi
                     buildString {
                         if (height != null) append("${height}cm")
-                        if (weight != null) append(" · ${weight}kg")
-                        if (bmi != null) append(" · BMI ${String.format("%.1f", bmi)}")
-                    }.takeIf { it.isNotEmpty() } ?: "完善身体数据，获取个性化建议"
-                } ?: "完善身体数据，获取个性化建议",
+                        if (weight != null) append(" 路 ${weight}kg")
+                        if (bmi != null) append(" 路 BMI ${String.format("%.1f", bmi)}")
+                    }.takeIf { it.isNotEmpty() } ?: "瀹屽杽韬綋鏁版嵁锛岃幏鍙栦釜鎬у寲寤鸿"
+                } ?: "瀹屽杽韬綋鏁版嵁锛岃幏鍙栦釜鎬у寲寤鸿",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -198,7 +199,7 @@ private fun FunctionMenu(
         ) {
             MenuItem(
                 icon = Icons.Outlined.AssignmentInd,
-                title = "身体档案",
+                title = "韬綋妗ｆ",
                 subtitle = "查看和编辑身体数据",
                 onClick = onNavigateToBodyProfile
             )
@@ -210,7 +211,7 @@ private fun FunctionMenu(
 
             MenuItem(
                 icon = Icons.Outlined.Settings,
-                title = "设置",
+                title = "璁剧疆",
                 subtitle = "个性化配置和偏好",
                 onClick = onNavigateToSettings
             )
@@ -317,7 +318,7 @@ private fun AppInfoCard(isDark: Boolean) {
             )
 
             Text(
-                text = "版本 1.0.0",
+                text = "鐗堟湰 ${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -325,10 +326,11 @@ private fun AppInfoCard(isDark: Boolean) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "智能健康管理助手",
+                text = "鏅鸿兘鍋ュ悍绠＄悊鍔╂墜",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
 }
+

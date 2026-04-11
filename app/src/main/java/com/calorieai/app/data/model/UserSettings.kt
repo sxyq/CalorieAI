@@ -25,6 +25,13 @@ data class UserSettings(
     val breakfastReminderTime: String = "08:00",
     val lunchReminderTime: String = "12:00",
     val dinnerReminderTime: String = "18:00",
+    // 楗按鍔熻兘鍜屾彁閱掍氦浜掑紑鍏?
+    val showWaterFeatures: Boolean = true,
+    val enableWaterReminder: Boolean = false,
+    val waterReminderTimesJson: String = "[]", // JSON array of HH:mm, 1~8 items
+    val waterReminderIntervalMinutes: Int = 0, // 0 = disabled
+    val waterReminderWindowStart: String = "09:00",
+    val waterReminderWindowEnd: String = "21:00",
     val isNotificationEnabled: Boolean = true,
     val isDarkMode: Boolean? = null,  // null = 跟随系统
     val seedColor: String? = null,

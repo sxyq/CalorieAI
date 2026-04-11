@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.WaterRecord
 import com.calorieai.app.ui.components.WaterProgressCard
+import com.calorieai.app.ui.components.rememberFabAwareBottomPadding
 import com.calorieai.app.ui.theme.*
 import com.calorieai.app.viewmodel.WaterHistoryViewModel
 import java.text.SimpleDateFormat
@@ -44,6 +45,10 @@ fun WaterHistoryScreen(
     
     var showAddDialog by remember { mutableStateOf(false) }
     var showTargetDialog by remember { mutableStateOf(false) }
+    val listBottomSafePadding = rememberFabAwareBottomPadding(
+        fabVisible = true,
+        extraPadding = 8.dp
+    )
 
     LaunchedEffect(selectedDate) {
         selectedDate?.let { viewModel.setSelectedDateFromString(it) }
@@ -123,6 +128,10 @@ fun WaterHistoryScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = true),
+                    contentPadding = PaddingValues(bottom = listBottomSafePadding),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(waterRecords) { record ->

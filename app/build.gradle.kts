@@ -14,8 +14,8 @@ android {
         applicationId = "com.calorieai.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -29,6 +29,15 @@ android {
         buildConfigField("String", "UPDATE_CHECK_URL", "\"\"")
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("calorieai-release.keystore")
+            storePassword = "calorieai2024"
+            keyAlias = "calorieai"
+            keyPassword = "calorieai2024"
+        }
+    }
+    
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -36,7 +45,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
             isMinifyEnabled = false
@@ -44,11 +53,15 @@ android {
         }
     }
     
+    dexOptions {
+        javaMaxHeapSize = "2g"
+    }
+    
     // 打包选项
     android.applicationVariants.all {
         outputs.all {
             if (this is com.android.build.gradle.internal.api.BaseVariantOutputImpl) {
-                this.outputFileName = "CalorieAI-v1.0.apk"
+                this.outputFileName = "CalorieAI-v1.1.apk"
             }
         }
     }

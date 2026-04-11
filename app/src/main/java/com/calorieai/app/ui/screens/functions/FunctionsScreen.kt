@@ -1,20 +1,49 @@
-package com.calorieai.app.ui.screens.functions
+﻿package com.calorieai.app.ui.screens.functions
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -23,7 +52,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.calorieai.app.ui.theme.*
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.calorieai.app.ui.navigation.FeatureVisibilityViewModel
+import com.calorieai.app.ui.theme.glassCardThemed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,9 +66,11 @@ fun FunctionsScreen(
     onNavigateToStatistics: () -> Unit = {},
     onNavigateToAIAssistant: () -> Unit = {},
     onNavigateToRecipes: () -> Unit = {},
-    onNavigateToSettings: () -> Unit = {}
+    onNavigateToSettings: () -> Unit = {},
+    featureVisibilityViewModel: FeatureVisibilityViewModel = hiltViewModel()
 ) {
     val isDark = isSystemInDarkTheme()
+    val featureState by featureVisibilityViewModel.uiState.collectAsState()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -102,15 +135,17 @@ fun FunctionsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                GlassFunctionCard(
-                    title = "饮水记录",
-                    subtitle = "保持水分充足",
-                    icon = Icons.Default.WaterDrop,
-                    gradientColors = GlassGradientColors.CYAN,
-                    onClick = onNavigateToWaterTracker,
-                    modifier = Modifier.weight(1f),
-                    isDark = isDark
-                )
+                if (featureState.showWaterFeatures) {
+                    GlassFunctionCard(
+                        title = "饮水记录",
+                        subtitle = "保持水分充足",
+                        icon = Icons.Default.WaterDrop,
+                        gradientColors = GlassGradientColors.CYAN,
+                        onClick = onNavigateToWaterTracker,
+                        modifier = Modifier.weight(1f),
+                        isDark = isDark
+                    )
+                }
 
                 GlassFunctionCard(
                     title = "运动记录",
@@ -121,6 +156,10 @@ fun FunctionsScreen(
                     modifier = Modifier.weight(1f),
                     isDark = isDark
                 )
+
+                if (!featureState.showWaterFeatures) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -160,7 +199,7 @@ fun FunctionsScreen(
             )
 
             GlassCompactFunctionCard(
-                title = "健康食谱",
+                title = "健康菜谱",
                 subtitle = "发现营养美食",
                 icon = Icons.Default.MenuBook,
                 color = Color(0xFFEC407A),
@@ -220,9 +259,7 @@ private fun GlassFunctionCard(
                 .fillMaxSize()
                 .background(
                     brush = Brush.linearGradient(
-                        colors = gradientColors.map { it.copy(alpha = 0.15f) },
-                        start = androidx.compose.ui.geometry.Offset(0f, 0f),
-                        end = androidx.compose.ui.geometry.Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                        colors = gradientColors.map { it.copy(alpha = 0.15f) }
                     )
                 )
                 .padding(16.dp)

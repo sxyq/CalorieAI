@@ -40,9 +40,6 @@ import com.calorieai.app.data.model.NutritionCalculator
 import com.calorieai.app.data.model.NutritionReference
 import com.calorieai.app.data.model.UserBodyProfile
 import com.calorieai.app.ui.components.AnimatedListItem
-import com.calorieai.app.ui.components.CompactHeatmap
-import com.calorieai.app.ui.components.HeatmapData
-import com.calorieai.app.ui.components.HeatmapLegend
 import com.calorieai.app.ui.components.charts.*
 import com.calorieai.app.ui.components.fadingTopEdge
 import com.calorieai.app.ui.components.interactiveScale
@@ -53,7 +50,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 /**
- * 概览统计内容
+ * 姒傝缁熻鍐呭
  */
 @Composable
 internal fun OverviewStatsContent(
@@ -65,7 +62,7 @@ internal fun OverviewStatsContent(
             .fillMaxSize()
             .fadingTopEdge()
     ) {
-        // 日期选择器 - 使用新的滑动日期选择器
+        // 鏃ユ湡閫夋嫨鍣?- 浣跨敤鏂扮殑婊戝姩鏃ユ湡閫夋嫨鍣?
         item {
             ElegantDateSelector(
                 selectedDate = uiState.selectedOverviewDate,
@@ -73,7 +70,7 @@ internal fun OverviewStatsContent(
             )
         }
 
-        // 今日统计卡片
+        // 浠婃棩缁熻鍗＄墖
         item {
             uiState.todayStats?.let { stats ->
                 AnimatedListItem(index = 0) {
@@ -82,7 +79,7 @@ internal fun OverviewStatsContent(
             }
         }
 
-        // 今日运动统计卡片
+        // 浠婃棩杩愬姩缁熻鍗＄墖
         item {
             uiState.todayStats?.let { stats ->
                 if (stats.exerciseCount > 0) {
@@ -93,25 +90,27 @@ internal fun OverviewStatsContent(
             }
         }
 
-        // 今日饮水统计卡片
-        item {
-            AnimatedListItem(index = 2) {
-                WaterStatsCard(
-                    todayAmount = uiState.todayWaterAmount,
-                    targetAmount = uiState.waterTargetAmount,
-                    weeklyAverage = uiState.weeklyWaterAverage
-                )
+        // 浠婃棩楗按缁熻鍗＄墖
+        if (uiState.showWaterFeatures) {
+            item {
+                AnimatedListItem(index = 2) {
+                    WaterStatsCard(
+                        todayAmount = uiState.todayWaterAmount,
+                        targetAmount = uiState.waterTargetAmount,
+                        weeklyAverage = uiState.weeklyWaterAverage
+                    )
+                }
             }
         }
 
-        // 餐次统计
+        // 椁愭缁熻
         item {
             AnimatedListItem(index = 3) {
                 MealTypeStatsCard(stats = uiState.mealTypeStats)
             }
         }
 
-        // 历史统计
+        // 鍘嗗彶缁熻
         item {
             uiState.historyStats?.let { stats ->
                 AnimatedListItem(index = 4) {
@@ -120,87 +119,26 @@ internal fun OverviewStatsContent(
             }
         }
 
-        // 连续记录
+        // 杩炵画璁板綍
         item {
             AnimatedListItem(index = 5) {
                 StreakCard(streakDays = uiState.streakDays)
             }
         }
 
+        // 鑿滆氨鐩稿叧缁熻
         item {
             AnimatedListItem(index = 6) {
-                RecordHeatmapCard(dailyMealRecords = uiState.dailyMealRecords)
-            }
-        }
-
-        // 菜谱相关统计
-        item {
-            AnimatedListItem(index = 7) {
                 RecipeDataStatsCard(recipeStats = uiState.recipeStats)
             }
         }
 
-        // 详细营养素统计表
+        // 璇︾粏钀ュ吇绱犵粺璁¤〃
         item {
             uiState.todayStats?.let { stats ->
-                AnimatedListItem(index = 8) {
+                AnimatedListItem(index = 7) {
                     DetailedNutritionStatsCard(stats = stats)
                 }
-            }
-        }
-    }
-}
-
-@Composable
-internal fun RecordHeatmapCard(dailyMealRecords: List<DailyMealRecord>) {
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val heatmapData = remember(dailyMealRecords) {
-        dailyMealRecords.map { day ->
-            HeatmapData(
-                date = day.date,
-                value = day.level.toFloat()
-            )
-        }
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                text = "记录热力图",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            if (heatmapData.isEmpty()) {
-                Text(
-                    text = "暂无记录数据",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                CompactHeatmap(
-                    data = heatmapData,
-                    weeks = 20,
-                    cellSize = 11,
-                    isDark = isDark
-                )
-                HeatmapLegend(
-                    modifier = Modifier.align(Alignment.End),
-                    labels = listOf("少", "多"),
-                    isDark = isDark
-                )
             }
         }
     }
@@ -224,7 +162,7 @@ internal fun RecipeDataStatsCard(recipeStats: RecipeStats) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "菜谱数据统计",
+                text = "鑿滆氨鏁版嵁缁熻",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -234,21 +172,21 @@ internal fun RecipeDataStatsCard(recipeStats: RecipeStats) {
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 StatItem(
-                    label = "已有食材",
+                    label = "宸叉湁椋熸潗",
                     value = recipeStats.pantryCount.toString(),
-                    unit = "项",
+                    unit = "椤",
                     color = MaterialTheme.colorScheme.primary
                 )
                 StatItem(
-                    label = "收藏菜谱",
+                    label = "鏀惰棌鑿滆氨",
                     value = recipeStats.favoriteCount.toString(),
-                    unit = "条",
+                    unit = "鏉",
                     color = MaterialTheme.colorScheme.tertiary
                 )
                 StatItem(
-                    label = "使用总次数",
+                    label = "浣跨敤鎬绘鏁",
                     value = recipeStats.favoriteUseCount.toString(),
-                    unit = "次",
+                    unit = "娆",
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
@@ -260,9 +198,9 @@ internal fun RecipeDataStatsCard(recipeStats: RecipeStats) {
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 StatItem(
-                    label = "即将过期",
+                    label = "鍗冲皢杩囨湡",
                     value = recipeStats.pantryExpiringSoonCount.toString(),
-                    unit = "项",
+                    unit = "椤",
                     color = if (recipeStats.pantryExpiringSoonCount > 0) {
                         MaterialTheme.colorScheme.error
                     } else {
@@ -270,15 +208,15 @@ internal fun RecipeDataStatsCard(recipeStats: RecipeStats) {
                     }
                 )
                 StatItem(
-                    label = "已使用收藏",
+                    label = "宸蹭娇鐢ㄦ敹钘",
                     value = recipeStats.usedFavoriteCount.toString(),
-                    unit = "条",
+                    unit = "鏉",
                     color = MaterialTheme.colorScheme.secondary
                 )
                 StatItem(
-                    label = "菜单计划",
+                    label = "鑿滃崟璁″垝",
                     value = recipeStats.recipePlanCount.toString(),
-                    unit = "个",
+                    unit = "涓",
                     color = MaterialTheme.colorScheme.primary
                 )
             }
@@ -297,7 +235,7 @@ internal fun RecipeDataStatsCard(recipeStats: RecipeStats) {
 }
 
 /**
- * 今日统计卡片（带饼状图）
+ * 浠婃棩缁熻鍗＄墖锛堝甫楗肩姸鍥撅級
  */
 @Composable
 internal fun TodayStatsCard(stats: TodayStats) {
@@ -320,7 +258,7 @@ internal fun TodayStatsCard(stats: TodayStats) {
                 .padding(20.dp)
         ) {
             Text(
-                text = "今日摄入状态",
+                text = "浠婃棩鎽勫叆鐘舵€",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -328,12 +266,12 @@ internal fun TodayStatsCard(stats: TodayStats) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 饼状图展示营养素分布
+            // 楗肩姸鍥惧睍绀鸿惀鍏荤礌鍒嗗竷
             if (stats.totalCalories > 0) {
                 val nutritionData = listOf(
-                    "蛋白质" to stats.proteinGrams * 4f,
-                    "碳水" to stats.carbsGrams * 4f,
-                    "脂肪" to stats.fatGrams * 9f
+                    "铔嬬櫧璐" to stats.proteinGrams * 4f,
+                    "纰虫按" to stats.carbsGrams * 4f,
+                    "鑴傝偑" to stats.fatGrams * 9f
                 ).filter { it.second > 0 }
 
                 if (nutritionData.isNotEmpty()) {
@@ -343,20 +281,20 @@ internal fun TodayStatsCard(stats: TodayStats) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(180.dp),
-                        centerText = "${stats.totalCalories}\n千卡"
+                        centerText = "${stats.totalCalories}\n鍗冨崱"
                     )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // 营养素详情
+                // 钀ュ吇绱犺鎯?
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    NutritionItem("蛋白质", stats.proteinGrams, "g", ChartColors.NUTRITION[0])
-                    NutritionItem("碳水", stats.carbsGrams, "g", ChartColors.NUTRITION[1])
-                    NutritionItem("脂肪", stats.fatGrams, "g", ChartColors.NUTRITION[2])
+                    NutritionItem("铔嬬櫧璐", stats.proteinGrams, "g", ChartColors.NUTRITION[0])
+                    NutritionItem("纰虫按", stats.carbsGrams, "g", ChartColors.NUTRITION[1])
+                    NutritionItem("鑴傝偑", stats.fatGrams, "g", ChartColors.NUTRITION[2])
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -364,27 +302,27 @@ internal fun TodayStatsCard(stats: TodayStats) {
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // 三列布局：已摄入 | 目标 | 剩余
+            // 涓夊垪甯冨眬锛氬凡鎽勫叆 | 鐩爣 | 鍓╀綑
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 StatItem(
-                    label = "已摄入",
+                    label = "宸叉憚鍏",
                     value = stats.totalCalories.toString(),
-                    unit = "千卡",
+                    unit = "鍗冨崱",
                     color = MaterialTheme.colorScheme.primary
                 )
                 StatItem(
-                    label = "目标",
+                    label = "鐩爣",
                     value = stats.targetCalories.toString(),
-                    unit = "千卡",
+                    unit = "鍗冨崱",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 StatItem(
-                    label = "剩余",
+                    label = "鍓╀綑",
                     value = remaining.toString(),
-                    unit = "千卡",
+                    unit = "鍗冨崱",
                     color = if (remaining < 0) MaterialTheme.colorScheme.error
                     else MaterialTheme.colorScheme.tertiary
                 )
@@ -392,7 +330,7 @@ internal fun TodayStatsCard(stats: TodayStats) {
 
             Spacer(modifier = Modifier.height(12.dp))
             
-            // 基础代谢数据（如果有）
+            // 鍩虹浠ｈ阿鏁版嵁锛堝鏋滄湁锛?
             if (stats.bmr > 0) {
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(12.dp))
@@ -402,22 +340,22 @@ internal fun TodayStatsCard(stats: TodayStats) {
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     StatItem(
-                        label = "基础代谢",
+                        label = "鍩虹浠ｈ阿",
                         value = stats.bmr.toString(),
-                        unit = "千卡",
+                        unit = "鍗冨崱",
                         color = MaterialTheme.colorScheme.secondary
                     )
                     StatItem(
-                        label = "总消耗",
+                        label = "鎬绘秷鑰",
                         value = stats.tdee.toString(),
-                        unit = "千卡",
+                        unit = "鍗冨崱",
                         color = MaterialTheme.colorScheme.tertiary
                     )
                     val netCalories = stats.totalCalories - stats.exerciseCalories - stats.bmr
                     StatItem(
-                        label = "热量差",
+                        label = "鐑噺宸",
                         value = netCalories.toString(),
-                        unit = "千卡",
+                        unit = "鍗冨崱",
                         color = when {
                             netCalories > 500 -> MaterialTheme.colorScheme.error
                             netCalories < -500 -> MaterialTheme.colorScheme.primary
@@ -429,7 +367,7 @@ internal fun TodayStatsCard(stats: TodayStats) {
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // 进度条
+            // 杩涘害鏉?
             LinearProgressIndicator(
                 progress = { progress },
                 modifier = Modifier
@@ -444,11 +382,11 @@ internal fun TodayStatsCard(stats: TodayStats) {
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
 
-            // 达标提示
+            // 杈炬爣鎻愮ず
             if (stats.isTargetMet) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "✓ 今日热量控制良好",
+                    text = "鉁?浠婃棩鐑噺鎺у埗鑹ソ",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.tertiary,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -459,7 +397,7 @@ internal fun TodayStatsCard(stats: TodayStats) {
 }
 
 /**
- * 今日运动统计卡片
+ * 浠婃棩杩愬姩缁熻鍗＄墖
  */
 @Composable
 internal fun ExerciseStatsCard(stats: TodayStats) {
@@ -477,7 +415,7 @@ internal fun ExerciseStatsCard(stats: TodayStats) {
                 .fillMaxWidth()
                 .padding(20.dp)
         ) {
-            // 标题
+            // 鏍囬
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -485,18 +423,18 @@ internal fun ExerciseStatsCard(stats: TodayStats) {
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "💪",
+                        text = "馃挭",
                         style = MaterialTheme.typography.titleLarge
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "今日运动",
+                        text = "浠婃棩杩愬姩",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
                 Text(
-                    text = "${stats.exerciseCount} 次",
+                    text = "${stats.exerciseCount} 娆",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onTertiaryContainer
                 )
@@ -504,27 +442,27 @@ internal fun ExerciseStatsCard(stats: TodayStats) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 运动数据
+            // 杩愬姩鏁版嵁
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 StatItem(
-                    label = "消耗热量",
+                    label = "娑堣€楃儹閲",
                     value = stats.exerciseCalories.toString(),
-                    unit = "千卡",
+                    unit = "鍗冨崱",
                     color = MaterialTheme.colorScheme.tertiary
                 )
                 StatItem(
-                    label = "运动时长",
+                    label = "杩愬姩鏃堕暱",
                     value = stats.exerciseMinutes.toString(),
-                    unit = "分钟",
+                    unit = "鍒嗛挓",
                     color = MaterialTheme.colorScheme.onTertiaryContainer
                 )
                 StatItem(
-                    label = "净摄入",
+                    label = "鍑€鎽勫叆",
                     value = (stats.totalCalories - stats.exerciseCalories).toString(),
-                    unit = "千卡",
+                    unit = "鍗冨崱",
                     color = if (stats.totalCalories - stats.exerciseCalories <= stats.targetCalories) 
                         MaterialTheme.colorScheme.primary 
                     else 
@@ -536,7 +474,7 @@ internal fun ExerciseStatsCard(stats: TodayStats) {
 }
 
 /**
- * 今日饮水统计卡片
+ * 浠婃棩楗按缁熻鍗＄墖
  */
 @Composable
 internal fun WaterStatsCard(
@@ -562,7 +500,7 @@ internal fun WaterStatsCard(
                 .fillMaxWidth()
                 .padding(20.dp)
         ) {
-            // 标题行
+            // 鏍囬琛?
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -579,14 +517,14 @@ internal fun WaterStatsCard(
                         modifier = Modifier.size(24.dp)
                     )
                     Text(
-                        text = "今日饮水",
+                        text = "浠婃棩楗按",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
                 if (isGoalMet) {
                     Text(
-                        text = "✓ 已达标",
+                        text = "鉁?宸茶揪鏍",
                         style = MaterialTheme.typography.labelMedium,
                         color = androidx.compose.ui.graphics.Color(0xFF4CAF50),
                         fontWeight = FontWeight.SemiBold
@@ -596,7 +534,7 @@ internal fun WaterStatsCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 进度条
+            // 杩涘害鏉?
             LinearProgressIndicator(
                 progress = { progress },
                 modifier = Modifier
@@ -609,25 +547,25 @@ internal fun WaterStatsCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 统计数据
+            // 缁熻鏁版嵁
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 StatItem(
-                    label = "已饮水",
+                    label = "宸查ギ姘",
                     value = todayAmount.toString(),
                     unit = "ml",
                     color = androidx.compose.ui.graphics.Color(0xFF26C6DA)
                 )
                 StatItem(
-                    label = "目标",
+                    label = "鐩爣",
                     value = targetAmount.toString(),
                     unit = "ml",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 StatItem(
-                    label = "还需",
+                    label = "杩橀渶",
                     value = remaining.toString(),
                     unit = "ml",
                     color = if (remaining > 0) MaterialTheme.colorScheme.primary 
@@ -637,14 +575,14 @@ internal fun WaterStatsCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 周平均
+            // 鍛ㄥ钩鍧?
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "7日平均: ",
+                    text = "7鏃ュ钩鍧? ",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -660,7 +598,7 @@ internal fun WaterStatsCard(
 }
 
 /**
- * 营养素项
+ * 钀ュ吇绱犻」
  */
 @Composable
 internal fun NutritionItem(
@@ -695,7 +633,7 @@ internal fun NutritionItem(
 }
 
 /**
- * 统计项
+ * 缁熻椤?
  */
 @Composable
 internal fun StatItem(
@@ -728,16 +666,16 @@ internal fun StatItem(
 }
 
 /**
- * 餐次统计卡片 - 只显示有数据的餐次，使用现代网格布局
+ * 椁愭缁熻鍗＄墖 - 鍙樉绀烘湁鏁版嵁鐨勯娆★紝浣跨敤鐜颁唬缃戞牸甯冨眬
  */
 @Composable
 internal fun MealTypeStatsCard(stats: Map<com.calorieai.app.data.model.MealType, Int>) {
-    // 合并加餐数据，只保留有数据的餐次
+    // 鍚堝苟鍔犻鏁版嵁锛屽彧淇濈暀鏈夋暟鎹殑椁愭
     val activeStats = remember(stats) {
         val merged = mutableMapOf<com.calorieai.app.data.model.MealType, Int>()
         
         stats.forEach { (mealType, calories) ->
-            if (calories > 0) { // 只处理有数据的餐次
+            if (calories > 0) { // 鍙鐞嗘湁鏁版嵁鐨勯娆?
                 val simplifiedType = when (mealType) {
                     com.calorieai.app.data.model.MealType.BREAKFAST_SNACK,
                     com.calorieai.app.data.model.MealType.LUNCH_SNACK,
@@ -750,7 +688,7 @@ internal fun MealTypeStatsCard(stats: Map<com.calorieai.app.data.model.MealType,
             }
         }
         
-        // 按顺序排序
+        // 鎸夐『搴忔帓搴?
         merged.toList().sortedBy { 
             com.calorieai.app.data.model.getSimplifiedMealTypeOrder(it.first) 
         }
@@ -773,19 +711,19 @@ internal fun MealTypeStatsCard(stats: Map<com.calorieai.app.data.model.MealType,
                 .fillMaxWidth()
                 .padding(20.dp)
         ) {
-            // 标题行
+            // 鏍囬琛?
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "今日摄入分布",
+                    text = "浠婃棩鎽勫叆鍒嗗竷",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${totalCalories} 千卡",
+                    text = "${totalCalories} 鍗冨崱",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
@@ -795,7 +733,7 @@ internal fun MealTypeStatsCard(stats: Map<com.calorieai.app.data.model.MealType,
             Spacer(modifier = Modifier.height(16.dp))
 
             if (activeStats.isEmpty()) {
-                // 没有数据时显示提示
+                // 娌℃湁鏁版嵁鏃舵樉绀烘彁绀?
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -803,13 +741,13 @@ internal fun MealTypeStatsCard(stats: Map<com.calorieai.app.data.model.MealType,
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "暂无餐次记录",
+                        text = "鏆傛棤椁愭璁板綍",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             } else {
-                // 动态网格布局 - 根据数量决定每行显示几个
+                // 鍔ㄦ€佺綉鏍煎竷灞€ - 鏍规嵁鏁伴噺鍐冲畾姣忚鏄剧ず鍑犱釜
                 val rows = when (activeStats.size) {
                     1 -> listOf(activeStats.take(1))
                     2 -> listOf(activeStats.take(2))
@@ -834,7 +772,7 @@ internal fun MealTypeStatsCard(stats: Map<com.calorieai.app.data.model.MealType,
                                     modifier = Modifier.weight(1f)
                                 )
                             }
-                            // 补齐空位保持对齐
+                            // 琛ラ綈绌轰綅淇濇寔瀵归綈
                             if (rowStats.size < 2 && activeStats.size > 1) {
                                 Spacer(modifier = Modifier.weight(1f))
                             }
@@ -847,7 +785,7 @@ internal fun MealTypeStatsCard(stats: Map<com.calorieai.app.data.model.MealType,
 }
 
 /**
- * 餐次网格项 - 现代化卡片设计
+ * 椁愭缃戞牸椤?- 鐜颁唬鍖栧崱鐗囪璁?
  */
 @Composable
 internal fun MealTypeGridItem(
@@ -861,7 +799,7 @@ internal fun MealTypeGridItem(
     val progress = if (maxCalories > 0) calories.toFloat() / maxCalories else 0f
     val percentage = if (totalCalories > 0) (calories * 100 / totalCalories) else 0
     
-    // 餐次对应的颜色
+    // 椁愭瀵瑰簲鐨勯鑹?
     val mealColor = when (mealType) {
         com.calorieai.app.data.model.MealType.BREAKFAST -> Color(0xFFFF9F43)
         com.calorieai.app.data.model.MealType.LUNCH -> Color(0xFFFF6B6B)
@@ -880,14 +818,14 @@ internal fun MealTypeGridItem(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // 餐次名称和占比
+            // 椁愭鍚嶇О鍜屽崰姣?
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // 颜色指示点
+                    // 棰滆壊鎸囩ず鐐?
                     Box(
                         modifier = Modifier
                             .size(8.dp)
@@ -912,7 +850,7 @@ internal fun MealTypeGridItem(
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            // 热量数值
+            // 鐑噺鏁板€?
             Text(
                 text = "${calories}",
                 style = MaterialTheme.typography.headlineSmall,
@@ -921,14 +859,14 @@ internal fun MealTypeGridItem(
                         else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
             Text(
-                text = "千卡",
+                text = "鍗冨崱",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            // 进度条
+            // 杩涘害鏉?
             LinearProgressIndicator(
                 progress = { progress },
                 modifier = Modifier
@@ -943,7 +881,7 @@ internal fun MealTypeGridItem(
 }
 
 /**
- * 餐次条形图
+ * 椁愭鏉″舰鍥?
  */
 @Composable
 internal fun MealBar(
@@ -979,7 +917,7 @@ internal fun MealBar(
         }
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = "${calories}千卡",
+            text = "${calories}鍗冨崱",
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.width(60.dp),
             textAlign = TextAlign.End
@@ -988,7 +926,7 @@ internal fun MealBar(
 }
 
 /**
- * 历史统计卡片
+ * 鍘嗗彶缁熻鍗＄墖
  */
 @Composable
 internal fun HistoryStatsCard(stats: HistoryStats?) {
@@ -1008,7 +946,7 @@ internal fun HistoryStatsCard(stats: HistoryStats?) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "摄入状态统计",
+                text = "鎽勫叆鐘舵€佺粺璁",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -1020,21 +958,21 @@ internal fun HistoryStatsCard(stats: HistoryStats?) {
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 StatItem(
-                    label = "达标天数",
+                    label = "杈炬爣澶╂暟",
                     value = stats?.targetMetDays.toString(),
-                    unit = "天",
+                    unit = "澶",
                     color = MaterialTheme.colorScheme.tertiary
                 )
                 StatItem(
-                    label = "超标天数",
+                    label = "瓒呮爣澶╂暟",
                     value = stats?.overTargetDays.toString(),
-                    unit = "天",
+                    unit = "澶",
                     color = MaterialTheme.colorScheme.error
                 )
                 StatItem(
-                    label = "记录天数",
+                    label = "璁板綍澶╂暟",
                     value = stats?.totalDays.toString(),
-                    unit = "天",
+                    unit = "澶",
                     color = MaterialTheme.colorScheme.primary
                 )
             }
@@ -1043,7 +981,7 @@ internal fun HistoryStatsCard(stats: HistoryStats?) {
 }
 
 /**
- * 详细营养素统计卡片 - 展示13种营养素的摄入情况
+ * 璇︾粏钀ュ吇绱犵粺璁″崱鐗?- 灞曠ず13绉嶈惀鍏荤礌鐨勬憚鍏ユ儏鍐?
  */
 @Composable
 internal fun DetailedNutritionStatsCard(
@@ -1052,10 +990,10 @@ internal fun DetailedNutritionStatsCard(
 ) {
     var isExpanded by remember { mutableStateOf(false) }
 
-    // 从ViewModel获取用户身体数据
+    // 浠嶸iewModel鑾峰彇鐢ㄦ埛韬綋鏁版嵁
     val uiState by viewModel.uiState.collectAsState()
 
-    // 构建用户身体数据
+    // 鏋勫缓鐢ㄦ埛韬綋鏁版嵁
     val userProfile by remember(uiState.userWeight, uiState.userGender, uiState.userAge, uiState.userActivityLevel) {
         derivedStateOf {
             UserBodyProfile(
@@ -1067,85 +1005,85 @@ internal fun DetailedNutritionStatsCard(
         }
     }
 
-    // 计算个性化营养素参考值
+    // 璁＄畻涓€у寲钀ュ吇绱犲弬鑰冨€?
     val nutritionReferences by remember(userProfile) {
         derivedStateOf {
             NutritionCalculator.calculateAll(userProfile)
         }
     }
 
-    // 构建营养素数据列表
+    // 鏋勫缓钀ュ吇绱犳暟鎹垪琛?
     val nutritionItems = listOf(
         NutritionItemData(
             reference = nutritionReferences.find { it.id == "protein" }!!,
             currentValue = stats.proteinGrams,
-            emoji = "💪"
+            emoji = "馃挭"
         ),
         NutritionItemData(
             reference = nutritionReferences.find { it.id == "carbs" }!!,
             currentValue = stats.carbsGrams,
-            emoji = "🍞"
+            emoji = "馃崬"
         ),
         NutritionItemData(
             reference = nutritionReferences.find { it.id == "fat" }!!,
             currentValue = stats.fatGrams,
-            emoji = "🥑"
+            emoji = "馃"
         ),
         NutritionItemData(
             reference = nutritionReferences.find { it.id == "fiber" }!!,
             currentValue = stats.fiberGrams,
-            emoji = "🌾"
+            emoji = "馃尵"
         ),
         NutritionItemData(
             reference = nutritionReferences.find { it.id == "sugar" }!!,
             currentValue = stats.sugarGrams,
-            emoji = "🍯"
+            emoji = "馃嵂"
         ),
         NutritionItemData(
             reference = nutritionReferences.find { it.id == "sodium" }!!,
             currentValue = stats.sodiumMg,
-            emoji = "🧂"
+            emoji = "馃"
         ),
         NutritionItemData(
             reference = nutritionReferences.find { it.id == "cholesterol" }!!,
             currentValue = stats.cholesterolMg,
-            emoji = "🥚"
+            emoji = "馃"
         ),
         NutritionItemData(
             reference = nutritionReferences.find { it.id == "saturated_fat" }!!,
             currentValue = stats.saturatedFatGrams,
-            emoji = "🧈"
+            emoji = "馃"
         ),
         NutritionItemData(
             reference = nutritionReferences.find { it.id == "calcium" }!!,
             currentValue = stats.calciumMg,
-            emoji = "🥛"
+            emoji = "馃"
         ),
         NutritionItemData(
             reference = nutritionReferences.find { it.id == "iron" }!!,
             currentValue = stats.ironMg,
-            emoji = "🥩"
+            emoji = "馃ォ"
         ),
         NutritionItemData(
             reference = nutritionReferences.find { it.id == "vitamin_c" }!!,
             currentValue = stats.vitaminCMg,
-            emoji = "🍊"
+            emoji = "馃崐"
         ),
         NutritionItemData(
             reference = nutritionReferences.find { it.id == "vitamin_a" }!!,
             currentValue = stats.vitaminAMcg,
-            emoji = "🥕"
+            emoji = "馃"
         ),
         NutritionItemData(
             reference = nutritionReferences.find { it.id == "potassium" }!!,
             currentValue = stats.potassiumMg,
-            emoji = "🍌"
+            emoji = "馃崒"
         )
     )
 
-    // 基础营养素（始终显示）
+    // 鍩虹钀ュ吇绱狅紙濮嬬粓鏄剧ず锛?
     val basicNutritionItems = nutritionItems.take(3)
-    // 扩展营养素（可展开）
+    // 鎵╁睍钀ュ吇绱狅紙鍙睍寮€锛?
     val extendedNutritionItems = nutritionItems.drop(3)
 
     Card(
@@ -1162,7 +1100,7 @@ internal fun DetailedNutritionStatsCard(
                 .fillMaxWidth()
                 .padding(20.dp)
         ) {
-            // 标题行
+            // 鏍囬琛?
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1170,22 +1108,22 @@ internal fun DetailedNutritionStatsCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "🥗",
+                        text = "馃",
                         style = MaterialTheme.typography.titleLarge
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "营养素摄入",
+                        text = "钀ュ吇绱犳憚鍏",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
 
-                // 展开/收起按钮
+                // 灞曞紑/鏀惰捣鎸夐挳
                 IconButton(onClick = { isExpanded = !isExpanded }) {
                     Icon(
                         imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (isExpanded) "收起" else "展开",
+                        contentDescription = if (isExpanded) "鏀惰捣" else "灞曞紑",
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -1193,13 +1131,13 @@ internal fun DetailedNutritionStatsCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 基础营养素（始终显示）
+            // 鍩虹钀ュ吇绱狅紙濮嬬粓鏄剧ず锛?
             basicNutritionItems.forEach { item ->
                 NutritionProgressRow(item = item)
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // 扩展营养素（可展开）
+            // 鎵╁睍钀ュ吇绱狅紙鍙睍寮€锛?
             AnimatedVisibility(visible = isExpanded) {
                 Column {
                     extendedNutritionItems.forEach { item ->
@@ -1209,10 +1147,10 @@ internal fun DetailedNutritionStatsCard(
                 }
             }
 
-            // 提示文字
+            // 鎻愮ず鏂囧瓧
             if (!isExpanded) {
                 Text(
-                    text = "点击展开查看全部13种营养素",
+                    text = "鐐瑰嚮灞曞紑鏌ョ湅鍏ㄩ儴13绉嶈惀鍏荤礌",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -1223,7 +1161,7 @@ internal fun DetailedNutritionStatsCard(
 }
 
 /**
- * 营养素进度行
+ * 钀ュ吇绱犺繘搴﹁
  */
 @Composable
 internal fun NutritionProgressRow(item: NutritionItemData) {
@@ -1271,7 +1209,7 @@ internal fun NutritionProgressRow(item: NutritionItemData) {
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // 进度条
+        // 杩涘害鏉?
         LinearProgressIndicator(
             progress = { progress },
             modifier = Modifier
@@ -1282,7 +1220,7 @@ internal fun NutritionProgressRow(item: NutritionItemData) {
             trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
 
-        // 百分比提示
+        // 鐧惧垎姣旀彁绀?
         Text(
             text = "$percentage%",
             style = MaterialTheme.typography.labelSmall,
@@ -1293,7 +1231,7 @@ internal fun NutritionProgressRow(item: NutritionItemData) {
 }
 
 /**
- * 营养素数据项
+ * 钀ュ吇绱犳暟鎹」
  */
 internal data class NutritionItemData(
     val reference: NutritionReference,
@@ -1302,7 +1240,7 @@ internal data class NutritionItemData(
 )
 
 /**
- * 连续记录卡片
+ * 杩炵画璁板綍鍗＄墖
  */
 @Composable
 internal fun StreakCard(streakDays: Int) {
@@ -1324,18 +1262,18 @@ internal fun StreakCard(streakDays: Int) {
         ) {
             Column {
                 Text(
-                    text = "连续记录",
+                    text = "杩炵画璁板綍",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
-                    text = "保持好习惯，继续加油！",
+                    text = "淇濇寔濂戒範鎯紝缁х画鍔犳补锛",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                 )
             }
             Text(
-                text = "${streakDays}天",
+                text = "${streakDays}澶",
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer

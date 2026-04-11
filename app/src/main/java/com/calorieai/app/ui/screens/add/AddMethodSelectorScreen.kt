@@ -1,30 +1,54 @@
-package com.calorieai.app.ui.screens.add
+﻿package com.calorieai.app.ui.screens.add
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.*
-import androidx.compose.animation.expandIn
+import androidx.compose.animation.core.EaseOutCubic
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,14 +58,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.activity.compose.BackHandler
-import com.calorieai.app.ui.components.liquidGlass
-import com.calorieai.app.ui.components.interactiveScale
-import com.calorieai.app.ui.theme.GlassLightColors
-import com.calorieai.app.ui.theme.GlassDarkColors
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.calorieai.app.ui.navigation.FeatureVisibilityViewModel
+import com.calorieai.app.ui.feedback.rememberAppHapticController
 
 @Composable
 fun AddMethodSelectorScreen(
@@ -51,18 +72,16 @@ fun AddMethodSelectorScreen(
     onNavigateToFavoriteRecipes: () -> Unit = {},
     onNavigateToWeight: () -> Unit = {},
     onNavigateToExercise: () -> Unit = {},
-    onNavigateToWaterHistory: () -> Unit = {}
+    onNavigateToWaterHistory: () -> Unit = {},
+    featureVisibilityViewModel: FeatureVisibilityViewModel = hiltViewModel()
 ) {
+    val featureState by featureVisibilityViewModel.uiState.collectAsState()
+    val haptics = rememberAppHapticController()
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     var visible by remember { mutableStateOf(false) }
-    val primaryColor = if (isDark) GlassDarkColors.Primary else GlassLightColors.Primary
-    val surfaceColor = if (isDark) GlassDarkColors.Surface else GlassLightColors.Surface
-    val onSurfaceColor = if (isDark) GlassDarkColors.OnSurface else GlassLightColors.OnSurface
-    
-    LaunchedEffect(Unit) {
-        visible = true
-    }
-    
+
+    LaunchedEffect(Unit) { visible = true }
+
     BackHandler(enabled = visible) {
         visible = false
         onNavigateBack()
@@ -71,7 +90,7 @@ fun AddMethodSelectorScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(surfaceColor.copy(alpha = 0.98f))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.98f))
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
@@ -81,87 +100,84 @@ fun AddMethodSelectorScreen(
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(60.dp))
-            
+            Spacer(modifier = Modifier.height(56.dp))
+
             AnimatedVisibility(
                 visible = visible,
-                enter = fadeIn(tween(300)) + slideInVertically(
-                    animationSpec = tween(400, easing = EaseOutCubic),
+                enter = fadeIn(tween(280)) + slideInVertically(
+                    animationSpec = tween(360, easing = EaseOutCubic),
                     initialOffsetY = { it / 2 }
                 ),
-                exit = fadeOut(tween(200)) + slideOutVertically(
-                    animationSpec = tween(200),
+                exit = fadeOut(tween(180)) + slideOutVertically(
+                    animationSpec = tween(180),
                     targetOffsetY = { it / 2 }
                 )
             ) {
                 Text(
                     text = "添加记录",
                     style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = onSurfaceColor
+                    fontWeight = FontWeight.Bold
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             AnimatedVisibility(
                 visible = visible,
-                enter = fadeIn(tween(350, delayMillis = 100)),
-                exit = fadeOut(tween(150))
+                enter = fadeIn(tween(320, delayMillis = 80)),
+                exit = fadeOut(tween(120))
             ) {
                 Text(
                     text = "选择记录方式",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = onSurfaceColor.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(34.dp))
 
             AnimatedVisibility(
                 visible = visible,
-                enter = fadeIn(tween(400, delayMillis = 150)) + slideInVertically(
-                    animationSpec = tween(400, delayMillis = 150, easing = EaseOutCubic),
-                    initialOffsetY = { it }
-                ),
-                exit = fadeOut(tween(150))
+                enter = fadeIn(tween(360, delayMillis = 100)),
+                exit = fadeOut(tween(120))
             ) {
                 PrimaryMethodCard(
                     icon = Icons.Default.AutoAwesome,
                     title = "AI 智能识别",
-                    subtitle = "拍照或描述，AI自动分析热量",
-                    backgroundColor = primaryColor,
-                    iconBackgroundColor = Color.White.copy(alpha = 0.25f),
-                    onClick = onNavigateToAI
+                    subtitle = "拍照或描述，AI 自动分析热量",
+                    backgroundColor = MaterialTheme.colorScheme.primary,
+                    onClick = {
+                        haptics.confirm()
+                        onNavigateToAI()
+                    }
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             AnimatedVisibility(
                 visible = visible,
-                enter = fadeIn(tween(400, delayMillis = 200)) + slideInVertically(
-                    animationSpec = tween(400, delayMillis = 200, easing = EaseOutCubic),
-                    initialOffsetY = { it }
-                ),
-                exit = fadeOut(tween(150))
+                enter = fadeIn(tween(360, delayMillis = 140)),
+                exit = fadeOut(tween(120))
             ) {
                 PrimaryMethodCard(
-                    icon = Icons.Default.Edit,
+                    icon = Icons.Default.MenuBook,
                     title = "手动录入",
-                    subtitle = "手动输入食物名称和营养信息",
+                    subtitle = "自己填写食物和营养数据",
                     backgroundColor = MaterialTheme.colorScheme.secondary,
-                    iconBackgroundColor = Color.White.copy(alpha = 0.25f),
-                    onClick = onNavigateToManual
+                    onClick = {
+                        haptics.click()
+                        onNavigateToManual()
+                    }
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             AnimatedVisibility(
                 visible = visible,
-                enter = fadeIn(tween(400, delayMillis = 250)),
-                exit = fadeOut(tween(150))
+                enter = fadeIn(tween(360, delayMillis = 180)),
+                exit = fadeOut(tween(120))
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -173,36 +189,67 @@ fun AddMethodSelectorScreen(
                     ) {
                         SecondaryMethodCard(
                             icon = Icons.Default.MenuBook,
-                            title = "菜谱库",
-                            subtitle = "美食参考",
+                            title = "菜谱",
+                            subtitle = "快捷复用",
                             modifier = Modifier.weight(1f),
-                            onClick = onNavigateToFavoriteRecipes
+                            onClick = {
+                                haptics.click()
+                                onNavigateToFavoriteRecipes()
+                            },
+                            isDark = isDark
                         )
                         SecondaryMethodCard(
                             icon = Icons.Default.Scale,
                             title = "体重",
                             subtitle = "记录体重",
                             modifier = Modifier.weight(1f),
-                            onClick = onNavigateToWeight
+                            onClick = {
+                                haptics.click()
+                                onNavigateToWeight()
+                            },
+                            isDark = isDark
                         )
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
+
+                    if (featureState.showWaterFeatures) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            SecondaryMethodCard(
+                                icon = Icons.Default.FitnessCenter,
+                                title = "运动",
+                                subtitle = "添加运动",
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    haptics.click()
+                                    onNavigateToExercise()
+                                },
+                                isDark = isDark
+                            )
+                            SecondaryMethodCard(
+                                icon = Icons.Default.WaterDrop,
+                                title = "饮水",
+                                subtitle = "记录饮水",
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    haptics.click()
+                                    onNavigateToWaterHistory()
+                                },
+                                isDark = isDark
+                            )
+                        }
+                    } else {
                         SecondaryMethodCard(
                             icon = Icons.Default.FitnessCenter,
                             title = "运动",
                             subtitle = "添加运动",
-                            modifier = Modifier.weight(1f),
-                            onClick = onNavigateToExercise
-                        )
-                        SecondaryMethodCard(
-                            icon = Icons.Default.WaterDrop,
-                            title = "饮水",
-                            subtitle = "记录饮水",
-                            modifier = Modifier.weight(1f),
-                            onClick = onNavigateToWaterHistory
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                haptics.click()
+                                onNavigateToExercise()
+                            },
+                            isDark = isDark
                         )
                     }
                 }
@@ -210,39 +257,34 @@ fun AddMethodSelectorScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            AnimatedVisibility(
-                visible = visible,
-                enter = fadeIn(tween(300, delayMillis = 300)),
-                exit = fadeOut(tween(150))
+            FilledTonalButton(
+                onClick = {
+                    haptics.click()
+                    visible = false
+                    onNavigateBack()
+                },
+                modifier = Modifier
+                    .fillMaxWidth(0.52f)
+                    .height(48.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                )
             ) {
-                FilledTonalButton(
-                    onClick = {
-                        visible = false
-                        onNavigateBack()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth(0.5f)
-                        .height(48.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = surfaceColor.copy(alpha = 0.8f)
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Close,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "取消",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "取消",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -253,7 +295,6 @@ private fun PrimaryMethodCard(
     title: String,
     subtitle: String,
     backgroundColor: Color,
-    iconBackgroundColor: Color,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -261,7 +302,7 @@ private fun PrimaryMethodCard(
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.97f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "cardScale"
+        label = "primary_card_scale"
     )
 
     Box(
@@ -286,7 +327,7 @@ private fun PrimaryMethodCard(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(iconBackgroundColor),
+                    .background(Color.White.copy(alpha = 0.25f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -308,9 +349,7 @@ private fun PrimaryMethodCard(
                 Text(
                     text = subtitle,
                     fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.8f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    color = Color.White.copy(alpha = 0.85f)
                 )
             }
         }
@@ -322,30 +361,24 @@ private fun SecondaryMethodCard(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    modifier: Modifier,
+    onClick: () -> Unit,
+    isDark: Boolean
 ) {
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val surfaceVariant = if (isDark)
-        Color(0xFF2A2A2A)
-    else
-        Color(0xFFF5F5F5)
-    val onSurfaceVariant = if (isDark)
-        Color(0xFFB0B0B0)
-    else
-        Color(0xFF666666)
-
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
+        targetValue = if (isPressed) 0.96f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "cardScale"
+        label = "secondary_card_scale"
     )
+
+    val surfaceVariant = if (isDark) Color(0xFF2A2A2A) else Color(0xFFF5F5F5)
+    val onSurfaceVariant = if (isDark) Color(0xFFB0B0B0) else Color(0xFF666666)
 
     Column(
         modifier = modifier
-            .height(110.dp)
+            .height(108.dp)
             .scale(scale)
             .clip(RoundedCornerShape(16.dp))
             .background(surfaceVariant)
@@ -354,7 +387,7 @@ private fun SecondaryMethodCard(
                 indication = null,
                 onClick = onClick
             )
-            .padding(horizontal = 8.dp, vertical = 12.dp),
+            .padding(horizontal = 10.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -375,9 +408,7 @@ private fun SecondaryMethodCard(
         Text(
             text = subtitle,
             fontSize = 10.sp,
-            color = onSurfaceVariant.copy(alpha = 0.7f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            color = onSurfaceVariant.copy(alpha = 0.75f)
         )
     }
 }

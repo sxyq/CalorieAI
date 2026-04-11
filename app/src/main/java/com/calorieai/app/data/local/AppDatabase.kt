@@ -36,7 +36,7 @@ import com.calorieai.app.data.model.AIChatHistory
         PantryIngredient::class,
         RecipePlan::class
     ],
-    version = 22,
+    version = 23,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -539,6 +539,33 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS index_api_call_records_configId_timestamp ON api_call_records(configId, timestamp)"
+                )
+            }
+        }
+
+        /**
+         * 浠庣増鏈?2杩佺Щ鍒扮増鏈?3
+         * 鏂板楗按鍔熻兘鏄剧ず/鎻愰啋鐩稿叧瀛楁
+         */
+        val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE user_settings ADD COLUMN showWaterFeatures INTEGER NOT NULL DEFAULT 1"
+                )
+                db.execSQL(
+                    "ALTER TABLE user_settings ADD COLUMN enableWaterReminder INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE user_settings ADD COLUMN waterReminderTimesJson TEXT NOT NULL DEFAULT '[]'"
+                )
+                db.execSQL(
+                    "ALTER TABLE user_settings ADD COLUMN waterReminderIntervalMinutes INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE user_settings ADD COLUMN waterReminderWindowStart TEXT NOT NULL DEFAULT '09:00'"
+                )
+                db.execSQL(
+                    "ALTER TABLE user_settings ADD COLUMN waterReminderWindowEnd TEXT NOT NULL DEFAULT '21:00'"
                 )
             }
         }

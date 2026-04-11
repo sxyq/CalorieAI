@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class BackupData(
-    val version: Int = 7,
+    val version: Int = 8,
     val backupDate: String,
     val appVersion: String = "3.6.0",
     val foodRecords: List<FoodRecordBackup>,
@@ -222,6 +222,12 @@ data class UserSettingsBackup(
     val userWeight: Float? = null,
     val activityLevel: String = "MODERATE",
     val dietaryPreference: String? = null,
+    val showWaterFeatures: Boolean = true,
+    val enableWaterReminder: Boolean = false,
+    val waterReminderTimesJson: String = "[]",
+    val waterReminderIntervalMinutes: Int = 0,
+    val waterReminderWindowStart: String = "09:00",
+    val waterReminderWindowEnd: String = "21:00",
     val isNotificationEnabled: Boolean = true,
     val isDarkMode: Boolean? = null,
     val themeMode: String = "SYSTEM",

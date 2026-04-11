@@ -12,6 +12,14 @@ sealed interface RecipeUiEvent {
 
 sealed interface RecipeAction {
     sealed interface Home : RecipeAction {
+        data class ChangeSelectedMealType(val mealType: MealType) : Home
+        data class ChangeDietaryAllergens(val value: String) : Home
+        data class ChangeFlavorPreferences(val value: String) : Home
+        data class ChangeBudgetPreference(val value: String) : Home
+        data class ChangeMaxCookingMinutes(val value: String) : Home
+        data class ChangeSpecialPopulationMode(val value: String) : Home
+        data class ChangeWeeklyRecordGoalDays(val value: String) : Home
+        data object ClearAiResult : Home
         data object GenerateSuggestion : Home
         data class GeneratePlan(val days: Int) : Home
         data class AddFavoriteToToday(
@@ -57,6 +65,7 @@ sealed interface RecipeAction {
             val menuText: String
         ) : MealPlan
         data class DeletePlan(val item: RecipePlan) : MealPlan
+        data object ClearAiResult : MealPlan
         data class GenerateByAi(
             val days: Int,
             val startDate: LocalDate

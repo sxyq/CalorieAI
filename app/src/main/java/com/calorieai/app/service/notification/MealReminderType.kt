@@ -1,4 +1,4 @@
-package com.calorieai.app.service.notification
+﻿package com.calorieai.app.service.notification
 
 enum class MealReminderType(
     val requestCode: Int,
@@ -12,21 +12,21 @@ enum class MealReminderType(
         notificationId = 1001,
         defaultTime = "08:00",
         title = "早餐时间到了",
-        message = "记得记录今天的早餐哦"
+        message = "记得记录今天的早餐"
     ),
     LUNCH(
         requestCode = 2102,
         notificationId = 1002,
         defaultTime = "12:00",
         title = "午餐时间到了",
-        message = "记得记录今天的午餐哦"
+        message = "记得记录今天的午餐"
     ),
     DINNER(
         requestCode = 2103,
         notificationId = 1003,
         defaultTime = "18:00",
         title = "晚餐时间到了",
-        message = "记得记录今天的晚餐哦"
+        message = "记得记录今天的晚餐"
     );
 
     companion object {
@@ -39,7 +39,12 @@ enum class MealReminderType(
 
 object MealReminderContract {
     const val ACTION_MEAL_REMINDER = "com.calorieai.app.action.MEAL_REMINDER"
+    const val ACTION_WATER_REMINDER = "com.calorieai.app.action.WATER_REMINDER"
+
     const val EXTRA_MEAL_TYPE = "extra_meal_type"
     const val EXTRA_REMINDER_TIME = "extra_reminder_time"
+    const val EXTRA_WATER_REMINDER_ID = "extra_water_reminder_id"
+    const val EXTRA_WATER_INTERVAL_MINUTES = "extra_water_interval_minutes"
+
     const val DEFAULT_REMINDER_TIME = "08:00"
 }

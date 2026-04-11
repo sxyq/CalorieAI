@@ -80,7 +80,9 @@ class HomeViewModel @Inject constructor(
      * 选择日期
      */
     fun selectDate(date: LocalDate) {
-        _selectedDate.value = date
+        if (_selectedDate.value != date) {
+            _selectedDate.value = date
+        }
     }
 
     /**
@@ -98,12 +100,11 @@ class HomeViewModel @Inject constructor(
             // 加载当前日期数据
             combine(
                 foodRecordRepository.getRecordsByDateRange(startOfDay, endOfDay),
-                foodRecordRepository.getTotalCaloriesByDateRange(startOfDay, endOfDay),
                 exerciseRecordRepository.getRecordsBetween(startOfDay, endOfDay),
                 foodRecordRepository.getRecordsByDateRange(calendarRange.startMillis, calendarRange.endMillis)
-            ) { records, totalCalories, exerciseRecords, heatmapRecords ->
-                Quadruple(records, totalCalories, exerciseRecords, heatmapRecords)
-            }.collectLatest { (records, totalCalories, exerciseRecords, heatmapRecords) ->
+            ) { records, exerciseRecords, heatmapRecords ->
+                Triple(records, exerciseRecords, heatmapRecords)
+            }.collectLatest { (records, exerciseRecords, heatmapRecords) ->
                 val calendarData = withContext(Dispatchers.Default) {
                     buildCalendarData(heatmapRecords)
                 }
@@ -111,11 +112,12 @@ class HomeViewModel @Inject constructor(
                 // 计算运动消耗和时长
                 val totalExerciseCalories = exerciseRecords.sumOf { it.caloriesBurned }
                 val totalExerciseMinutes = exerciseRecords.sumOf { it.durationMinutes }
+                val totalCalories = records.sumOf { it.totalCalories }
 
                 _uiState.value = _uiState.value.copy(
                     records = records,
                     exerciseRecords = exerciseRecords,
-                    totalCalories = totalCalories ?: 0,
+                    totalCalories = totalCalories,
                     calorieData = calendarData,
                     exerciseCalories = totalExerciseCalories,
                     totalExerciseMinutes = totalExerciseMinutes,
@@ -208,9 +210,6 @@ class HomeViewModel @Inject constructor(
 
             // 保存到数据库
             exerciseRecordRepository.addRecord(record)
-
-            // 刷新数据以更新运动记录列表
-            refreshData()
         }
     }
     
@@ -220,17 +219,9 @@ class HomeViewModel @Inject constructor(
     fun deleteExerciseRecord(record: ExerciseRecord) {
         viewModelScope.launch {
             exerciseRecordRepository.deleteRecord(record)
-            refreshData()
         }
     }
 }
-
-private data class Quadruple<A, B, C, D>(
-    val first: A,
-    val second: B,
-    val third: C,
-    val fourth: D
-)
 
 data class HomeUiState(
     val records: List<FoodRecord> = emptyList(),

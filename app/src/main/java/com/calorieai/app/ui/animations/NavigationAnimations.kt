@@ -26,13 +26,13 @@ import com.calorieai.app.ui.animation.AnimationSpecs
  * Glass 主题导航动画时长和缓动曲线
  */
 object NavigationDurations {
-    const val INDICATOR_APPEAR = 300
-    const val INDICATOR_SCALE = 250
-    const val ICON_TEXT_COLOR = 200
-    const val RIPPLE_EXPAND = 400
-    const val ICON_BOUNCE = 150
-    const val PAGE_TRANSITION = 300
-    const val GESTURE_RETURN = 250
+    const val INDICATOR_APPEAR = 220
+    const val INDICATOR_SCALE = 180
+    const val ICON_TEXT_COLOR = 160
+    const val RIPPLE_EXPAND = 260
+    const val ICON_BOUNCE = 120
+    const val PAGE_TRANSITION = 200
+    const val GESTURE_RETURN = 180
 }
 
 /**
@@ -41,14 +41,14 @@ object NavigationDurations {
  */
 fun AnimatedContentTransitionScope<NavBackStackEntry>.slideInFromRight(): EnterTransition {
     return slideInHorizontally(
-        animationSpec = tween(
-            durationMillis = NavigationDurations.PAGE_TRANSITION,
-            easing = AnimationEasing.EaseOutCubic
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
         ),
         initialOffsetX = { it }
     ) + fadeIn(
         animationSpec = tween(
-            durationMillis = NavigationDurations.PAGE_TRANSITION,
+            durationMillis = 160,
             easing = AnimationEasing.EaseOutCubic
         )
     )
@@ -56,14 +56,14 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.slideInFromRight(): EnterT
 
 fun AnimatedContentTransitionScope<NavBackStackEntry>.slideOutToLeft(): ExitTransition {
     return slideOutHorizontally(
-        animationSpec = tween(
-            durationMillis = NavigationDurations.PAGE_TRANSITION,
-            easing = AnimationEasing.EaseOutCubic
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
         ),
-        targetOffsetX = { -it / 3 }
+        targetOffsetX = { -it / 6 }
     ) + fadeOut(
         animationSpec = tween(
-            durationMillis = NavigationDurations.PAGE_TRANSITION,
+            durationMillis = 140,
             easing = AnimationEasing.EaseOutCubic
         )
     )
@@ -71,14 +71,14 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.slideOutToLeft(): ExitTran
 
 fun AnimatedContentTransitionScope<NavBackStackEntry>.slideInFromLeft(): EnterTransition {
     return slideInHorizontally(
-        animationSpec = tween(
-            durationMillis = NavigationDurations.PAGE_TRANSITION,
-            easing = AnimationEasing.EaseOutCubic
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
         ),
-        initialOffsetX = { -it }
+        initialOffsetX = { -it / 3 }
     ) + fadeIn(
         animationSpec = tween(
-            durationMillis = NavigationDurations.PAGE_TRANSITION,
+            durationMillis = 160,
             easing = AnimationEasing.EaseOutCubic
         )
     )
@@ -86,14 +86,14 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.slideInFromLeft(): EnterTr
 
 fun AnimatedContentTransitionScope<NavBackStackEntry>.slideOutToRight(): ExitTransition {
     return slideOutHorizontally(
-        animationSpec = tween(
-            durationMillis = NavigationDurations.PAGE_TRANSITION,
-            easing = AnimationEasing.EaseOutCubic
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
         ),
-        targetOffsetX = { it }
+        targetOffsetX = { it / 2 }
     ) + fadeOut(
         animationSpec = tween(
-            durationMillis = NavigationDurations.PAGE_TRANSITION,
+            durationMillis = 140,
             easing = AnimationEasing.EaseOutCubic
         )
     )

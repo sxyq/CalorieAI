@@ -28,6 +28,8 @@ import com.calorieai.app.ui.components.AIChatWidget
 import com.calorieai.app.ui.components.AIWidgetMode
 import com.calorieai.app.ui.components.ExerciseDialog
 import com.calorieai.app.ui.components.ExpandableCalendarView
+import com.calorieai.app.ui.components.rememberFabAwareBottomPadding
+import com.calorieai.app.ui.feedback.rememberAppHapticController
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.LocalDate
@@ -53,13 +55,14 @@ fun HomeScreen(
     onNavigateToAIChat: (String) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
+    val haptics = rememberAppHapticController()
     val uiState by viewModel.uiState.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
     
-    // 运动对话框显示状态
+    // 杩愬姩瀵硅瘽妗嗘樉绀虹姸鎬?
     var showExerciseDialog by remember { mutableStateOf(false) }
     
-    // 页面获得焦点时刷新数据（从其他页面返回时）
+    // 椤甸潰鑾峰緱鐒︾偣鏃跺埛鏂版暟鎹紙浠庡叾浠栭〉闈㈣繑鍥炴椂锛?
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -73,8 +76,12 @@ fun HomeScreen(
         }
     }
     
-    // AI小助手状态
+    // AI灏忓姪鎵嬬姸鎬?
     var aiWidgetState by remember { mutableStateOf(com.calorieai.app.ui.components.AIWidgetState.FLOATING) }
+    val listBottomSafePadding = rememberFabAwareBottomPadding(
+        fabVisible = true,
+        extraPadding = if (uiState.showAIWidget) 104.dp else 36.dp
+    )
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -85,11 +92,15 @@ fun HomeScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { onNavigateToAdd(selectedDate.toString()) },
+                onClick = {
+                    haptics.confirm()
+                    onNavigateToAdd(selectedDate.toString())
+                },
                 modifier = Modifier.pointerInput(uiState.enableQuickAdd, selectedDate) {
                     detectTapGestures(
                         onLongPress = {
                             if (uiState.enableQuickAdd) {
+                                haptics.longPress()
                                 onNavigateToAIAdd(selectedDate.toString())
                             }
                         }
@@ -97,7 +108,7 @@ fun HomeScreen(
                 },
                 containerColor = MaterialTheme.colorScheme.primaryContainer
             ) {
-                Icon(Icons.Default.Add, contentDescription = "添加")
+                Icon(Icons.Default.Add, contentDescription = "娣诲姞")
             }
         }
         ) { paddingValues ->
@@ -106,7 +117,12 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 8.dp,
+                    bottom = listBottomSafePadding
+                ),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
@@ -145,7 +161,7 @@ fun HomeScreen(
                     if (uiState.records.isNotEmpty()) {
                         item {
                             Text(
-                                text = "饮食记录",
+                                text = "楗璁板綍",
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(bottom = 8.dp)
@@ -168,7 +184,7 @@ fun HomeScreen(
                         item {
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "运动记录",
+                                text = "杩愬姩璁板綍",
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(bottom = 8.dp)
@@ -187,10 +203,10 @@ fun HomeScreen(
                 }
             }
         
-        // AI聊天小窗口（根据设置显示/隐藏）- 固定在右下角
-        // 注意：FAB 高度约为 56dp + 16dp margin = 72dp，所以底部 padding 设置为 88dp 避免重叠
+        // AI鑱婂ぉ灏忕獥鍙ｏ紙鏍规嵁璁剧疆鏄剧ず/闅愯棌锛? 鍥哄畾鍦ㄥ彸涓嬭
+        // 娉ㄦ剰锛欶AB 楂樺害绾︿负 56dp + 16dp margin = 72dp锛屾墍浠ュ簳閮?padding 璁剧疆涓?88dp 閬垮厤閲嶅彔
         if (uiState.showAIWidget) {
-            // 遮罩层 - 迷你窗口状态时显示（点击可关闭）
+            // 閬僵灞?- 杩蜂綘绐楀彛鐘舵€佹椂鏄剧ず锛堢偣鍑诲彲鍏抽棴锛?
             if (aiWidgetState == com.calorieai.app.ui.components.AIWidgetState.MINI) {
                 Box(
                     modifier = Modifier
@@ -200,7 +216,7 @@ fun HomeScreen(
                 )
             }
 
-            // AI Widget 容器 - 固定在右下角，避开 FAB
+            // AI Widget 瀹瑰櫒 - 鍥哄畾鍦ㄥ彸涓嬭锛岄伩寮€ FAB
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -213,13 +229,13 @@ fun HomeScreen(
                     widgetState = aiWidgetState,
                     onWidgetStateChange = { aiWidgetState = it },
                     modifier = Modifier
-                        .padding(end = 16.dp, bottom = 88.dp) // 88dp 避开 FAB
+                        .padding(end = 16.dp, bottom = 88.dp) // 88dp 閬垮紑 FAB
                 )
             }
         }
     }
 
-        // 运动消耗对话框
+        // 杩愬姩娑堣€楀璇濇
         ExerciseDialog(
             isVisible = showExerciseDialog,
             onDismiss = { showExerciseDialog = false },
@@ -242,15 +258,15 @@ fun TodayOverviewCard(
     val isDark = isSystemInDarkTheme()
     val progress = (totalCalories.toFloat() / dailyGoal).coerceIn(0f, 1f)
     val remaining = dailyGoal - totalCalories
-    val netCalories = totalCalories - bmr - exerciseCalories // 热量差值（正为盈余，负为缺口）
+    val netCalories = totalCalories - bmr - exerciseCalories // 鐑噺宸€硷紙姝ｄ负鐩堜綑锛岃礋涓虹己鍙ｏ級
     
-    // 根据是否是今天显示不同的标题
+    // 鏍规嵁鏄惁鏄粖澶╂樉绀轰笉鍚岀殑鏍囬
     val today = java.time.LocalDate.now()
     val title = when (selectedDate) {
-        today -> "今日摄入"
-        today.minusDays(1) -> "昨日摄入"
-        today.plusDays(1) -> "明日目标"
-        else -> "摄入统计"
+        today -> "浠婃棩鎽勫叆"
+        today.minusDays(1) -> "鏄ㄦ棩鎽勫叆"
+        today.plusDays(1) -> "鏄庢棩鐩爣"
+        else -> "鎽勫叆缁熻"
     }
     
     Box(
@@ -270,7 +286,7 @@ fun TodayOverviewCard(
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
-            // 标题
+            // 鏍囬
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
@@ -279,26 +295,26 @@ fun TodayOverviewCard(
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            // 主要数据行：已摄入 | 目标 | 剩余
+            // 涓昏鏁版嵁琛岋細宸叉憚鍏?| 鐩爣 | 鍓╀綑
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 CalorieInfo(
                     value = totalCalories.toString(),
-                    label = "已摄入",
+                    label = "宸叉憚鍏",
                     color = MaterialTheme.colorScheme.primary,
                     highlighted = true
                 )
                 CalorieInfo(
                     value = dailyGoal.toString(),
-                    label = "目标",
+                    label = "鐩爣",
                     color = MaterialTheme.colorScheme.onSurface,
                     highlighted = false
                 )
                 CalorieInfo(
                     value = remaining.toString(),
-                    label = "剩余",
+                    label = "鍓╀綑",
                     color = if (remaining < 0) MaterialTheme.colorScheme.error 
                             else MaterialTheme.colorScheme.secondary,
                     highlighted = true
@@ -307,7 +323,7 @@ fun TodayOverviewCard(
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            // 进度条
+            // 杩涘害鏉?
             LinearProgressIndicator(
                 progress = { progress },
                 modifier = Modifier
@@ -322,7 +338,7 @@ fun TodayOverviewCard(
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            // 鼓励标语 - 使用remember避免每次重组都重新计算
+            // 榧撳姳鏍囪 - 浣跨敤remember閬垮厤姣忔閲嶇粍閮介噸鏂拌绠?
             val encouragement by remember(totalCalories, dailyGoal) {
                 derivedStateOf { com.calorieai.app.utils.getRandomEncouragement() }
             }
@@ -345,7 +361,7 @@ fun TodayOverviewCard(
                 )
             }
             
-            // 代谢和运动数据（仅今天显示）
+            // 浠ｈ阿鍜岃繍鍔ㄦ暟鎹紙浠呬粖澶╂樉绀猴級
             if (selectedDate == today && bmr > 0) {
                 HorizontalDivider()
                 
@@ -357,20 +373,20 @@ fun TodayOverviewCard(
                 ) {
                     CalorieInfoSmall(
                         value = bmr.toString(),
-                        label = "基础代谢",
-                        icon = "🔥",
+                        label = "鍩虹浠ｈ阿",
+                        icon = "馃敟",
                         highlighted = false
                     )
                     CalorieInfoSmall(
                         value = "+${exerciseCalories}",
-                        label = "运动消耗",
-                        icon = "💪",
+                        label = "杩愬姩娑堣€",
+                        icon = "馃挭",
                         highlighted = true
                     )
                     CalorieInfoSmall(
                         value = "${if (netCalories >= 0) "+" else ""}$netCalories",
-                        label = "热量差值",
-                        icon = "⚖️",
+                        label = "鐑噺宸€",
+                        icon = "鈿栵笍",
                         color = when {
                             netCalories > 500 -> MaterialTheme.colorScheme.error
                             netCalories < -500 -> MaterialTheme.colorScheme.tertiary
@@ -475,11 +491,11 @@ fun FoodRecordItem(
     val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     var showDeleteDialog by remember { mutableStateOf(false) }
     
-    // 滑动偏移量
+    // 婊戝姩鍋忕Щ閲?
     var offsetX by remember { mutableFloatStateOf(0f) }
-    val maxSwipe = 280f // 最大滑动距离，确保"380千卡"等长文本能完全显示
+    val maxSwipe = 280f // 鏈€澶ф粦鍔ㄨ窛绂伙紝纭繚"380鍗冨崱"绛夐暱鏂囨湰鑳藉畬鍏ㄦ樉绀?
     
-    // 动画化偏移量
+    // 鍔ㄧ敾鍖栧亸绉婚噺
     val animatedOffsetX by animateFloatAsState(
         targetValue = offsetX,
         label = "swipe"
@@ -492,7 +508,7 @@ fun FoodRecordItem(
             .fillMaxWidth()
             .padding(vertical = 4.dp, horizontal = 4.dp)
     ) {
-        // 背景层：编辑和删除按钮（仅在滑动时显示）
+        // 鑳屾櫙灞傦細缂栬緫鍜屽垹闄ゆ寜閽紙浠呭湪婊戝姩鏃舵樉绀猴級
         if (animatedOffsetX < -5f) {
             Row(
                 modifier = Modifier
@@ -502,7 +518,7 @@ fun FoodRecordItem(
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 编辑按钮
+                // 缂栬緫鎸夐挳
                 Box(
                     modifier = Modifier
                         .size(48.dp)
@@ -516,14 +532,14 @@ fun FoodRecordItem(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
-                        contentDescription = "编辑",
+                        contentDescription = "缂栬緫",
                         tint = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // 删除按钮
+                // 鍒犻櫎鎸夐挳
                 Box(
                     modifier = Modifier
                         .size(48.dp)
@@ -537,14 +553,14 @@ fun FoodRecordItem(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "删除",
+                        contentDescription = "鍒犻櫎",
                         tint = MaterialTheme.colorScheme.onErrorContainer
                     )
                 }
             }
         }
         
-        // 前景层：卡片内容（可滑动）
+        // 鍓嶆櫙灞傦細鍗＄墖鍐呭锛堝彲婊戝姩锛?
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -552,7 +568,7 @@ fun FoodRecordItem(
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
                         onDragEnd = {
-                            // 滑动结束时，根据位置决定是否展开或收起
+                            // 婊戝姩缁撴潫鏃讹紝鏍规嵁浣嶇疆鍐冲畾鏄惁灞曞紑鎴栨敹璧?
                             offsetX = if (offsetX < -maxSwipe / 2) {
                                 -maxSwipe
                             } else {
@@ -592,7 +608,7 @@ fun FoodRecordItem(
                     .fillMaxWidth()
                     .padding(12.dp)
             ) {
-                // 标题行
+                // 鏍囬琛?
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
@@ -604,22 +620,22 @@ fun FoodRecordItem(
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        text = "${record.totalCalories} 千卡",
+                        text = "${record.totalCalories} 鍗冨崱",
                         style = MaterialTheme.typography.bodySmall
                     )
                     if (record.isStarred) {
                         Icon(
                             imageVector = Icons.Default.Star,
-                            contentDescription = "已收藏",
+                            contentDescription = "宸叉敹钘",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.clickable { onStarClick() }
                         )
                     }
                 }
 
-                // 信息行
+                // 淇℃伅琛?
                 Text(
-                    text = "${getMealTypeText(record.mealType)} · ${dateFormat.format(Date(record.recordTime))}",
+                    text = "${getMealTypeText(record.mealType)} 路 ${dateFormat.format(Date(record.recordTime))}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -627,12 +643,12 @@ fun FoodRecordItem(
         }
     }
     
-    // 删除确认对话框
+    // 鍒犻櫎纭瀵硅瘽妗?
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("删除记录") },
-            text = { Text("确定要删除这条记录吗？") },
+            title = { Text("鍒犻櫎璁板綍") },
+            text = { Text("纭畾瑕佸垹闄よ繖鏉¤褰曞悧锛") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -640,12 +656,12 @@ fun FoodRecordItem(
                         showDeleteDialog = false
                     }
                 ) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                    Text("鍒犻櫎", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("取消")
+                    Text("鍙栨秷")
                 }
             }
         )
@@ -669,13 +685,13 @@ fun EmptyState() {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "暂无记录",
+            text = "鏆傛棤璁板綍",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "点击右下角按钮添加食物",
+            text = "鐐瑰嚮鍙充笅瑙掓寜閽坊鍔犻鐗",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
         )
@@ -684,13 +700,13 @@ fun EmptyState() {
 
 private fun getMealTypeText(mealType: MealType): String {
     return when (mealType) {
-        MealType.BREAKFAST -> "早餐"
-        MealType.BREAKFAST_SNACK -> "早加餐"
-        MealType.LUNCH -> "午餐"
-        MealType.LUNCH_SNACK -> "午加餐"
-        MealType.DINNER -> "晚餐"
-        MealType.DINNER_SNACK -> "晚加餐"
-        MealType.SNACK -> "加餐"
+        MealType.BREAKFAST -> "鏃╅"
+        MealType.BREAKFAST_SNACK -> "鏃╁姞椁"
+        MealType.LUNCH -> "鍗堥"
+        MealType.LUNCH_SNACK -> "鍗堝姞椁"
+        MealType.DINNER -> "鏅氶"
+        MealType.DINNER_SNACK -> "鏅氬姞椁"
+        MealType.SNACK -> "鍔犻"
     }
 }
 
@@ -703,7 +719,7 @@ fun ExerciseRecordItem(
     val isDark = isSystemInDarkTheme()
     var showDeleteDialog by remember { mutableStateOf(false) }
     
-    // 解析自定义运动名称
+    // 瑙ｆ瀽鑷畾涔夎繍鍔ㄥ悕绉?
     val displayName = if (record.notes?.startsWith("CUSTOM:") == true) {
         record.notes.substringAfter("CUSTOM:").substringBeforeLast(":")
     } else {
@@ -737,14 +753,14 @@ fun ExerciseRecordItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 运动图标
+            // 杩愬姩鍥炬爣
             Text(
                 text = record.exerciseType.emoji,
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.padding(end = 12.dp)
             )
             
-            // 运动信息
+            // 杩愬姩淇℃伅
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -754,13 +770,13 @@ fun ExerciseRecordItem(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${record.durationMinutes}分钟 · ${record.caloriesBurned}千卡",
+                    text = "${record.durationMinutes}鍒嗛挓 路 ${record.caloriesBurned}鍗冨崱",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             
-            // 消耗热量
+            // 娑堣€楃儹閲?
             Text(
                 text = "-${record.caloriesBurned}",
                 style = MaterialTheme.typography.titleMedium,
@@ -770,12 +786,12 @@ fun ExerciseRecordItem(
         }
     }
     
-    // 删除确认对话框
+    // 鍒犻櫎纭瀵硅瘽妗?
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("删除运动记录") },
-            text = { Text("确定要删除这条运动记录吗？") },
+            title = { Text("鍒犻櫎杩愬姩璁板綍") },
+            text = { Text("纭畾瑕佸垹闄よ繖鏉¤繍鍔ㄨ褰曞悧锛") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -783,16 +799,17 @@ fun ExerciseRecordItem(
                         showDeleteDialog = false
                     }
                 ) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                    Text("鍒犻櫎", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("取消")
+                    Text("鍙栨秷")
                 }
             }
         )
     }
 }
+
 
 

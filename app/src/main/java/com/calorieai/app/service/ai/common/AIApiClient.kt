@@ -279,13 +279,8 @@ class AIApiClient @Inject constructor(
         return runCatching {
             val root = JsonParser.parseString(rawResponse).asJsonObject
 
-            val fromChoices = root.getAsJsonArray("choices")
-                ?.firstOrNull()
-                ?.let { firstChoice ->
-                    val choice = if (firstChoice.isJsonObject) firstChoice.asJsonObject else return@let null
-                    extractText(choice.get("message"))
-                        ?: extractText(choice.get("delta"))
-                }
+            val fromChoices = extractFromChoices(root.get("choices"))
+                ?: extractFromChoices(root.get("data"))
             if (!fromChoices.isNullOrBlank()) {
                 return fromChoices
             }
@@ -300,8 +295,46 @@ class AIApiClient @Inject constructor(
                 return fromOutput
             }
 
-            extractText(root.get("content"))
+            val fallbackKeys = listOf(
+                "content",
+                "text",
+                "output_text",
+                "answer",
+                "result",
+                "response",
+                "data",
+                "message"
+            )
+            fallbackKeys.firstNotNullOfOrNull { key ->
+                extractText(root.get(key))
+            } ?: root.entrySet().firstNotNullOfOrNull { entry ->
+                extractText(entry.value)
+            }
         }.getOrNull()?.takeIf { it.isNotBlank() }
+    }
+
+    private fun extractFromChoices(container: JsonElement?): String? {
+        if (container == null || container.isJsonNull) return null
+
+        if (container.isJsonObject) {
+            val obj = container.asJsonObject
+            return extractFromChoices(obj.get("choices"))
+                ?: extractFromChoices(obj.get("data"))
+                ?: extractText(obj.get("message"))
+                ?: extractText(obj.get("content"))
+        }
+
+        if (!container.isJsonArray) return null
+
+        return container.asJsonArray
+            .firstOrNull()
+            ?.let { firstChoice ->
+                if (!firstChoice.isJsonObject) return@let null
+                val choice = firstChoice.asJsonObject
+                extractText(choice.get("message"))
+                    ?: extractText(choice.get("delta"))
+                    ?: extractText(choice.get("content"))
+            }
     }
 
     private fun extractText(element: JsonElement?): String? {

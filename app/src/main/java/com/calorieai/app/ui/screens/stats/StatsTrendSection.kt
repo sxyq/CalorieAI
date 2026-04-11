@@ -98,11 +98,13 @@ internal fun TrendAnalysisContent(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
 
-        // 饮水趋势图表
-        WaterTrendChart(
-            waterData = uiState.waterTrendData,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
+        // 饮水趋势图表（由设置中的饮水总开关控制）
+        if (uiState.showWaterFeatures) {
+            WaterTrendChart(
+                waterData = uiState.waterTrendData,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+        }
     }
 }
 

@@ -1,14 +1,10 @@
-package com.calorieai.app
+﻿package com.calorieai.app
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -22,13 +18,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.navigation.compose.rememberNavController
-import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.calorieai.app.data.local.OnboardingDataStore
 import com.calorieai.app.data.repository.UserSettingsRepository
@@ -99,8 +93,8 @@ class MainActivity : ComponentActivity() {
                     when (settings?.wallpaperType) {
                         "SOLID" -> parseHexColor(settings?.wallpaperColor)
                         "GRADIENT" -> {
-                            // 渐变壁纸由全局背景层直接绘制，不再用中间色覆盖主题，
-                            // 避免被主题表面色“抹平”为纯色观感。
+                            // 娓愬彉澹佺焊鐢卞叏灞€鑳屾櫙灞傜洿鎺ョ粯鍒讹紝涓嶅啀鐢ㄤ腑闂磋壊瑕嗙洊涓婚锛?
+                            // 閬垮厤琚富棰樿〃闈㈣壊鈥滄姽骞斥€濅负绾壊瑙傛劅銆?
                             null
                         }
 
@@ -119,12 +113,6 @@ class MainActivity : ComponentActivity() {
             var shouldSkipOnboarding by remember { mutableStateOf(false) }
             var isLoading by remember { mutableStateOf(true) }
             var pendingUpdateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
-            var hasRequestedNotificationPermission by rememberSaveable { mutableStateOf(false) }
-            val notificationPermissionLauncher = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.RequestPermission()
-            ) {
-                hasRequestedNotificationPermission = true
-            }
 
             LaunchedEffect(Unit) {
                 val completed = withContext(Dispatchers.IO) {
@@ -134,38 +122,27 @@ class MainActivity : ComponentActivity() {
                 isLoading = false
             }
 
-            LaunchedEffect(isLoading, shouldSkipOnboarding, settings?.isNotificationEnabled) {
-                if (isLoading || !shouldSkipOnboarding) return@LaunchedEffect
-                if (settings?.isNotificationEnabled != true) return@LaunchedEffect
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return@LaunchedEffect
-                if (hasRequestedNotificationPermission) return@LaunchedEffect
-
-                val granted = ContextCompat.checkSelfPermission(
-                    this@MainActivity,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED
-                if (granted) {
-                    hasRequestedNotificationPermission = true
-                } else {
-                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
-            }
-
             LaunchedEffect(
                 isLoading,
                 shouldSkipOnboarding,
                 settings?.isNotificationEnabled,
                 settings?.breakfastReminderTime,
                 settings?.lunchReminderTime,
-                settings?.dinnerReminderTime
+                settings?.dinnerReminderTime,
+                settings?.showWaterFeatures,
+                settings?.enableWaterReminder,
+                settings?.waterReminderTimesJson,
+                settings?.waterReminderIntervalMinutes,
+                settings?.waterReminderWindowStart,
+                settings?.waterReminderWindowEnd
             ) {
                 val currentSettings = settings ?: return@LaunchedEffect
                 if (isLoading || !shouldSkipOnboarding) return@LaunchedEffect
 
-                // 避免在首屏渲染关键路径触发 WorkManager 初始化，降低冷启动卡顿。
+                // 閬垮厤鍦ㄩ灞忔覆鏌撳叧閿矾寰勮Е鍙?WorkManager 鍒濆鍖栵紝闄嶄綆鍐峰惎鍔ㄥ崱椤裤€?
                 delay(900)
                 withContext(Dispatchers.IO) {
-                    notificationScheduler.syncMealReminders(
+                    notificationScheduler.syncReminders(
                         settings = currentSettings,
                         source = "MainActivity.launch"
                     )
@@ -206,7 +183,7 @@ class MainActivity : ComponentActivity() {
                         }
                     ) {
                         if (isLoading) {
-                            // 显示壁纸背景，避免闪烁
+                            // 鏄剧ず澹佺焊鑳屾櫙锛岄伩鍏嶉棯鐑?
                         } else if (shouldSkipOnboarding) {
                             val navController = rememberNavController()
                             NavGraph(navController = navController)
@@ -247,19 +224,19 @@ private fun AppUpdateDialog(
     AlertDialog(
         onDismissRequest = onLater,
         title = {
-            Text("发现新版本 ${updateInfo.latestVersionName}")
+            Text("鍙戠幇鏂扮増鏈?${updateInfo.latestVersionName}")
         },
         text = {
             Text(updateInfo.changelog)
         },
         confirmButton = {
             TextButton(onClick = onDownload) {
-                Text("立即下载")
+                Text("绔嬪嵆涓嬭浇")
             }
         },
         dismissButton = {
             TextButton(onClick = onLater) {
-                Text("稍后")
+                Text("绋嶅悗")
             }
         }
     )
@@ -344,3 +321,4 @@ private fun parseHexColor(value: String?): Color? {
         null
     }
 }
+

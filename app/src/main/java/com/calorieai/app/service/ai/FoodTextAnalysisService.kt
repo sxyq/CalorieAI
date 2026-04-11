@@ -9,6 +9,7 @@ import com.calorieai.app.service.ai.common.AIApiClient
 import com.calorieai.app.service.ai.common.AIApiException
 import com.calorieai.app.service.ai.common.AIErrorCategory
 import com.calorieai.app.service.ai.common.AIErrorClassifier
+import com.calorieai.app.service.ai.common.AIResponseSanitizer
 import com.calorieai.app.utils.SecureLogger
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
@@ -87,7 +88,7 @@ class FoodTextAnalysisService @Inject constructor(
                 ?: return@withContext Result.failure(Exception("未配置AI服务"))
             val batchId = UUID.randomUUID().toString().substring(0, 8)
 
-            val userPrompt = buildString {
+            val baseUserPrompt = buildString {
                 append("请拆分并分析以下食物，按多条items返回：")
                 append(foodDescription)
                 if (!requestTag.isNullOrBlank()) {
@@ -97,10 +98,17 @@ class FoodTextAnalysisService @Inject constructor(
                 }
             }
             var lastError: Throwable? = null
+            var lastResponseSnippet = ""
+            var lastFailureDetail = ""
             val maxAttempts = (maxRetries + 1).coerceAtLeast(1)
 
             for (attempt in 1..maxAttempts) {
                 val startTime = System.currentTimeMillis()
+                val userPrompt = if (attempt == 1) {
+                    baseUserPrompt
+                } else {
+                    buildRepairUserPrompt(baseUserPrompt, lastFailureDetail, lastResponseSnippet)
+                }
                 try {
                     val (responseText, rawResponse) = aiApiClient.chatRaw(
                         config = config,
@@ -152,7 +160,9 @@ class FoodTextAnalysisService @Inject constructor(
                         category = AIErrorCategory.VALIDATION,
                         retryEligible = true
                     )
+                    lastResponseSnippet = responseText.take(800)
                     val errorInfo = AIErrorClassifier.classify(lastError)
+                    lastFailureDetail = errorInfo.detail
                     recordApiCall(
                         configId = config.id,
                         configName = config.name,
@@ -169,6 +179,7 @@ class FoodTextAnalysisService @Inject constructor(
                 } catch (e: Exception) {
                     lastError = e
                     val errorInfo = AIErrorClassifier.classify(e)
+                    lastFailureDetail = errorInfo.detail
                     recordApiCall(
                         configId = config.id,
                         configName = config.name,
@@ -185,6 +196,7 @@ class FoodTextAnalysisService @Inject constructor(
                 }
 
                 val errorInfo = AIErrorClassifier.classify(lastError)
+                lastFailureDetail = errorInfo.detail
                 if (attempt < maxAttempts && errorInfo.retryEligible) {
                     onRetry?.invoke(attempt, maxAttempts)
                     SecureLogger.w(
@@ -207,84 +219,7 @@ class FoodTextAnalysisService @Inject constructor(
     }
 
     private fun parseBatchAnalysisResult(content: String): List<FoodAnalysisResult> {
-        val jsonString = extractJsonFromText(content)
-        
-        var cleanedJson = jsonString
-            .replace("，", ",")
-            .replace("：", ":")
-            .replace("estimated weight", "estimatedWeight")
-        
-        cleanedJson = cleanedJson
-            .replace("“", "\"")
-            .replace("”", "\"")
-            .replace("‘", "\"")
-            .replace("’", "\"")
-        
-        val fieldNameMappings = mapOf(
-            "estimated weight" to "estimatedWeight",
-            "食物名称" to "foodName",
-            "estimatedWeight" to "estimatedWeight",
-            "热量" to "calories",
-            "卡路里" to "calories",
-            "蛋白质" to "protein",
-            "碳水" to "carbs",
-            "碳水化合物" to "carbs",
-            "脂肪" to "fat",
-            "膳食纤维" to "fiber",
-            "纤维" to "fiber",
-            "糖分" to "sugar",
-            "糖" to "sugar",
-            "饱和脂肪" to "saturatedFat",
-            "胆固醇" to "cholesterol",
-            "钠" to "sodium",
-            "钾" to "potassium",
-            "钙" to "calcium",
-            "铁" to "iron",
-            "维生素A" to "vitaminA",
-            "维生素C" to "vitaminC"
-        )
-        
-        for ((chineseName, englishName) in fieldNameMappings) {
-            cleanedJson = cleanedJson.replace("\"$chineseName\":", "\"$englishName\":")
-        }
-        
-        val numericFields = listOf(
-            "calories", "protein", "carbs", "fat", "fiber", "sugar",
-            "saturatedFat", "cholesterol", "sodium", "potassium",
-            "calcium", "iron", "vitaminA", "vitaminC"
-        )
-        
-        for (field in numericFields) {
-            val regex = Regex("\"$field\"\\s*:\\s*['\"]([^'\"]+)['\"]")
-            cleanedJson = regex.replace(cleanedJson) { matchResult ->
-                val value = matchResult.groupValues[1]
-                try {
-                    value.toFloat()
-                    "\"$field\":$value"
-                } catch (e: Exception) {
-                    matchResult.value
-                }
-            }
-        }
-        
-        if (!cleanedJson.trimEnd().endsWith("}")) {
-            cleanedJson = cleanedJson.trimEnd() + "}"
-        }
-
-        return try {
-            val jsonObject = gson.fromJson(cleanedJson, com.google.gson.JsonObject::class.java)
-            val itemsArray = jsonObject?.getAsJsonArray("items")
-            if (itemsArray != null && itemsArray.size() > 0) {
-                itemsArray.mapNotNull { element ->
-                    runCatching { gson.fromJson(element, FoodAnalysisResult::class.java) }.getOrNull()
-                }
-            } else {
-                // 兼容模型偶发返回单对象的情况
-                listOf(gson.fromJson(cleanedJson, FoodAnalysisResult::class.java))
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
+        return AIResponseSanitizer.parseFoodItems(content, gson)
     }
 
     private fun alignItemsWithUserIntent(
@@ -419,28 +354,21 @@ class FoodTextAnalysisService @Inject constructor(
         val errorMessage: String
     )
 
-    private fun extractJsonFromText(raw: String): String {
-        val idx = raw.indexOf('{')
-        if (idx >= 0) {
-            var depth = 0
-            for (i in idx until raw.length) {
-                when (raw[i]) {
-                    '{' -> depth++
-                    '}' -> {
-                        depth--
-                        if (depth == 0) return raw.substring(idx, i + 1).trim()
-                    }
-                }
+    private fun buildRepairUserPrompt(
+        baseUserPrompt: String,
+        lastFailureDetail: String,
+        lastResponseSnippet: String
+    ): String {
+        return buildString {
+            append(baseUserPrompt)
+            append("\n\n上次输出未通过校验，原因：")
+            append(lastFailureDetail.ifBlank { "字段缺失或JSON格式不稳定" })
+            append("\n请严格只返回一个 JSON 对象，根字段必须是 items 数组；不要输出Markdown代码块，不要附加解释文本。")
+            if (lastResponseSnippet.isNotBlank()) {
+                append("\n上次输出片段（请修复后重写，不要复述原文）：\n")
+                append(lastResponseSnippet)
             }
         }
-
-        val jsonFenceRegex = Regex("```json\\s*([\\s\\S]*?)```", RegexOption.IGNORE_CASE)
-        jsonFenceRegex.find(raw)?.let { return it.groups[1]!!.value.trim() }
-
-        val anyFenceRegex = Regex("```\\s*([\\s\\S]*?)```")
-        anyFenceRegex.find(raw)?.let { return it.groups[1]!!.value.trim() }
-
-        return raw.trim()
     }
 
     private suspend fun recordApiCall(

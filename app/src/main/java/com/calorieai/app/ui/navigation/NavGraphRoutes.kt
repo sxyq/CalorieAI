@@ -1,5 +1,9 @@
-package com.calorieai.app.ui.navigation
+﻿package com.calorieai.app.ui.navigation
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
@@ -439,7 +443,22 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
     }
 
     composable(Screen.WaterTracker.route) {
-        WaterTrackerScreen(onNavigateBack = { navController.popBackStack() })
+        val featureVisibilityViewModel: FeatureVisibilityViewModel = hiltViewModel()
+        val featureState by featureVisibilityViewModel.uiState.collectAsStateWithLifecycle()
+
+        LaunchedEffect(featureState.showWaterFeatures) {
+            if (!featureState.showWaterFeatures) {
+                if (!navController.popBackStack()) {
+                    navController.navigate(Screen.Home.route) {
+                        launchSingleTop = true
+                    }
+                }
+            }
+        }
+
+        if (featureState.showWaterFeatures) {
+            WaterTrackerScreen(onNavigateBack = { navController.popBackStack() })
+        }
     }
 
     composable(
@@ -452,12 +471,29 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
             }
         )
     ) { backStackEntry ->
+        val featureVisibilityViewModel: FeatureVisibilityViewModel = hiltViewModel()
+        val featureState by featureVisibilityViewModel.uiState.collectAsStateWithLifecycle()
         val date = backStackEntry.arguments?.getString("date")
-        WaterHistoryScreen(
-            selectedDate = date,
-            onNavigateBack = {
-                navController.popBackStack()
+
+        LaunchedEffect(featureState.showWaterFeatures) {
+            if (!featureState.showWaterFeatures) {
+                if (!navController.popBackStack()) {
+                    navController.navigate(Screen.Home.route) {
+                        launchSingleTop = true
+                    }
+                }
             }
-        )
+        }
+
+        if (featureState.showWaterFeatures) {
+            WaterHistoryScreen(
+                selectedDate = date,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
     }
 }
+
+

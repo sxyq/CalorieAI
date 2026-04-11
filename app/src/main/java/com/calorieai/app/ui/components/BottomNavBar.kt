@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieai.app.ui.animation.AnimationEasing
 import com.calorieai.app.ui.animation.AnimationSpecs
+import com.calorieai.app.ui.feedback.AppHapticController
+import com.calorieai.app.ui.feedback.rememberAppHapticController
 import com.calorieai.app.ui.theme.*
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -71,13 +73,14 @@ fun BottomNavBar(
 ) {
     val context = LocalContext.current
     val isLowEnd = remember { GlassDeviceUtils.isLowEndDevice(context) }
-    val supportsBlur = GlassDeviceUtils.supportsBlur()
+    val supportsBlur = false
+    val haptics = rememberAppHapticController()
 
     // 背景颜色 #F3EDF7（浅色）/#211F26（深色），透明度 95%
-    val backgroundColor = AppColors.navigationBarBackground(isDark).copy(alpha = GlassAlpha.NAVIGATION_BAR)
+    val backgroundColor = Color.White
 
     // 边框颜色
-    val borderColor = Color.White.copy(alpha = if (isDark) 0.1f else 0.1f)
+    val borderColor = Color(0xFFE5E7EB)
 
     val density = LocalDensity.current
     val highlightHeight = with(density) { 1.dp.toPx() }
@@ -94,7 +97,7 @@ fun BottomNavBar(
                 drawRect(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.2f),
+                            Color.White.copy(alpha = 0f),
                             Color.Transparent
                         ),
                         startY = 0f,
@@ -106,7 +109,7 @@ fun BottomNavBar(
 
                 // 底部内阴影 1px rgba(0,0,0,0.1)
                 drawRect(
-                    color = Color.Black.copy(alpha = 0.1f),
+                    color = Color.Black.copy(alpha = 0f),
                     topLeft = Offset(0f, size.height - highlightHeight),
                     size = Size(size.width, highlightHeight)
                 )
@@ -136,6 +139,7 @@ fun BottomNavBar(
                     onLongClick = onItemLongPressed?.let { handler ->
                         { handler(item.route) }
                     },
+                    haptics = haptics,
                     isDark = isDark
                 )
             }
@@ -152,6 +156,7 @@ private fun NavBarItem(
     isSelected: Boolean,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
+    haptics: AppHapticController,
     isDark: Boolean
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -236,8 +241,12 @@ private fun NavBarItem(
                                 }
 
                                 when (releasedInTime) {
-                                    true -> onClick()
+                                    true -> {
+                                        haptics.click()
+                                        onClick()
+                                    }
                                     null -> {
+                                        haptics.longPress()
                                         onLongClick()
                                         waitForUpOrCancellation()
                                     }
@@ -249,7 +258,10 @@ private fun NavBarItem(
                     Modifier.clickable(
                         interactionSource = interactionSource,
                         indication = ripple,
-                        onClick = onClick
+                        onClick = {
+                            haptics.click()
+                            onClick()
+                        }
                     )
                 }
             ),
@@ -406,10 +418,11 @@ fun BottomNavBarWithFab(
 ) {
     val context = LocalContext.current
     val isLowEnd = remember { GlassDeviceUtils.isLowEndDevice(context) }
-    val supportsBlur = GlassDeviceUtils.supportsBlur()
+    val supportsBlur = false
+    val haptics = rememberAppHapticController()
 
-    val backgroundColor = AppColors.navigationBarBackground(isDark).copy(alpha = GlassAlpha.NAVIGATION_BAR)
-    val borderColor = Color.White.copy(alpha = if (isDark) 0.1f else 0.1f)
+    val backgroundColor = Color.White
+    val borderColor = Color(0xFFE5E7EB)
 
     val density = LocalDensity.current
     val highlightHeight = with(density) { 1.dp.toPx() }
@@ -428,7 +441,7 @@ fun BottomNavBarWithFab(
                     drawRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.2f),
+                                Color.White.copy(alpha = 0f),
                                 Color.Transparent
                             ),
                             startY = 0f,
@@ -438,7 +451,7 @@ fun BottomNavBarWithFab(
                         size = Size(size.width, highlightHeight)
                     )
                     drawRect(
-                        color = Color.Black.copy(alpha = 0.1f),
+                        color = Color.Black.copy(alpha = 0f),
                         topLeft = Offset(0f, size.height - highlightHeight),
                         size = Size(size.width, highlightHeight)
                     )
@@ -464,6 +477,7 @@ fun BottomNavBarWithFab(
                         item = item,
                         isSelected = item.route == selectedRoute,
                         onClick = { onItemSelected(item.route) },
+                        haptics = haptics,
                         isDark = isDark
                     )
                 }
@@ -476,6 +490,7 @@ fun BottomNavBarWithFab(
                         item = item,
                         isSelected = item.route == selectedRoute,
                         onClick = { onItemSelected(item.route) },
+                        haptics = haptics,
                         isDark = isDark
                     )
                 }
@@ -487,7 +502,10 @@ fun BottomNavBarWithFab(
         val fabContentColor = AppColors.onPrimary(isDark)
 
         FloatingActionButton(
-            onClick = onFabClick,
+            onClick = {
+                haptics.confirm()
+                onFabClick()
+            },
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .size(64.dp),

@@ -10,7 +10,7 @@ import com.calorieai.app.data.repository.UserSettingsRepository
 import com.calorieai.app.domain.recipe.FavoriteUseCase
 import com.calorieai.app.domain.recipe.MealPlanUseCase
 import com.calorieai.app.domain.recipe.PantryUseCase
-import com.calorieai.app.domain.recipe.RecipePersonalization
+import com.calorieai.app.utils.inferMainMealType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +36,7 @@ class RecipeHomeViewModel @Inject constructor(
 
     private val _events = MutableSharedFlow<RecipeUiEvent>()
     val events: SharedFlow<RecipeUiEvent> = _events.asSharedFlow()
+    private var preferencesHydrated = false
 
     init {
         observeFavorites()
@@ -46,6 +47,59 @@ class RecipeHomeViewModel @Inject constructor(
 
     fun dispatch(action: RecipeAction.Home) {
         when (action) {
+            is RecipeAction.Home.ChangeSelectedMealType -> {
+                _uiState.update { current ->
+                    current.copy(
+                        selectedMealType = action.mealType,
+                        quickFavorites = selectQuickFavorites(
+                            favorites = current.favorites,
+                            sourceMealTypeMap = current.sourceMealTypeMap,
+                            selectedMealType = action.mealType
+                        )
+                    )
+                }
+            }
+            is RecipeAction.Home.ChangeDietaryAllergens -> {
+                _uiState.update {
+                    it.copy(personalization = it.personalization.copy(dietaryAllergens = action.value))
+                }
+            }
+            is RecipeAction.Home.ChangeFlavorPreferences -> {
+                _uiState.update {
+                    it.copy(personalization = it.personalization.copy(flavorPreferences = action.value))
+                }
+            }
+            is RecipeAction.Home.ChangeBudgetPreference -> {
+                _uiState.update {
+                    it.copy(personalization = it.personalization.copy(budgetPreference = action.value))
+                }
+            }
+            is RecipeAction.Home.ChangeMaxCookingMinutes -> {
+                _uiState.update {
+                    it.copy(
+                        personalization = it.personalization.copy(
+                            maxCookingMinutes = action.value.filter { ch -> ch.isDigit() }
+                        )
+                    )
+                }
+            }
+            is RecipeAction.Home.ChangeSpecialPopulationMode -> {
+                _uiState.update {
+                    it.copy(personalization = it.personalization.copy(specialPopulationMode = action.value))
+                }
+            }
+            is RecipeAction.Home.ChangeWeeklyRecordGoalDays -> {
+                _uiState.update {
+                    it.copy(
+                        personalization = it.personalization.copy(
+                            weeklyRecordGoalDays = action.value.filter { ch -> ch.isDigit() }
+                        )
+                    )
+                }
+            }
+            is RecipeAction.Home.ClearAiResult -> {
+                _uiState.update { it.copy(aiResult = null, aiError = null) }
+            }
             is RecipeAction.Home.GenerateSuggestion -> generateRecipeSuggestion()
             is RecipeAction.Home.GeneratePlan -> generatePlan(action.days)
             is RecipeAction.Home.AddFavoriteToToday -> addFavoriteToToday(action.recipe, action.mealType)
@@ -53,52 +107,54 @@ class RecipeHomeViewModel @Inject constructor(
         }
     }
 
-    fun setSelectedMealType(mealType: MealType) {
-        _uiState.update { it.copy(selectedMealType = mealType) }
-    }
-
-    fun onDietaryAllergensChange(value: String) {
-        _uiState.update { it.copy(dietaryAllergens = value) }
-    }
-
-    fun onFlavorPreferencesChange(value: String) {
-        _uiState.update { it.copy(flavorPreferences = value) }
-    }
-
-    fun onBudgetPreferenceChange(value: String) {
-        _uiState.update { it.copy(budgetPreference = value) }
-    }
-
-    fun onMaxCookingMinutesChange(value: String) {
-        _uiState.update { it.copy(maxCookingMinutes = value.filter { ch -> ch.isDigit() }) }
-    }
-
-    fun onSpecialPopulationModeChange(value: String) {
-        _uiState.update { it.copy(specialPopulationMode = value) }
-    }
-
-    fun onWeeklyRecordGoalDaysChange(value: String) {
-        _uiState.update { it.copy(weeklyRecordGoalDays = value.filter { ch -> ch.isDigit() }) }
-    }
-
-    fun clearAiResult() {
-        _uiState.update { it.copy(aiResult = null, aiError = null) }
-    }
-
     private fun observeFavorites() {
         viewModelScope.launch {
             favoriteUseCase.observeFavorites().collectLatest { favorites ->
-                _uiState.update {
-                    it.copy(
+                val sourceMealTypeMap = favoriteUseCase.getSourceMealTypeMap(favorites)
+                _uiState.update { current ->
+                    current.copy(
                         favorites = favorites,
-                        quickFavorites = favorites
-                            .sortedWith(compareByDescending<FavoriteRecipe> { it.lastUsedAt ?: 0L }
-                                .thenByDescending { it.useCount })
-                            .take(6)
+                        sourceMealTypeMap = sourceMealTypeMap,
+                        quickFavorites = selectQuickFavorites(
+                            favorites = favorites,
+                            sourceMealTypeMap = sourceMealTypeMap,
+                            selectedMealType = current.selectedMealType
+                        )
                     )
                 }
             }
         }
+    }
+
+    private fun selectQuickFavorites(
+        favorites: List<FavoriteRecipe>,
+        sourceMealTypeMap: Map<String, MealType>,
+        selectedMealType: MealType
+    ): List<FavoriteRecipe> {
+        val sortedFavorites = favorites.sortedWith(
+            compareByDescending<FavoriteRecipe> { it.lastUsedAt ?: 0L }
+                .thenByDescending { it.useCount }
+        )
+
+        val filtered = sortedFavorites.filter { recipe ->
+            val sourceMealType = sourceMealTypeMap[recipe.id]
+            when (selectedMealType) {
+                MealType.BREAKFAST -> sourceMealType == MealType.BREAKFAST
+                MealType.LUNCH -> sourceMealType == MealType.LUNCH
+                MealType.DINNER -> sourceMealType == MealType.DINNER
+                MealType.SNACK -> sourceMealType in setOf(
+                    MealType.SNACK,
+                    MealType.BREAKFAST_SNACK,
+                    MealType.LUNCH_SNACK,
+                    MealType.DINNER_SNACK
+                )
+                MealType.BREAKFAST_SNACK -> sourceMealType == MealType.BREAKFAST_SNACK
+                MealType.LUNCH_SNACK -> sourceMealType == MealType.LUNCH_SNACK
+                MealType.DINNER_SNACK -> sourceMealType == MealType.DINNER_SNACK
+            }
+        }
+
+        return (if (filtered.isNotEmpty()) filtered else sortedFavorites).take(6)
     }
 
     private fun observePantry() {
@@ -121,15 +177,13 @@ class RecipeHomeViewModel @Inject constructor(
         viewModelScope.launch {
             userSettingsRepository.getSettings().collectLatest { settings ->
                 settings ?: return@collectLatest
-                _uiState.update {
-                    it.copy(
-                        dietaryAllergens = settings.dietaryAllergens.orEmpty(),
-                        flavorPreferences = settings.flavorPreferences.orEmpty(),
-                        budgetPreference = settings.budgetPreference.orEmpty(),
-                        maxCookingMinutes = settings.maxCookingMinutes?.toString().orEmpty(),
-                        specialPopulationMode = settings.specialPopulationMode,
-                        weeklyRecordGoalDays = settings.weeklyRecordGoalDays.toString()
-                    )
+                if (!preferencesHydrated) {
+                    _uiState.update {
+                        it.copy(
+                            personalization = RecipePersonalizationState.fromSettings(settings)
+                        )
+                    }
+                    preferencesHydrated = true
                 }
             }
         }
@@ -149,15 +203,15 @@ class RecipeHomeViewModel @Inject constructor(
 
     private fun savePersonalizationSettings() {
         viewModelScope.launch {
-            val state = _uiState.value
-            val maxCooking = state.maxCookingMinutes.toIntOrNull()
-            val weeklyGoal = state.weeklyRecordGoalDays.toIntOrNull() ?: 5
+            val personalization = _uiState.value.personalization
+            val maxCooking = personalization.maxCookingMinutes.toIntOrNull()
+            val weeklyGoal = personalization.weeklyRecordGoalDays.toIntOrNull() ?: 5
             userSettingsRepository.updateAIPersonalization(
-                dietaryAllergens = state.dietaryAllergens,
-                flavorPreferences = state.flavorPreferences,
-                budgetPreference = state.budgetPreference,
+                dietaryAllergens = personalization.dietaryAllergens,
+                flavorPreferences = personalization.flavorPreferences,
+                budgetPreference = personalization.budgetPreference,
                 maxCookingMinutes = maxCooking,
-                specialPopulationMode = state.specialPopulationMode,
+                specialPopulationMode = personalization.specialPopulationMode,
                 weeklyRecordGoalDays = weeklyGoal
             )
             _events.emit(RecipeUiEvent.Snackbar("个性化忌口与偏好已保存"))
@@ -170,7 +224,7 @@ class RecipeHomeViewModel @Inject constructor(
             val pantrySummary = buildPantrySummary(_uiState.value.pantryIngredients)
             val result = mealPlanUseCase.generateRecipeSuggestion(
                 pantrySummary = pantrySummary,
-                personalization = _uiState.value.toPersonalization()
+                personalization = _uiState.value.personalization.toDomain()
             )
             result.onSuccess { text ->
                 _uiState.update { it.copy(isAiLoading = false, aiResult = text, aiError = null) }
@@ -192,7 +246,7 @@ class RecipeHomeViewModel @Inject constructor(
             val pantrySummary = buildPantrySummary(_uiState.value.pantryIngredients)
             val result = mealPlanUseCase.generateAndSavePlan(
                 pantrySummary = pantrySummary,
-                personalization = _uiState.value.toPersonalization(),
+                personalization = _uiState.value.personalization.toDomain(),
                 days = days,
                 startDate = java.time.LocalDate.now()
             )
@@ -211,44 +265,19 @@ class RecipeHomeViewModel @Inject constructor(
     }
 
     private fun buildPantrySummary(items: List<PantryIngredient>): String {
-        val now = System.currentTimeMillis()
-        return mealPlanUseCase.buildPantrySummary(
-            items.map { item ->
-                val expireInfo = item.expiresAt?.let {
-                    val days = ((it - now) / (24f * 60f * 60f * 1000f)).toInt()
-                    val text = if (days >= 0) "${days}天后过期" else "已过期"
-                    "（$text）"
-                } ?: ""
-                "- ${item.name} ${item.quantity}${item.unit}$expireInfo"
-            }
-        )
+        return mealPlanUseCase.buildPantrySummary(buildRecipePantrySummaryLines(items))
     }
-}
-
-private fun RecipeHomeUiState.toPersonalization(): RecipePersonalization {
-    return RecipePersonalization(
-        dietaryAllergens = dietaryAllergens,
-        flavorPreferences = flavorPreferences,
-        budgetPreference = budgetPreference,
-        maxCookingMinutes = maxCookingMinutes,
-        specialPopulationMode = specialPopulationMode,
-        weeklyRecordGoalDays = weeklyRecordGoalDays
-    )
 }
 
 data class RecipeHomeUiState(
     val favorites: List<FavoriteRecipe> = emptyList(),
     val quickFavorites: List<FavoriteRecipe> = emptyList(),
+    val sourceMealTypeMap: Map<String, MealType> = emptyMap(),
     val pantryIngredients: List<PantryIngredient> = emptyList(),
     val recipePlans: List<RecipePlan> = emptyList(),
-    val selectedMealType: MealType = MealType.LUNCH,
+    val selectedMealType: MealType = inferMainMealType(),
     val isAiLoading: Boolean = false,
     val aiResult: String? = null,
     val aiError: String? = null,
-    val dietaryAllergens: String = "",
-    val flavorPreferences: String = "",
-    val budgetPreference: String = "",
-    val maxCookingMinutes: String = "",
-    val specialPopulationMode: String = "GENERAL",
-    val weeklyRecordGoalDays: String = "5"
+    val personalization: RecipePersonalizationState = RecipePersonalizationState()
 )

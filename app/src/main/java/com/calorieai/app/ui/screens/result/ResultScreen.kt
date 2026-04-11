@@ -143,7 +143,7 @@ fun ResultContent(
     var vitaminC by remember { mutableStateOf(record.vitaminC.toString()) }
     var vitaminA by remember { mutableStateOf(record.vitaminA.toString()) }
     var potassium by remember { mutableStateOf(record.potassium.toString()) }
-    var mealType by remember { mutableStateOf(record.mealType) }
+    var mealType by remember { mutableStateOf(toPrimaryMealType(record.mealType)) }
 
     LaunchedEffect(record) {
         calories = record.totalCalories.toString()
@@ -160,7 +160,7 @@ fun ResultContent(
         vitaminC = record.vitaminC.toString()
         vitaminA = record.vitaminA.toString()
         potassium = record.potassium.toString()
-        mealType = record.mealType
+        mealType = toPrimaryMealType(record.mealType)
     }
 
     Column(
@@ -271,11 +271,8 @@ private fun MealTypeCard(
 ) {
     val mealTypes = listOf(
         MealType.BREAKFAST,
-        MealType.BREAKFAST_SNACK,
         MealType.LUNCH,
-        MealType.LUNCH_SNACK,
         MealType.DINNER,
-        MealType.DINNER_SNACK,
         MealType.SNACK
     )
 
@@ -309,6 +306,18 @@ private fun MealTypeCard(
                 }
             }
         }
+    }
+}
+
+private fun toPrimaryMealType(mealType: MealType): MealType {
+    return when (mealType) {
+        MealType.BREAKFAST -> MealType.BREAKFAST
+        MealType.LUNCH -> MealType.LUNCH
+        MealType.DINNER -> MealType.DINNER
+        MealType.BREAKFAST_SNACK,
+        MealType.LUNCH_SNACK,
+        MealType.DINNER_SNACK,
+        MealType.SNACK -> MealType.SNACK
     }
 }
 

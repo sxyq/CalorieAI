@@ -1,9 +1,8 @@
-package com.calorieai.app.ui.screens.stats
+﻿package com.calorieai.app.ui.screens.stats
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.ExerciseRecord
-import com.calorieai.app.data.model.ExerciseType
 import com.calorieai.app.data.model.FavoriteRecipe
 import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
@@ -12,7 +11,6 @@ import com.calorieai.app.data.model.RecipePlan
 import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.model.WaterRecord
 import com.calorieai.app.data.model.WeightRecord
-import com.calorieai.app.data.model.getSimplifiedMealTypeName
 import com.calorieai.app.data.repository.ExerciseRecordRepository
 import com.calorieai.app.data.repository.FavoriteRecipeRepository
 import com.calorieai.app.data.repository.FoodRecordRepository
@@ -20,6 +18,8 @@ import com.calorieai.app.data.repository.PantryIngredientRepository
 import com.calorieai.app.data.repository.RecipePlanRepository
 import com.calorieai.app.data.repository.UserSettingsRepository
 import com.calorieai.app.data.repository.WeightRecordRepository
+import com.calorieai.app.domain.stats.StatsSnapshotUseCase
+import com.calorieai.app.domain.stats.StatsTrendUseCase
 import com.calorieai.app.ui.components.charts.TimeDimension
 import com.calorieai.app.ui.components.charts.TrendChartData
 import com.calorieai.app.utils.MetabolicConstants
@@ -32,7 +32,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.temporal.WeekFields
 import javax.inject.Inject
 
 @HiltViewModel
@@ -44,7 +43,9 @@ class StatsViewModel @Inject constructor(
     private val waterRecordRepository: com.calorieai.app.data.repository.WaterRecordRepository,
     private val favoriteRecipeRepository: FavoriteRecipeRepository,
     private val pantryIngredientRepository: PantryIngredientRepository,
-    private val recipePlanRepository: RecipePlanRepository
+    private val recipePlanRepository: RecipePlanRepository,
+    private val statsSnapshotUseCase: StatsSnapshotUseCase,
+    private val statsTrendUseCase: StatsTrendUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StatsUiState())
@@ -87,7 +88,6 @@ class StatsViewModel @Inject constructor(
                 val foodRecords = sources.foodRecords
                 val exerciseRecords = sources.exerciseRecords
                 val weightRecords = sources.weightRecords
-                val waterRecords = sources.waterRecords
                 val favoriteRecipes = sources.favoriteRecipes
                 val pantryIngredients = sources.pantryIngredients
                 val recipePlans = sources.recipePlans
@@ -100,78 +100,41 @@ class StatsViewModel @Inject constructor(
                 val latestWeight = weightRecords.maxByOrNull { it.recordDate }
                 val userWeight = latestWeight?.weight ?: settings?.userWeight
                 val currentState = _uiState.value
+                val bmr = if (settings != null && userWeight != null) {
+                    MetabolicConstants.calculateBMR(
+                        gender = settings.userGender ?: "MALE",
+                        weight = userWeight,
+                        height = settings.userHeight,
+                        age = settings.userAge
+                    )
+                } else 0
+                val tdee = if (bmr > 0 && settings != null) {
+                    MetabolicConstants.calculateTDEE(bmr, settings.activityLevel)
+                } else 0
+                val weeklyGoalDays = settings?.weeklyRecordGoalDays ?: 5
 
                 val basic = withContext(Dispatchers.Default) {
-                    val bmr = if (settings != null && userWeight != null) {
-                        MetabolicConstants.calculateBMR(
-                            gender = settings.userGender ?: "MALE",
-                            weight = userWeight,
-                            height = settings.userHeight,
-                            age = settings.userAge
-                        )
-                    } else 0
-                    val tdee = if (bmr > 0 && settings != null) {
-                        MetabolicConstants.calculateTDEE(bmr, settings.activityLevel)
-                    } else 0
-
-                    val todayStats = StatsUtils.computeTodayStats(foodRecords, exerciseRecords, targetCalories, bmr, tdee)
-                    val mealTypeStats = StatsUtils.computeMealTypeStats(foodRecords)
-                    val historyStats = StatsUtils.computeHistoryStats(foodRecords)
-                    val weeklyStats = StatsUtils.computeWeeklyTrend(foodRecords)
-                    val monthlyStats = StatsUtils.computeMonthlyTrend(foodRecords)
-                    val streakDays = StatsUtils.computeStreakDays(foodRecords)
-                    val weeklyGoalDays = settings?.weeklyRecordGoalDays ?: 5
-                    val weeklyActiveDays = computeWeeklyActiveDays(foodRecords)
-                    val weeklyRecordCount = computeWeeklyRecordCount(foodRecords)
-                    val summary = StatsUtils.computeMonthSummary(foodRecords, exerciseRecords, currentState.selectedMonthOffset, userWeight)
-                    val dailyMealRecords = computeDailyMealRecords(
+                    statsSnapshotUseCase.buildBasicSnapshot(
                         foodRecords = foodRecords,
                         exerciseRecords = exerciseRecords,
-                        waterRecords = waterRecords,
-                        weightRecords = weightRecords
-                    )
-                    val monthlyActiveDays = computeMonthlyActiveDays(dailyMealRecords)
-                    val foodRecordTableRows = computeFoodRecordTableRows(foodRecords, currentState.selectedOverviewDate)
-                    val topFoodRows = computeTopFoodRows(foodRecords, 14)
-                    val achievementBadges = computeAchievementBadges(
-                        streakDays = streakDays,
-                        weeklyActiveDays = weeklyActiveDays,
-                        weeklyGoalDays = weeklyGoalDays,
-                        weeklyRecordCount = weeklyRecordCount
-                    )
-                    val recipeStats = computeRecipeStats(
-                        favorites = favoriteRecipes,
+                        favoriteRecipes = favoriteRecipes,
                         pantryIngredients = pantryIngredients,
-                        plans = recipePlans
-                    )
-
-                    BasicStatsBundle(
-                        todayStats = todayStats,
-                        mealTypeStats = mealTypeStats,
-                        historyStats = historyStats,
-                        weeklyStats = weeklyStats,
-                        monthlyStats = monthlyStats,
-                        streakDays = streakDays,
-                        weeklyGoalDays = weeklyGoalDays,
-                        weeklyActiveDays = weeklyActiveDays,
-                        weeklyRecordCount = weeklyRecordCount,
-                        monthSummary = summary,
-                        dailyMealRecords = dailyMealRecords,
-                        monthlyActiveDays = monthlyActiveDays,
-                        foodRecordTableRows = foodRecordTableRows,
-                        topFoodRows = topFoodRows,
-                        achievementBadges = achievementBadges,
-                        recipeStats = recipeStats
+                        recipePlans = recipePlans,
+                        selectedOverviewDate = currentState.selectedOverviewDate,
+                        selectedMonthOffset = currentState.selectedMonthOffset,
+                        targetCalories = targetCalories,
+                        bmr = bmr,
+                        tdee = tdee,
+                        userWeight = userWeight,
+                        weeklyGoalDays = weeklyGoalDays
                     )
                 }
 
-                val trendData = withContext(Dispatchers.Default) {
-                    computeTrendData(
-                        currentState.trendTimeDimension,
-                        currentState.trendStartDate,
-                        currentState.trendEndDate
-                    )
-                }
+                val trendData = statsTrendUseCase.computeTrendData(
+                    currentState.trendTimeDimension,
+                    currentState.trendStartDate,
+                    currentState.trendEndDate
+                )
 
                 val waterMetrics = withContext(Dispatchers.IO) {
                     WaterMetrics(
@@ -210,207 +173,15 @@ class StatsViewModel @Inject constructor(
                     waterTargetAmount = settings?.dailyWaterGoal ?: 2000,
                     weeklyWaterAverage = waterMetrics.weeklyWaterAverage,
                     monthlyWaterTotal = waterMetrics.monthlyWaterTotal,
-                    waterTrendData = waterMetrics.waterTrendData
+                    waterTrendData = waterMetrics.waterTrendData,
+                    showWaterFeatures = settings?.showWaterFeatures ?: true
                 )
             }
         }
     }
 
     /**
-     * 计算趋势图表数据
-     */
-    private suspend fun computeTrendData(
-        timeDimension: TimeDimension,
-        startDate: LocalDate?,
-        endDate: LocalDate?
-    ): TrendChartData {
-        val today = LocalDate.now()
-        val rawEndDate = endDate ?: today
-        val actualEndDate = if (rawEndDate.isAfter(today)) today else rawEndDate
-        val rawStartDate = startDate ?: today.minusDays(30)
-        val actualStartDate = if (rawStartDate.isAfter(actualEndDate)) actualEndDate else rawStartDate
-        val zoneId = ZoneId.systemDefault()
-        val startMillis = actualStartDate.atStartOfDay(zoneId).toInstant().toEpochMilli()
-        val endMillis = actualEndDate.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
-
-        val calorieByDate = foodRecordRepository
-            .getDailyCaloriesByDateRangeSync(startMillis, endMillis)
-            .associate { row -> LocalDate.parse(row.date) to row.totalCalories.toFloat() }
-
-        val exerciseByDate = exerciseRecordRepository
-            .getDailyCaloriesBetweenSync(startMillis, endMillis)
-            .associate { row -> LocalDate.parse(row.date) to row.totalCalories.toFloat() }
-
-        return when (timeDimension) {
-            TimeDimension.DAY -> computeDailyTrend(calorieByDate, exerciseByDate, actualStartDate, actualEndDate)
-            TimeDimension.WEEK -> computeWeeklyTrendData(calorieByDate, exerciseByDate, actualStartDate, actualEndDate)
-            TimeDimension.MONTH -> computeMonthlyTrendData(calorieByDate, exerciseByDate, actualStartDate, actualEndDate)
-        }
-    }
-
-    /**
-     * 计算每日趋势数据
-     */
-    private suspend fun computeDailyTrend(
-        calorieByDate: Map<LocalDate, Float>,
-        exerciseByDate: Map<LocalDate, Float>,
-        startDate: LocalDate,
-        endDate: LocalDate
-    ): TrendChartData {
-        val dates = mutableListOf<LocalDate>()
-        val calorieIntake = mutableListOf<Float>()
-        val exerciseCalories = mutableListOf<Float>()
-        val weightData = mutableListOf<Float?>()
-
-        // 获取体重记录
-        val startMillis = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val endMillis = endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val weightRecords = weightRecordRepository.getRecordsBetweenSync(startMillis, endMillis)
-
-        val zoneId = ZoneId.systemDefault()
-
-        val weightMap = weightRecords
-            .groupBy {
-                java.time.Instant.ofEpochMilli(it.recordDate)
-                    .atZone(zoneId)
-                    .toLocalDate()
-            }
-            .mapValues { (_, records) ->
-                records.maxByOrNull { it.recordDate }?.weight
-            }
-
-        var current = startDate
-        while (!current.isAfter(endDate)) {
-            dates.add(current)
-            calorieIntake.add(calorieByDate[current] ?: 0f)
-            exerciseCalories.add(exerciseByDate[current] ?: 0f)
-            weightData.add(weightMap[current])
-
-            current = current.plusDays(1)
-        }
-
-        return TrendChartData(dates, calorieIntake, exerciseCalories, weightData)
-    }
-
-    /**
-     * 计算每周趋势数据
-     */
-    private suspend fun computeWeeklyTrendData(
-        calorieByDate: Map<LocalDate, Float>,
-        exerciseByDate: Map<LocalDate, Float>,
-        startDate: LocalDate,
-        endDate: LocalDate
-    ): TrendChartData {
-        val weekFields = WeekFields.of(java.util.Locale.getDefault())
-        val dates = mutableListOf<LocalDate>()
-        val calorieIntake = mutableListOf<Float>()
-        val exerciseCalories = mutableListOf<Float>()
-        val weightData = mutableListOf<Float?>()
-
-        // 获取体重记录
-        val startMillis = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val endMillis = endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val weightRecords = weightRecordRepository.getRecordsBetweenSync(startMillis, endMillis)
-        val zoneId = ZoneId.systemDefault()
-
-        fun weekStartOf(date: LocalDate): LocalDate = date.with(weekFields.dayOfWeek(), 1)
-
-        val foodByWeek = calorieByDate
-            .asSequence()
-            .map { (date, calories) -> weekStartOf(date) to calories }
-            .groupBy({ it.first }, { it.second })
-            .mapValues { (_, values) -> values.sumOf { it.toDouble() }.toFloat() }
-
-        val exerciseByWeek = exerciseByDate
-            .asSequence()
-            .map { (date, calories) -> weekStartOf(date) to calories }
-            .groupBy({ it.first }, { it.second })
-            .mapValues { (_, values) -> values.sumOf { it.toDouble() }.toFloat() }
-
-        val weightByWeek = weightRecords
-            .groupBy {
-                val date = java.time.Instant.ofEpochMilli(it.recordDate)
-                    .atZone(zoneId)
-                    .toLocalDate()
-                weekStartOf(date)
-            }
-            .mapValues { (_, records) ->
-                if (records.isEmpty()) null else records.map { it.weight }.average().toFloat()
-            }
-
-        var currentWeekStart = startDate.with(weekFields.dayOfWeek(), 1)
-        while (!currentWeekStart.isAfter(endDate)) {
-            dates.add(currentWeekStart)
-            calorieIntake.add(foodByWeek[currentWeekStart] ?: 0f)
-            exerciseCalories.add(exerciseByWeek[currentWeekStart] ?: 0f)
-            weightData.add(weightByWeek[currentWeekStart])
-
-            currentWeekStart = currentWeekStart.plusWeeks(1)
-        }
-
-        return TrendChartData(dates, calorieIntake, exerciseCalories, weightData)
-    }
-
-    /**
-     * 计算每月趋势数据
-     */
-    private suspend fun computeMonthlyTrendData(
-        calorieByDate: Map<LocalDate, Float>,
-        exerciseByDate: Map<LocalDate, Float>,
-        startDate: LocalDate,
-        endDate: LocalDate
-    ): TrendChartData {
-        val dates = mutableListOf<LocalDate>()
-        val calorieIntake = mutableListOf<Float>()
-        val exerciseCalories = mutableListOf<Float>()
-        val weightData = mutableListOf<Float?>()
-
-        // 获取体重记录
-        val startMillis = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val endMillis = endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val weightRecords = weightRecordRepository.getRecordsBetweenSync(startMillis, endMillis)
-        val zoneId = ZoneId.systemDefault()
-
-        fun monthStartOf(date: LocalDate): LocalDate = date.withDayOfMonth(1)
-
-        val foodByMonth = calorieByDate
-            .asSequence()
-            .map { (date, calories) -> monthStartOf(date) to calories }
-            .groupBy({ it.first }, { it.second })
-            .mapValues { (_, values) -> values.sumOf { it.toDouble() }.toFloat() }
-
-        val exerciseByMonth = exerciseByDate
-            .asSequence()
-            .map { (date, calories) -> monthStartOf(date) to calories }
-            .groupBy({ it.first }, { it.second })
-            .mapValues { (_, values) -> values.sumOf { it.toDouble() }.toFloat() }
-
-        val weightByMonth = weightRecords
-            .groupBy {
-                val date = java.time.Instant.ofEpochMilli(it.recordDate)
-                    .atZone(zoneId)
-                    .toLocalDate()
-                monthStartOf(date)
-            }
-            .mapValues { (_, records) ->
-                if (records.isEmpty()) null else records.map { it.weight }.average().toFloat()
-            }
-
-        var currentMonth = startDate.withDayOfMonth(1)
-        while (!currentMonth.isAfter(endDate)) {
-            dates.add(currentMonth)
-            calorieIntake.add(foodByMonth[currentMonth] ?: 0f)
-            exerciseCalories.add(exerciseByMonth[currentMonth] ?: 0f)
-            weightData.add(weightByMonth[currentMonth])
-
-            currentMonth = currentMonth.plusMonths(1)
-        }
-
-        return TrendChartData(dates, calorieIntake, exerciseCalories, weightData)
-    }
-
-    /**
-     * 切换月份（上月总结）
+     * 鍒囨崲鏈堜唤锛堜笂鏈堟€荤粨锛?
      */
     fun changeMonth(offset: Int) {
         _uiState.value = _uiState.value.copy(selectedMonthOffset = offset)
@@ -418,7 +189,7 @@ class StatsViewModel @Inject constructor(
     }
 
     /**
-     * 刷新月份总结
+     * 鍒锋柊鏈堜唤鎬荤粨
      */
     private fun refreshMonthSummary() {
         viewModelScope.launch {
@@ -437,7 +208,7 @@ class StatsViewModel @Inject constructor(
     }
 
     /**
-     * 设置趋势分析日期范围
+     * 璁剧疆瓒嬪娍鍒嗘瀽鏃ユ湡鑼冨洿
      */
     fun setTrendDateRange(startDate: LocalDate, endDate: LocalDate) {
         val today = LocalDate.now()
@@ -451,7 +222,7 @@ class StatsViewModel @Inject constructor(
     }
 
     /**
-     * 切换趋势时间维度
+     * 鍒囨崲瓒嬪娍鏃堕棿缁村害
      */
     fun setTrendTimeDimension(dimension: TimeDimension) {
         _uiState.value = _uiState.value.copy(trendTimeDimension = dimension)
@@ -459,11 +230,11 @@ class StatsViewModel @Inject constructor(
     }
 
     /**
-     * 刷新趋势数据
+     * 鍒锋柊瓒嬪娍鏁版嵁
      */
     private fun refreshTrendData() {
         viewModelScope.launch {
-            val trendData = computeTrendData(
+            val trendData = statsTrendUseCase.computeTrendData(
                 _uiState.value.trendTimeDimension,
                 _uiState.value.trendStartDate,
                 _uiState.value.trendEndDate
@@ -473,7 +244,7 @@ class StatsViewModel @Inject constructor(
     }
 
     /**
-     * 重置趋势日期范围
+     * 閲嶇疆瓒嬪娍鏃ユ湡鑼冨洿
      */
     fun resetTrendDateRange() {
         _uiState.value = _uiState.value.copy(
@@ -481,78 +252,11 @@ class StatsViewModel @Inject constructor(
             trendEndDate = null,
             trendTimeDimension = TimeDimension.DAY
         )
-        loadStats()
+        refreshTrendData()
     }
 
     /**
-     * 计算每日餐次记录数据（用于热力图）
-     * 返回最近20周（140天）的每日餐次记录情况
-     * level: 0=无记录, 1~10=记录强度（优先按真实记录条数映射）
-     */
-    @Suppress("UNUSED_PARAMETER")
-    private fun computeDailyMealRecords(
-        foodRecords: List<com.calorieai.app.data.model.FoodRecord>,
-        exerciseRecords: List<ExerciseRecord>,
-        waterRecords: List<WaterRecord>,
-        weightRecords: List<WeightRecord>
-    ): List<DailyMealRecord> {
-        val today = LocalDate.now()
-        val daysToShow = 140 // 20周
-        val startDate = today.minusDays(daysToShow.toLong() - 1)
-        
-        // 食物记录按日期分组
-        val foodRecordsByDate = foodRecords.groupBy {
-            java.time.Instant.ofEpochMilli(it.recordTime)
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate()
-        }
-
-        return (0 until daysToShow).map { dayOffset ->
-            val date = startDate.plusDays(dayOffset.toLong())
-            val dayRecords = foodRecordsByDate[date] ?: emptyList()
-            
-            // 获取该日记录的所有餐次类型（去重）
-            val mealTypes = dayRecords.map { it.mealType }.toSet()
-            
-            // 强度完全基于“食物记录真实提交条数”。
-            val level = when {
-                dayRecords.isEmpty() -> 0
-                else -> {
-                    val foodCount = dayRecords.size
-                    val baseScore = when {
-                        foodCount <= 0 -> 1
-                        foodCount >= 10 -> 10
-                        else -> foodCount
-                    }
-                    baseScore.coerceIn(1, 10)
-                }
-            }
-            
-            DailyMealRecord(
-                date = date,
-                level = level,
-                mealTypes = mealTypes
-            )
-        }
-    }
-
-    /**
-     * 计算本月活跃天数（本月有记录的天数）
-     */
-    private fun computeMonthlyActiveDays(dailyMealRecords: List<DailyMealRecord>): Int {
-        val today = LocalDate.now()
-        val currentMonth = today.monthValue
-        val currentYear = today.year
-        
-        return dailyMealRecords.count { record ->
-            record.date.monthValue == currentMonth &&
-            record.date.year == currentYear &&
-            record.level > 0
-        }
-    }
-
-    /**
-     * 计算周平均饮水量
+     * 璁＄畻鍛ㄥ钩鍧囬ギ姘撮噺
      */
     private suspend fun computeWeeklyWaterAverage(): Float {
         val weeklyTotal = waterRecordRepository.getWeeklyTotalAmount()
@@ -560,7 +264,7 @@ class StatsViewModel @Inject constructor(
     }
 
     /**
-     * 计算饮水趋势数据（最近30天）
+     * 璁＄畻楗按瓒嬪娍鏁版嵁锛堟渶杩?0澶╋級
      */
     private suspend fun computeWaterTrendData(): List<WaterTrendData> {
         val today = LocalDate.now()
@@ -571,14 +275,14 @@ class StatsViewModel @Inject constructor(
         
         val waterRecords = waterRecordRepository.getRecordsBetweenSync(startMillis, endMillis)
         
-        // 按日期分组并求和
+        // 鎸夋棩鏈熷垎缁勫苟姹傚拰
         val recordsByDate = waterRecords.groupBy { record ->
             java.time.Instant.ofEpochMilli(record.recordDate)
                 .atZone(ZoneId.systemDefault())
                 .toLocalDate()
         }.mapValues { (_, records) -> records.sumOf { it.amount } }
         
-        // 生成30天的数据
+        // 鐢熸垚30澶╃殑鏁版嵁
         return (0 until 30).map { dayOffset ->
             val date = startDate.plusDays(dayOffset.toLong())
             WaterTrendData(
@@ -589,164 +293,7 @@ class StatsViewModel @Inject constructor(
     }
 
     /**
-     * 计算本周活跃记录天数（按自然周：周一至周日）
-     */
-    private fun computeWeeklyActiveDays(foodRecords: List<FoodRecord>): Int {
-        val today = LocalDate.now()
-        val weekStart = today.with(WeekFields.of(java.util.Locale.getDefault()).dayOfWeek(), 1)
-        val weekEnd = weekStart.plusDays(6)
-        return foodRecords
-            .map {
-                java.time.Instant.ofEpochMilli(it.recordTime)
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDate()
-            }
-            .filter { it in weekStart..weekEnd }
-            .distinct()
-            .size
-    }
-
-    /**
-     * 计算本周记录条数
-     */
-    private fun computeWeeklyRecordCount(foodRecords: List<FoodRecord>): Int {
-        val today = LocalDate.now()
-        val weekStart = today.with(WeekFields.of(java.util.Locale.getDefault()).dayOfWeek(), 1)
-        val weekEnd = weekStart.plusDays(6)
-        return foodRecords.count {
-            val date = java.time.Instant.ofEpochMilli(it.recordTime)
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate()
-            date in weekStart..weekEnd
-        }
-    }
-
-    /**
-     * 按餐次生成当日记录信息表
-     */
-    private fun computeFoodRecordTableRows(
-        foodRecords: List<FoodRecord>,
-        date: LocalDate
-    ): List<FoodRecordTableRow> {
-        val dayStart = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val dayEnd = date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
-
-        return buildFoodRecordTableRows(
-            dayFoodRecords = foodRecords.filter { it.recordTime in dayStart..dayEnd }
-        )
-    }
-
-    private fun buildFoodRecordTableRows(
-        dayFoodRecords: List<FoodRecord>
-    ): List<FoodRecordTableRow> {
-        return dayFoodRecords
-            .groupBy { getSimplifiedMealTypeName(it.mealType) }
-            .map { (mealType, records) ->
-                FoodRecordTableRow(
-                    mealType = mealType,
-                    count = records.size,
-                    calories = records.sumOf { it.totalCalories },
-                    protein = records.sumOf { it.protein.toDouble() }.toFloat(),
-                    carbs = records.sumOf { it.carbs.toDouble() }.toFloat(),
-                    fat = records.sumOf { it.fat.toDouble() }.toFloat()
-                )
-            }
-            .sortedByDescending { it.calories }
-    }
-
-    /**
-     * 最近N天高频食物表
-     */
-    private fun computeTopFoodRows(
-        foodRecords: List<FoodRecord>,
-        recentDays: Long
-    ): List<TopFoodRow> {
-        val today = LocalDate.now()
-        val start = today.minusDays(recentDays - 1)
-            .atStartOfDay(ZoneId.systemDefault())
-            .toInstant()
-            .toEpochMilli()
-
-        return foodRecords
-            .filter { it.recordTime >= start }
-            .groupBy { it.foodName.trim() }
-            .map { (foodName, records) ->
-                val latest = records.maxByOrNull { it.recordTime }?.recordTime ?: 0L
-                TopFoodRow(
-                    foodName = foodName,
-                    count = records.size,
-                    totalCalories = records.sumOf { it.totalCalories },
-                    lastRecordDate = java.time.Instant.ofEpochMilli(latest)
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalDate()
-                )
-            }
-            .sortedWith(compareByDescending<TopFoodRow> { it.count }.thenByDescending { it.totalCalories })
-            .take(6)
-    }
-
-    /**
-     * 连续打卡激励：周目标 + 连续天数 + 成就体系
-     */
-    private fun computeAchievementBadges(
-        streakDays: Int,
-        weeklyActiveDays: Int,
-        weeklyGoalDays: Int,
-        weeklyRecordCount: Int
-    ): List<AchievementBadge> {
-        val goalProgress = "$weeklyActiveDays/$weeklyGoalDays 天"
-        val streakProgress = "$streakDays 天"
-        val recordProgress = "$weeklyRecordCount 条"
-
-        return listOf(
-            AchievementBadge(
-                title = "周目标打卡",
-                achieved = weeklyActiveDays >= weeklyGoalDays,
-                progress = goalProgress
-            ),
-            AchievementBadge(
-                title = "连续打卡 7 天",
-                achieved = streakDays >= 7,
-                progress = streakProgress
-            ),
-            AchievementBadge(
-                title = "本周记录达人",
-                achieved = weeklyRecordCount >= 21,
-                progress = recordProgress
-            )
-        )
-    }
-
-    private fun computeRecipeStats(
-        favorites: List<FavoriteRecipe>,
-        pantryIngredients: List<PantryIngredient>,
-        plans: List<RecipePlan>
-    ): RecipeStats {
-        val now = System.currentTimeMillis()
-        val threeDaysMillis = 3L * 24L * 60L * 60L * 1000L
-        val expiringSoon = pantryIngredients.count { item ->
-            val expiresAt = item.expiresAt ?: return@count false
-            expiresAt in now..(now + threeDaysMillis)
-        }
-
-        val totalUseCount = favorites.sumOf { it.useCount }
-        val usedFavoritesCount = favorites.count { it.useCount > 0 }
-        val mostUsedFavorite = favorites.maxByOrNull { it.useCount }
-
-        return RecipeStats(
-            pantryCount = pantryIngredients.size,
-            pantryExpiringSoonCount = expiringSoon,
-            favoriteCount = favorites.size,
-            usedFavoriteCount = usedFavoritesCount,
-            favoriteUseCount = totalUseCount,
-            mostUsedFavoriteName = mostUsedFavorite?.foodName,
-            mostUsedFavoriteUseCount = mostUsedFavorite?.useCount ?: 0,
-            recipePlanCount = plans.size
-        )
-    }
-
-    /**
-     * 设置概览统计日期
+     * 璁剧疆姒傝缁熻鏃ユ湡
      */
     fun setOverviewDate(date: LocalDate) {
         _uiState.value = _uiState.value.copy(selectedOverviewDate = date)
@@ -754,7 +301,7 @@ class StatsViewModel @Inject constructor(
     }
 
     /**
-     * 刷新概览统计数据
+     * 鍒锋柊姒傝缁熻鏁版嵁
      */
     private fun refreshOverviewStats() {
         viewModelScope.launch {
@@ -766,80 +313,29 @@ class StatsViewModel @Inject constructor(
             val settings = latestSettings
             val targetCalories = settings?.dailyCalorieGoal ?: 2000
             val selectedDate = _uiState.value.selectedOverviewDate
+            val weeklyGoalDays = settings?.weeklyRecordGoalDays ?: 5
+            val bmr = if (settings != null) {
+                MetabolicConstants.calculateBMR(
+                    gender = settings.userGender ?: "MALE",
+                    weight = settings.userWeight,
+                    height = settings.userHeight,
+                    age = settings.userAge
+                )
+            } else 0
+            val tdee = if (bmr > 0 && settings != null) {
+                MetabolicConstants.calculateTDEE(bmr, settings.activityLevel)
+            } else 0
 
             val refreshBundle = withContext(Dispatchers.Default) {
-                val dayStart = selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                val dayEnd = selectedDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
-
-                val dayFoodRecords = foodRecords.filter { it.recordTime in dayStart..dayEnd }
-                val dayExerciseRecords = exerciseRecords.filter {
-                    java.time.Instant.ofEpochMilli(it.recordTime)
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalDate() == selectedDate
-                }
-
-                val bmr = if (settings != null) {
-                    MetabolicConstants.calculateBMR(
-                        gender = settings.userGender ?: "MALE",
-                        weight = settings.userWeight,
-                        height = settings.userHeight,
-                        age = settings.userAge
-                    )
-                } else 0
-                val tdee = if (bmr > 0 && settings != null) {
-                    MetabolicConstants.calculateTDEE(bmr, settings.activityLevel)
-                } else 0
-
-                val totalCalories = dayFoodRecords.sumOf { it.totalCalories }
-                val todayStats = TodayStats(
-                    date = selectedDate,
-                    totalCalories = totalCalories,
+                statsSnapshotUseCase.buildOverviewSnapshot(
+                    foodRecords = foodRecords,
+                    exerciseRecords = exerciseRecords,
+                    selectedDate = selectedDate,
                     targetCalories = targetCalories,
-                    remainingCalories = targetCalories - totalCalories,
-                    isTargetMet = totalCalories <= targetCalories,
-                    recordCount = dayFoodRecords.size,
-                    proteinGrams = dayFoodRecords.sumOf { it.protein.toDouble() }.toFloat(),
-                    carbsGrams = dayFoodRecords.sumOf { it.carbs.toDouble() }.toFloat(),
-                    fatGrams = dayFoodRecords.sumOf { it.fat.toDouble() }.toFloat(),
-                    fiberGrams = dayFoodRecords.sumOf { it.fiber.toDouble() }.toFloat(),
-                    sugarGrams = dayFoodRecords.sumOf { it.sugar.toDouble() }.toFloat(),
-                    sodiumMg = dayFoodRecords.sumOf { it.sodium.toDouble() }.toFloat(),
-                    cholesterolMg = dayFoodRecords.sumOf { it.cholesterol.toDouble() }.toFloat(),
-                    saturatedFatGrams = dayFoodRecords.sumOf { it.saturatedFat.toDouble() }.toFloat(),
-                    calciumMg = dayFoodRecords.sumOf { it.calcium.toDouble() }.toFloat(),
-                    ironMg = dayFoodRecords.sumOf { it.iron.toDouble() }.toFloat(),
-                    vitaminCMg = dayFoodRecords.sumOf { it.vitaminC.toDouble() }.toFloat(),
-                    vitaminAMcg = dayFoodRecords.sumOf { it.vitaminA.toDouble() }.toFloat(),
-                    potassiumMg = dayFoodRecords.sumOf { it.potassium.toDouble() }.toFloat(),
-                    exerciseCalories = dayExerciseRecords.sumOf { it.caloriesBurned },
-                    exerciseMinutes = dayExerciseRecords.sumOf { it.durationMinutes },
-                    exerciseCount = dayExerciseRecords.size,
                     bmr = bmr,
-                    tdee = tdee
-                )
-
-                val mealTypeStats = dayFoodRecords
-                    .groupBy { it.mealType }
-                    .mapValues { (_, records) -> records.sumOf { it.totalCalories } }
-                val weeklyGoalDays = settings?.weeklyRecordGoalDays ?: 5
-                val weeklyActiveDays = computeWeeklyActiveDays(foodRecords)
-                val weeklyRecordCount = computeWeeklyRecordCount(foodRecords)
-                val badges = computeAchievementBadges(
-                    streakDays = _uiState.value.streakDays,
-                    weeklyActiveDays = weeklyActiveDays,
+                    tdee = tdee,
                     weeklyGoalDays = weeklyGoalDays,
-                    weeklyRecordCount = weeklyRecordCount
-                )
-
-                OverviewRefreshBundle(
-                    todayStats = todayStats,
-                    mealTypeStats = mealTypeStats,
-                    weeklyGoalDays = weeklyGoalDays,
-                    weeklyActiveDays = weeklyActiveDays,
-                    weeklyRecordCount = weeklyRecordCount,
-                    foodRecordTableRows = buildFoodRecordTableRows(dayFoodRecords),
-                    topFoodRows = computeTopFoodRows(foodRecords, 14),
-                    achievementBadges = badges
+                    streakDays = _uiState.value.streakDays
                 )
             }
 
@@ -861,41 +357,11 @@ class StatsViewModel @Inject constructor(
     }
 }
 
-private data class BasicStatsBundle(
-    val todayStats: TodayStats,
-    val mealTypeStats: Map<MealType, Int>,
-    val historyStats: HistoryStats,
-    val weeklyStats: List<WeeklyStat>,
-    val monthlyStats: List<MonthlyStat>,
-    val streakDays: Int,
-    val weeklyGoalDays: Int,
-    val weeklyActiveDays: Int,
-    val weeklyRecordCount: Int,
-    val monthSummary: MonthSummary,
-    val dailyMealRecords: List<DailyMealRecord>,
-    val monthlyActiveDays: Int,
-    val foodRecordTableRows: List<FoodRecordTableRow>,
-    val topFoodRows: List<TopFoodRow>,
-    val achievementBadges: List<AchievementBadge>,
-    val recipeStats: RecipeStats
-)
-
 private data class WaterMetrics(
     val todayWaterAmount: Int,
     val weeklyWaterAverage: Float,
     val monthlyWaterTotal: Int,
     val waterTrendData: List<WaterTrendData>
-)
-
-private data class OverviewRefreshBundle(
-    val todayStats: TodayStats,
-    val mealTypeStats: Map<MealType, Int>,
-    val weeklyGoalDays: Int,
-    val weeklyActiveDays: Int,
-    val weeklyRecordCount: Int,
-    val foodRecordTableRows: List<FoodRecordTableRow>,
-    val topFoodRows: List<TopFoodRow>,
-    val achievementBadges: List<AchievementBadge>
 )
 
 private data class StatsSourceBundle(
@@ -910,8 +376,8 @@ private data class StatsSourceBundle(
 )
 
 /**
- * 每日餐次记录数据（用于热力图）
- * level: 0=无记录, 1~10=记录强度
+ * 姣忔棩椁愭璁板綍鏁版嵁锛堢敤浜庣儹鍔涘浘锛?
+ * level: 0=鏃犺褰? 1~10=璁板綍寮哄害
  */
 data class DailyMealRecord(
     val date: LocalDate,
@@ -930,40 +396,41 @@ data class StatsUiState(
     val weeklyGoalDays: Int = 5,
     val weeklyActiveDays: Int = 0,
     val weeklyRecordCount: Int = 0,
-    val selectedMonthOffset: Int = 0, // 默认显示当前月份
+    val selectedMonthOffset: Int = 0, // 榛樿鏄剧ず褰撳墠鏈堜唤
     val trendStartDate: LocalDate? = null,
     val trendEndDate: LocalDate? = null,
     val trendTimeDimension: TimeDimension = TimeDimension.DAY,
     val trendChartData: TrendChartData = TrendChartData(emptyList(), emptyList(), emptyList(), emptyList()),
     val isLoading: Boolean = true,
-    // 概览日期选择
+    // 姒傝鏃ユ湡閫夋嫨
     val selectedOverviewDate: LocalDate = LocalDate.now(),
-    // 用户身体数据（用于计算营养素参考值）
+    // 鐢ㄦ埛韬綋鏁版嵁锛堢敤浜庤绠楄惀鍏荤礌鍙傝€冨€硷級
     val userWeight: Float = 70f,
     val userHeight: Float? = null,
     val userGender: String = "MALE",
     val userAge: Int = 30,
     val userActivityLevel: String = "MODERATE",
-    // 每日餐次记录数据（用于热力图）
+    // 姣忔棩椁愭璁板綍鏁版嵁锛堢敤浜庣儹鍔涘浘锛?
     val dailyMealRecords: List<DailyMealRecord> = emptyList(),
-    // 详细概览 - 记录信息表
+    // 璇︾粏姒傝 - 璁板綍淇℃伅琛?
     val foodRecordTableRows: List<FoodRecordTableRow> = emptyList(),
     val topFoodRows: List<TopFoodRow> = emptyList(),
     val achievementBadges: List<AchievementBadge> = emptyList(),
     val recipeStats: RecipeStats = RecipeStats(),
-    // 今日饮水量
+    // 浠婃棩楗按閲?
     val todayWaterAmount: Int = 0,
-    // 本月活跃天数（本月有记录的天数）
+    // 鏈湀娲昏穬澶╂暟锛堟湰鏈堟湁璁板綍鐨勫ぉ鏁帮級
     val monthlyActiveDays: Int = 0,
-    // 饮水相关数据
-    val waterTargetAmount: Int = 2000, // 每日饮水目标
-    val weeklyWaterAverage: Float = 0f, // 周平均饮水量
-    val monthlyWaterTotal: Int = 0, // 本月总饮水量
-    val waterTrendData: List<WaterTrendData> = emptyList() // 饮水趋势数据
+    // 楗按鐩稿叧鏁版嵁
+    val waterTargetAmount: Int = 2000, // 姣忔棩楗按鐩爣
+    val weeklyWaterAverage: Float = 0f, // 鍛ㄥ钩鍧囬ギ姘撮噺
+    val monthlyWaterTotal: Int = 0, // 鏈湀鎬婚ギ姘撮噺
+    val waterTrendData: List<WaterTrendData> = emptyList(), // 楗按瓒嬪娍鏁版嵁
+    val showWaterFeatures: Boolean = true
 )
 
 /**
- * 饮水趋势数据
+ * 楗按瓒嬪娍鏁版嵁
  */
 data class WaterTrendData(
     val date: LocalDate,
@@ -1002,3 +469,4 @@ data class RecipeStats(
     val mostUsedFavoriteUseCount: Int = 0,
     val recipePlanCount: Int = 0
 )
+

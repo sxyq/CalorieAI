@@ -42,7 +42,8 @@ class AppearanceSettingsViewModel @Inject constructor(
                         wallpaperGradientStart = it.wallpaperGradientStart,
                         wallpaperGradientEnd = it.wallpaperGradientEnd,
                         wallpaperImageUri = it.wallpaperImageUri,
-                        showAIWidget = it.showAIWidget
+                        showAIWidget = it.showAIWidget,
+                        showWaterFeatures = it.showWaterFeatures
                     )
                 }
             }
@@ -105,6 +106,7 @@ class AppearanceSettingsViewModel @Inject constructor(
                 fontSize = currentState.fontSize.name,
                 enableAnimations = currentState.enableAnimations,
                 showAIWidget = currentState.showAIWidget,
+                showWaterFeatures = currentState.showWaterFeatures,
                 wallpaperType = currentState.wallpaperType.name,
                 wallpaperColor = currentState.wallpaperColor,
                 wallpaperGradientStart = currentState.wallpaperGradientStart,
@@ -153,6 +155,11 @@ class AppearanceSettingsViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(showAIWidget = show)
         saveSettings()
     }
+
+    fun updateShowWaterFeatures(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showWaterFeatures = show)
+        saveSettings()
+    }
 }
 
 data class AppearanceSettingsUiState(
@@ -166,7 +173,8 @@ data class AppearanceSettingsUiState(
     val wallpaperGradientStart: String? = null,
     val wallpaperGradientEnd: String? = null,
     val wallpaperImageUri: String? = null,
-    val showAIWidget: Boolean = true
+    val showAIWidget: Boolean = true,
+    val showWaterFeatures: Boolean = true
 )
 
 enum class WallpaperType {

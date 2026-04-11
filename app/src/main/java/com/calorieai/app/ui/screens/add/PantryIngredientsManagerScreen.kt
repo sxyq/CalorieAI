@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -15,11 +14,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,11 +36,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.calorieai.app.data.model.PantryIngredient
 import kotlinx.coroutines.flow.collectLatest
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,57 +74,62 @@ fun PantryIngredientsManagerScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                PantryOverviewCard(
-                    totalCount = uiState.pantryIngredients.size,
-                    expiringSoonCount = uiState.pantryIngredients.count { isExpiringSoon(it.expiresAt) }
-                )
-            }
-            item {
-                Button(
-                    onClick = { showAddDialog = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("新增食材")
-                }
-            }
-            if (uiState.pantryIngredients.isEmpty()) {
+        RecipeScreenContainer(modifier = Modifier.padding(paddingValues)) {
+            LazyColumn(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(bottom = 24.dp, top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 item {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        )
+                    RecipePanel(
+                        title = "库存总览",
+                        subtitle = "用于 AI 推荐和菜单联动"
                     ) {
-                        Text(
-                            text = "暂无食材库存，可添加后用于菜谱推荐与菜单生成。",
-                            modifier = Modifier.padding(12.dp)
-                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            RecipeMetricBadge(
+                                label = "食材总数",
+                                value = uiState.pantryIngredients.size.toString(),
+                                modifier = Modifier.weight(1f)
+                            )
+                            RecipeMetricBadge(
+                                label = "3天内到期",
+                                value = uiState.pantryIngredients.count { isExpiringSoon(it.expiresAt) }.toString(),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Button(onClick = { showAddDialog = true }, modifier = Modifier.fillMaxWidth()) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("新增食材")
+                        }
                     }
                 }
-            } else {
-                items(
-                    items = uiState.pantryIngredients.sortedBy { it.expiresAt ?: Long.MAX_VALUE },
-                    key = { it.id }
-                ) { pantry ->
-                    PantryIngredientItem(
-                        itemName = pantry.name,
-                        quantityText = "${pantry.quantity}${pantry.unit}",
-                        expiryText = formatExpiryText(pantry.expiresAt),
-                        notes = pantry.notes,
-                        onDelete = {
-                            viewModel.dispatch(RecipeAction.Pantry.DeleteIngredient(pantry))
+
+                if (uiState.pantryIngredients.isEmpty()) {
+                    item {
+                        RecipePanel(
+                            title = "暂无库存",
+                            subtitle = "添加后可用于临期提醒与AI推荐"
+                        ) {
+                            Text(
+                                "现在可以先补录常备食材。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                    )
+                    }
+                } else {
+                    items(
+                        items = uiState.pantryIngredients.sortedBy { it.expiresAt ?: Long.MAX_VALUE },
+                        key = { it.id }
+                    ) { pantry ->
+                        PantryIngredientItem(
+                            pantry = pantry,
+                            onDelete = {
+                                viewModel.dispatch(RecipeAction.Pantry.DeleteIngredient(pantry))
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -153,78 +155,29 @@ fun PantryIngredientsManagerScreen(
 }
 
 @Composable
-private fun PantryOverviewCard(
-    totalCount: Int,
-    expiringSoonCount: Int
-) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.45f)
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            OverviewPill("食材总数", totalCount.toString(), Modifier.weight(1f))
-            OverviewPill("3天内到期", expiringSoonCount.toString(), Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-private fun OverviewPill(
-    title: String,
-    value: String,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.padding(vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
 private fun PantryIngredientItem(
-    itemName: String,
-    quantityText: String,
-    expiryText: String,
-    notes: String?,
+    pantry: PantryIngredient,
     onDelete: () -> Unit
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+    RecipePanel(
+        title = pantry.name,
+        subtitle = "${pantry.quantity}${pantry.unit} · ${formatExpiryText(pantry.expiresAt)}"
+    ) {
+        if (!pantry.notes.isNullOrBlank()) {
+            Text(
+                "备注：${pantry.notes}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Inventory2, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(itemName, fontWeight = FontWeight.SemiBold)
-                }
-                Text(
-                    "$quantityText · $expiryText",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (!notes.isNullOrBlank()) {
-                    Text(
-                        "备注：$notes",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "删除")
+            TextButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, contentDescription = null)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("删除")
             }
         }
     }
@@ -249,27 +202,34 @@ private fun AddPantryIngredientDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("名称") }
+                    label = { Text("名称") },
+                    modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
-                    value = quantity,
-                    onValueChange = { quantity = it },
-                    label = { Text("数量") }
-                )
-                OutlinedTextField(
-                    value = unit,
-                    onValueChange = { unit = it },
-                    label = { Text("单位") }
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = quantity,
+                        onValueChange = { quantity = it },
+                        label = { Text("数量") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = unit,
+                        onValueChange = { unit = it },
+                        label = { Text("单位") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
                 OutlinedTextField(
                     value = daysToExpire,
                     onValueChange = { daysToExpire = it.filter { ch -> ch.isDigit() } },
-                    label = { Text("几天后过期") }
+                    label = { Text("几天后过期") },
+                    modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text("备注（可选）") }
+                    label = { Text("备注（可选）") },
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         },
@@ -303,7 +263,7 @@ private fun formatExpiryText(expiresAt: Long?): String {
     return when {
         days > 0 -> "$days 天后过期"
         days == 0 -> "今天到期"
-        else -> "已过期 ${kotlin.math.abs(days)} 天"
+        else -> "已过期 ${abs(days)} 天"
     }
 }
 

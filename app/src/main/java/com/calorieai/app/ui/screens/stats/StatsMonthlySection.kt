@@ -90,12 +90,14 @@ internal fun MonthlySummaryContent(
             WeightChangeCard(summary)
         }
 
-        // 饮水统计卡片
-        WaterMonthlySummaryCard(
-            monthlyTotal = uiState.monthlyWaterTotal,
-            weeklyAverage = uiState.weeklyWaterAverage,
-            targetAmount = uiState.waterTargetAmount
-        )
+        // 饮水统计卡片（由设置中的饮水总开关控制）
+        if (uiState.showWaterFeatures) {
+            WaterMonthlySummaryCard(
+                monthlyTotal = uiState.monthlyWaterTotal,
+                weeklyAverage = uiState.weeklyWaterAverage,
+                targetAmount = uiState.waterTargetAmount
+            )
+        }
 
         // 详细数据表格
         SummaryDetailTable(summary)

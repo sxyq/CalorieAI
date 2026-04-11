@@ -1,4 +1,4 @@
-package com.calorieai.app.service.notification
+﻿package com.calorieai.app.service.notification
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -30,7 +30,7 @@ class NotificationRescheduleReceiver : BroadcastReceiver() {
                     return@launch
                 }
 
-                entryPoint.notificationScheduler().syncMealReminders(
+                entryPoint.notificationScheduler().syncReminders(
                     settings = settings,
                     source = "broadcast:$action",
                     force = true
@@ -55,3 +55,4 @@ class NotificationRescheduleReceiver : BroadcastReceiver() {
         private const val TAG = "NotificationReschedule"
     }
 }
+

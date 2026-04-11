@@ -7,7 +7,6 @@ import com.calorieai.app.data.model.RecipePlan
 import com.calorieai.app.data.repository.UserSettingsRepository
 import com.calorieai.app.domain.recipe.MealPlanUseCase
 import com.calorieai.app.domain.recipe.PantryUseCase
-import com.calorieai.app.domain.recipe.RecipePersonalization
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +31,7 @@ class MealPlanViewModel @Inject constructor(
 
     private val _events = MutableSharedFlow<RecipeUiEvent>()
     val events: SharedFlow<RecipeUiEvent> = _events.asSharedFlow()
+    private var preferencesHydrated = false
 
     init {
         viewModelScope.launch {
@@ -42,15 +42,11 @@ class MealPlanViewModel @Inject constructor(
         viewModelScope.launch {
             userSettingsRepository.getSettings().collectLatest { settings ->
                 settings ?: return@collectLatest
-                _uiState.update {
-                    it.copy(
-                        dietaryAllergens = settings.dietaryAllergens.orEmpty(),
-                        flavorPreferences = settings.flavorPreferences.orEmpty(),
-                        budgetPreference = settings.budgetPreference.orEmpty(),
-                        maxCookingMinutes = settings.maxCookingMinutes?.toString().orEmpty(),
-                        specialPopulationMode = settings.specialPopulationMode,
-                        weeklyRecordGoalDays = settings.weeklyRecordGoalDays.toString()
-                    )
+                if (!preferencesHydrated) {
+                    _uiState.update {
+                        it.copy(personalization = RecipePersonalizationState.fromSettings(settings))
+                    }
+                    preferencesHydrated = true
                 }
             }
         }
@@ -65,6 +61,9 @@ class MealPlanViewModel @Inject constructor(
                 menuText = action.menuText
             )
             is RecipeAction.MealPlan.DeletePlan -> deletePlan(action.item)
+            RecipeAction.MealPlan.ClearAiResult -> {
+                _uiState.update { it.copy(aiResult = null, aiError = null) }
+            }
             is RecipeAction.MealPlan.GenerateByAi -> generateByAi(action.days, action.startDate)
         }
     }
@@ -109,7 +108,7 @@ class MealPlanViewModel @Inject constructor(
             val pantrySummary = buildPantrySummary(pantryItems)
             mealPlanUseCase.generateAndSavePlan(
                 pantrySummary = pantrySummary,
-                personalization = _uiState.value.toPersonalization(),
+                personalization = _uiState.value.personalization.toDomain(),
                 days = days,
                 startDate = startDate
             ).onSuccess { result ->
@@ -126,34 +125,9 @@ class MealPlanViewModel @Inject constructor(
         }
     }
 
-    fun clearAiResult() {
-        _uiState.update { it.copy(aiResult = null, aiError = null) }
-    }
-
     private fun buildPantrySummary(items: List<PantryIngredient>): String {
-        val now = System.currentTimeMillis()
-        return mealPlanUseCase.buildPantrySummary(
-            items.map { item ->
-                val expireInfo = item.expiresAt?.let {
-                    val days = ((it - now) / (24f * 60f * 60f * 1000f)).toInt()
-                    val text = if (days >= 0) "${days}天后过期" else "已过期"
-                    "（$text）"
-                } ?: ""
-                "- ${item.name} ${item.quantity}${item.unit}$expireInfo"
-            }
-        )
+        return mealPlanUseCase.buildPantrySummary(buildRecipePantrySummaryLines(items))
     }
-}
-
-private fun MealPlanUiState.toPersonalization(): RecipePersonalization {
-    return RecipePersonalization(
-        dietaryAllergens = dietaryAllergens,
-        flavorPreferences = flavorPreferences,
-        budgetPreference = budgetPreference,
-        maxCookingMinutes = maxCookingMinutes,
-        specialPopulationMode = specialPopulationMode,
-        weeklyRecordGoalDays = weeklyRecordGoalDays
-    )
 }
 
 data class MealPlanUiState(
@@ -161,10 +135,5 @@ data class MealPlanUiState(
     val isGenerating: Boolean = false,
     val aiResult: String? = null,
     val aiError: String? = null,
-    val dietaryAllergens: String = "",
-    val flavorPreferences: String = "",
-    val budgetPreference: String = "",
-    val maxCookingMinutes: String = "",
-    val specialPopulationMode: String = "GENERAL",
-    val weeklyRecordGoalDays: String = "5"
+    val personalization: RecipePersonalizationState = RecipePersonalizationState()
 )

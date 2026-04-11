@@ -1,4 +1,4 @@
-package com.calorieai.app.ui.screens.settings
+﻿package com.calorieai.app.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -58,6 +58,40 @@ class NotificationSettingsViewModel @Inject constructor(
         copy(enableStreakReminder = enabled)
     }
 
+    fun updateWaterReminderEnabled(enabled: Boolean) = updateStateAndPersist {
+        copy(enableWaterReminder = enabled)
+    }
+
+    fun addWaterReminderTime() = updateStateAndPersist {
+        if (waterReminderTimes.size >= MAX_WATER_TIMES) return@updateStateAndPersist this
+        val next = waterReminderTimes.lastOrNull()?.plusHours(2) ?: LocalTime.of(10, 0)
+        copy(waterReminderTimes = waterReminderTimes + next)
+    }
+
+    fun removeWaterReminderTime(index: Int) = updateStateAndPersist {
+        if (index !in waterReminderTimes.indices) return@updateStateAndPersist this
+        copy(waterReminderTimes = waterReminderTimes.toMutableList().also { it.removeAt(index) })
+    }
+
+    fun updateWaterReminderTime(index: Int, time: LocalTime) = updateStateAndPersist {
+        if (index !in waterReminderTimes.indices) return@updateStateAndPersist this
+        val updated = waterReminderTimes.toMutableList()
+        updated[index] = time
+        copy(waterReminderTimes = updated)
+    }
+
+    fun updateWaterIntervalMinutes(raw: String) = updateStateAndPersist {
+        copy(waterReminderIntervalMinutes = raw.filter { it.isDigit() }.take(4))
+    }
+
+    fun updateWaterWindowStart(time: LocalTime) = updateStateAndPersist {
+        copy(waterReminderWindowStart = time)
+    }
+
+    fun updateWaterWindowEnd(time: LocalTime) = updateStateAndPersist {
+        copy(waterReminderWindowEnd = time)
+    }
+
     private fun observeSettings() {
         viewModelScope.launch {
             userSettingsRepository.getSettings().collectLatest { settings ->
@@ -66,11 +100,20 @@ class NotificationSettingsViewModel @Inject constructor(
                 _uiState.value = NotificationSettingsUiState(
                     isLoaded = true,
                     isNotificationEnabled = settings.isNotificationEnabled,
-                    breakfastReminderTime = parseTime(settings.breakfastReminderTime),
-                    lunchReminderTime = parseTime(settings.lunchReminderTime),
-                    dinnerReminderTime = parseTime(settings.dinnerReminderTime),
+                    breakfastReminderTime = parseTime(settings.breakfastReminderTime, LocalTime.of(8, 0)),
+                    lunchReminderTime = parseTime(settings.lunchReminderTime, LocalTime.of(12, 0)),
+                    dinnerReminderTime = parseTime(settings.dinnerReminderTime, LocalTime.of(18, 0)),
                     enableGoalReminder = settings.enableGoalReminder,
-                    enableStreakReminder = settings.enableStreakReminder
+                    enableStreakReminder = settings.enableStreakReminder,
+                    showWaterFeatures = settings.showWaterFeatures,
+                    enableWaterReminder = settings.enableWaterReminder,
+                    waterReminderTimes = parseReminderTimes(settings.waterReminderTimesJson),
+                    waterReminderIntervalMinutes = settings.waterReminderIntervalMinutes
+                        .takeIf { it > 0 }
+                        ?.toString()
+                        .orEmpty(),
+                    waterReminderWindowStart = parseTime(settings.waterReminderWindowStart, LocalTime.of(9, 0)),
+                    waterReminderWindowEnd = parseTime(settings.waterReminderWindowEnd, LocalTime.of(21, 0))
                 )
             }
         }
@@ -88,18 +131,30 @@ class NotificationSettingsViewModel @Inject constructor(
                 if (!state.isLoaded) return@withLock
 
                 val base = latestPersistedSettings ?: userSettingsRepository.getSettingsOnce() ?: UserSettings()
+                val interval = state.waterReminderIntervalMinutes.toIntOrNull()?.coerceIn(0, 24 * 60) ?: 0
+                val times = state.waterReminderTimes
+                    .map { normalizeTime(it) }
+                    .distinct()
+                    .take(MAX_WATER_TIMES)
+
                 val updated = base.copy(
                     id = base.id,
                     isNotificationEnabled = state.isNotificationEnabled,
-                    breakfastReminderTime = state.breakfastReminderTime.format(formatter),
-                    lunchReminderTime = state.lunchReminderTime.format(formatter),
-                    dinnerReminderTime = state.dinnerReminderTime.format(formatter),
+                    breakfastReminderTime = normalizeTime(state.breakfastReminderTime),
+                    lunchReminderTime = normalizeTime(state.lunchReminderTime),
+                    dinnerReminderTime = normalizeTime(state.dinnerReminderTime),
                     enableGoalReminder = state.enableGoalReminder,
-                    enableStreakReminder = state.enableStreakReminder
+                    enableStreakReminder = state.enableStreakReminder,
+                    enableWaterReminder = state.showWaterFeatures && state.enableWaterReminder,
+                    waterReminderTimesJson = encodeReminderTimes(times),
+                    waterReminderIntervalMinutes = interval,
+                    waterReminderWindowStart = normalizeTime(state.waterReminderWindowStart),
+                    waterReminderWindowEnd = normalizeTime(state.waterReminderWindowEnd)
                 )
+
                 userSettingsRepository.saveSettings(updated)
                 latestPersistedSettings = updated
-                notificationScheduler.syncMealReminders(
+                notificationScheduler.syncReminders(
                     settings = updated,
                     source = "NotificationSettings.save"
                 )
@@ -107,9 +162,33 @@ class NotificationSettingsViewModel @Inject constructor(
         }
     }
 
-    private fun parseTime(raw: String): LocalTime {
+    private fun parseTime(raw: String, fallback: LocalTime): LocalTime {
         return runCatching { LocalTime.parse(raw, formatter) }
-            .getOrDefault(LocalTime.of(8, 0))
+            .getOrElse { fallback }
+    }
+
+    private fun normalizeTime(time: LocalTime): String = time.format(formatter)
+
+    private fun parseReminderTimes(raw: String?): List<LocalTime> {
+        if (raw.isNullOrBlank()) return listOf(LocalTime.of(10, 0))
+        val parsed = Regex("\\b([01]\\d|2[0-3]):([0-5]\\d)\\b")
+            .findAll(raw)
+            .mapNotNull { match ->
+                runCatching { LocalTime.parse(match.value, formatter) }.getOrNull()
+            }
+            .distinct()
+            .take(MAX_WATER_TIMES)
+            .toList()
+        return if (parsed.isEmpty()) listOf(LocalTime.of(10, 0)) else parsed
+    }
+
+    private fun encodeReminderTimes(times: List<String>): String {
+        if (times.isEmpty()) return "[]"
+        return times.joinToString(prefix = "[\"", postfix = "\"]", separator = "\",\"")
+    }
+
+    companion object {
+        private const val MAX_WATER_TIMES = 8
     }
 }
 
@@ -120,5 +199,11 @@ data class NotificationSettingsUiState(
     val lunchReminderTime: LocalTime = LocalTime.of(12, 0),
     val dinnerReminderTime: LocalTime = LocalTime.of(18, 0),
     val enableGoalReminder: Boolean = true,
-    val enableStreakReminder: Boolean = false
+    val enableStreakReminder: Boolean = false,
+    val showWaterFeatures: Boolean = true,
+    val enableWaterReminder: Boolean = false,
+    val waterReminderTimes: List<LocalTime> = listOf(LocalTime.of(10, 0)),
+    val waterReminderIntervalMinutes: String = "",
+    val waterReminderWindowStart: LocalTime = LocalTime.of(9, 0),
+    val waterReminderWindowEnd: LocalTime = LocalTime.of(21, 0)
 )

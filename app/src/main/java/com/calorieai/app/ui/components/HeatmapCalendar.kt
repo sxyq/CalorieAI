@@ -70,18 +70,18 @@ data class HeatmapColorScheme(
                 )
             } else {
                 HeatmapColorScheme(
-                    emptyColor = Color(0xFFEAF0F5),
+                    emptyColor = Color(0xFFE6EDF4),
                     levels = listOf(
-                        Color(0xFFDFF3FF),
-                        Color(0xFFC9EAFF),
-                        Color(0xFFB1DEFF),
-                        Color(0xFF93D2FF),
-                        Color(0xFF72C2F5),
-                        Color(0xFF52B2EB),
-                        Color(0xFF389EDC),
-                        Color(0xFF2587C6),
-                        Color(0xFF126EAE),
-                        Color(0xFF045793)
+                        Color(0xFFCEE6FF),
+                        Color(0xFFB4DBFF),
+                        Color(0xFF98CFFF),
+                        Color(0xFF7BC2FB),
+                        Color(0xFF5EB4F1),
+                        Color(0xFF429FDF),
+                        Color(0xFF2E88C8),
+                        Color(0xFF1F72B0),
+                        Color(0xFF105B96),
+                        Color(0xFF03467A)
                     )
                 )
             }
@@ -92,15 +92,23 @@ data class HeatmapColorScheme(
 private data class PreparedHeatmap(
     val maxValue: Float,
     val maxLevel: Int,
-    val valueByDate: Map<LocalDate, Float>
+    val valueByDate: Map<LocalDate, Float>,
+    val valueMode: HeatmapValueMode
 ) {
     fun levelFor(date: LocalDate): Int {
         return levelFromValue(
             value = valueByDate[date] ?: 0f,
             maxValue = maxValue,
-            maxLevel = maxLevel
+            maxLevel = maxLevel,
+            mode = valueMode
         )
     }
+}
+
+private enum class HeatmapValueMode {
+    DISCRETE_LEVEL,
+    FRACTIONAL_RATIO,
+    RELATIVE_NUMERIC
 }
 
 private fun prepareHeatmap(
@@ -114,10 +122,20 @@ private fun prepareHeatmap(
             entries.maxOf { it.value }.coerceAtLeast(0f)
         }
     val resolvedMaxValue = (maxValue ?: normalizedValues.values.maxOrNull() ?: 0f).coerceAtLeast(1f)
+    val hasFractionalValue = normalizedValues.values.any { value ->
+        kotlin.math.abs(value - kotlin.math.round(value)) > 0.0001f
+    }
+    val valueMode = when {
+        resolvedMaxValue <= 1f && hasFractionalValue -> HeatmapValueMode.FRACTIONAL_RATIO
+        resolvedMaxValue <= maxLevel.coerceAtLeast(1) && !hasFractionalValue -> HeatmapValueMode.DISCRETE_LEVEL
+        else -> HeatmapValueMode.RELATIVE_NUMERIC
+    }
+
     return PreparedHeatmap(
         maxValue = resolvedMaxValue,
         maxLevel = maxLevel.coerceAtLeast(1),
-        valueByDate = normalizedValues
+        valueByDate = normalizedValues,
+        valueMode = valueMode
     )
 }
 
@@ -376,24 +394,31 @@ private fun buildMonthLabelByWeekIndex(weekColumns: List<List<LocalDate>>): Map<
     return labels
 }
 
-private fun levelFromValue(value: Float, maxValue: Float, maxLevel: Int): Int {
+private fun levelFromValue(
+    value: Float,
+    maxValue: Float,
+    maxLevel: Int,
+    mode: HeatmapValueMode
+): Int {
     if (value <= 0f || maxValue <= 0f) return 0
     val safeMaxLevel = maxLevel.coerceAtLeast(1)
 
-    // 兼容 0~1 的比例输入：例如 0.35 表示 35% 强度
-    if (maxValue <= 1f && value <= 1f) {
-        val ratio = value.coerceIn(0f, 1f)
-        return kotlin.math.ceil(ratio * safeMaxLevel).toInt().coerceIn(1, safeMaxLevel)
+    return when (mode) {
+        // 离散等级值直接映射，不根据“本批最大值”重标定，避免 1/0 被映射成最深色。
+        HeatmapValueMode.DISCRETE_LEVEL -> {
+            return kotlin.math.ceil(value).toInt().coerceIn(1, safeMaxLevel)
+        }
+        // 比例值（0~1）按比例映射。
+        HeatmapValueMode.FRACTIONAL_RATIO -> {
+            val ratio = value.coerceIn(0f, 1f)
+            kotlin.math.ceil(ratio * safeMaxLevel).toInt().coerceIn(1, safeMaxLevel)
+        }
+        // 常规数值按当前范围比例映射。
+        HeatmapValueMode.RELATIVE_NUMERIC -> {
+            val ratio = (value / maxValue).coerceIn(0f, 1f)
+            kotlin.math.ceil(ratio * safeMaxLevel).toInt().coerceIn(1, safeMaxLevel)
+        }
     }
-
-    // 兼容离散等级输入：例如 1~10
-    if (maxValue <= safeMaxLevel && value <= safeMaxLevel) {
-        return kotlin.math.ceil(value).toInt().coerceIn(1, safeMaxLevel)
-    }
-
-    // 常规数值按比例映射
-    val ratio = (value / maxValue).coerceIn(0f, 1f)
-    return kotlin.math.ceil(ratio * safeMaxLevel).toInt().coerceIn(1, safeMaxLevel)
 }
 
 private fun buildMonthGrid(yearMonth: YearMonth): List<List<LocalDate>> {

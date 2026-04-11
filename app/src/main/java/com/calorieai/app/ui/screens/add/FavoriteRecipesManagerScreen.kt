@@ -1,11 +1,10 @@
-package com.calorieai.app.ui.screens.add
+﻿package com.calorieai.app.ui.screens.add
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -17,7 +16,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -75,7 +73,7 @@ fun FavoriteRecipesManagerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("收藏库管理") },
+                title = { Text("管理收藏") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
@@ -85,125 +83,140 @@ fun FavoriteRecipesManagerScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                OutlinedTextField(
-                    value = uiState.searchQuery,
-                    onValueChange = {
-                        viewModel.dispatch(RecipeAction.FavoriteLibrary.ChangeQuery(it))
-                    },
-                    label = { Text("搜索收藏（名称/原始输入）") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-            }
-            item {
-                MealFilterSection(
-                    selected = uiState.selectedMealFilter,
-                    onSelected = {
-                        viewModel.dispatch(RecipeAction.FavoriteLibrary.ChangeMealType(it))
-                    }
-                )
-            }
-            item {
-                ExposedDropdownMenuBox(
-                    expanded = sortExpanded,
-                    onExpandedChange = { sortExpanded = !sortExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = when (uiState.sortType) {
-                            FavoriteSortType.LAST_USED -> "最近使用"
-                            FavoriteSortType.USE_COUNT -> "使用次数"
-                        },
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("排序方式") },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = sortExpanded)
-                        },
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = sortExpanded,
-                        onDismissRequest = { sortExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("最近使用") },
-                            onClick = {
-                                viewModel.dispatch(
-                                    RecipeAction.FavoriteLibrary.ChangeSort(FavoriteSortType.LAST_USED)
-                                )
-                                sortExpanded = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("使用次数") },
-                            onClick = {
-                                viewModel.dispatch(
-                                    RecipeAction.FavoriteLibrary.ChangeSort(FavoriteSortType.USE_COUNT)
-                                )
-                                sortExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("加入今日时餐次：", style = MaterialTheme.typography.bodyMedium)
-                    listOf(MealType.BREAKFAST, MealType.LUNCH, MealType.DINNER, MealType.SNACK).forEach { type ->
-                        FilterChip(
-                            selected = type == addMealType,
-                            onClick = { addMealType = type },
-                            label = { Text(mealTypeLabel(type)) }
-                        )
-                    }
-                }
-            }
-            item {
-                Text(
-                    text = "筛选后 ${uiState.filteredFavorites.size} 条 / 总计 ${uiState.favorites.size} 条",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            if (uiState.filteredFavorites.isEmpty()) {
+        RecipeScreenContainer(modifier = Modifier.padding(paddingValues)) {
+            LazyColumn(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(bottom = 24.dp, top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 item {
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                        Text(
-                            "当前筛选条件下暂无收藏。",
-                            modifier = Modifier.padding(12.dp),
-                            style = MaterialTheme.typography.bodyMedium
+                    RecipePanel(
+                        title = "筛选与排序",
+                        subtitle = "快速定位高频收藏并批量复用"
+                    ) {
+                        OutlinedTextField(
+                            value = uiState.searchQuery,
+                            onValueChange = {
+                                viewModel.dispatch(RecipeAction.FavoriteLibrary.ChangeQuery(it))
+                            },
+                            label = { Text("搜索名称或原始输入") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
                         )
+
+                        MealFilterSection(
+                            selected = uiState.selectedMealFilter,
+                            onSelected = {
+                                viewModel.dispatch(RecipeAction.FavoriteLibrary.ChangeMealType(it))
+                            }
+                        )
+
+                        ExposedDropdownMenuBox(
+                            expanded = sortExpanded,
+                            onExpandedChange = { sortExpanded = !sortExpanded }
+                        ) {
+                            OutlinedTextField(
+                                value = when (uiState.sortType) {
+                                    FavoriteSortType.LAST_USED -> "最近使用"
+                                    FavoriteSortType.USE_COUNT -> "使用次数"
+                                },
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("排序方式") },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = sortExpanded)
+                                },
+                                modifier = Modifier
+                                    .menuAnchor()
+                                    .fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = sortExpanded,
+                                onDismissRequest = { sortExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("最近使用") },
+                                    onClick = {
+                                        viewModel.dispatch(
+                                            RecipeAction.FavoriteLibrary.ChangeSort(FavoriteSortType.LAST_USED)
+                                        )
+                                        sortExpanded = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("使用次数") },
+                                    onClick = {
+                                        viewModel.dispatch(
+                                            RecipeAction.FavoriteLibrary.ChangeSort(FavoriteSortType.USE_COUNT)
+                                        )
+                                        sortExpanded = false
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
-            } else {
-                items(uiState.filteredFavorites, key = { it.id }) { recipe ->
-                    FavoriteRecipeItem(
-                        recipe = recipe,
-                        onAddToday = {
-                            viewModel.dispatch(
-                                RecipeAction.FavoriteLibrary.AddToToday(
-                                    recipe = recipe,
-                                    mealType = addMealType
+
+                item {
+                    RecipePanel(
+                        title = "快捷加到今日",
+                        subtitle = "设置默认餐次，一键复用收藏"
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(MealType.BREAKFAST, MealType.LUNCH, MealType.DINNER, MealType.SNACK).forEach { type ->
+                                FilterChip(
+                                    selected = type == addMealType,
+                                    onClick = { addMealType = type },
+                                    label = { Text(mealTypeLabel(type)) }
                                 )
-                            )
-                        },
-                        onEdit = { detailTarget = recipe },
-                        onDelete = {
-                            viewModel.dispatch(RecipeAction.FavoriteLibrary.DeleteFavorite(recipe))
+                            }
                         }
-                    )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            RecipeMetricBadge(
+                                label = "筛选后",
+                                value = uiState.filteredFavorites.size.toString(),
+                                modifier = Modifier.weight(1f)
+                            )
+                            RecipeMetricBadge(
+                                label = "总收藏",
+                                value = uiState.favorites.size.toString(),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                if (uiState.filteredFavorites.isEmpty()) {
+                    item {
+                        RecipePanel(
+                            title = "暂无匹配收藏",
+                            subtitle = "调整筛选条件后再试"
+                        ) {
+                            Text(
+                                "当前筛选下没有数据。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    items(uiState.filteredFavorites, key = { it.id }) { recipe ->
+                        FavoriteRecipeItem(
+                            recipe = recipe,
+                            onAddToday = {
+                                viewModel.dispatch(
+                                    RecipeAction.FavoriteLibrary.AddToToday(
+                                        recipe = recipe,
+                                        mealType = addMealType
+                                    )
+                                )
+                            },
+                            onEdit = { detailTarget = recipe },
+                            onDelete = {
+                                viewModel.dispatch(RecipeAction.FavoriteLibrary.DeleteFavorite(recipe))
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -243,22 +256,13 @@ private fun MealFilterSection(
         FavoriteFilterMealType.DINNER to "晚餐",
         FavoriteFilterMealType.SNACK to "加餐"
     )
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            options.forEach { (type, label) ->
-                FilterChip(
-                    selected = selected == type,
-                    onClick = { onSelected(type) },
-                    label = { Text(label) }
-                )
-            }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { (type, label) ->
+            FilterChip(
+                selected = selected == type,
+                onClick = { onSelected(type) },
+                label = { Text(label) }
+            )
         }
     }
 }
@@ -271,16 +275,25 @@ private fun FavoriteRecipeItem(
     onDelete: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+        )
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.RestaurantMenu, contentDescription = null)
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(recipe.foodName, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(recipe.foodName, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "${recipe.totalCalories} kcal · 使用 ${recipe.useCount} 次",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 IconButton(onClick = onEdit) {
                     Icon(Icons.Default.Edit, contentDescription = "编辑做法")
                 }
@@ -288,18 +301,15 @@ private fun FavoriteRecipeItem(
                     Icon(Icons.Default.Delete, contentDescription = "删除收藏")
                 }
             }
-            Text(
-                "${recipe.totalCalories} kcal · 使用 ${recipe.useCount} 次",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+
             if (!recipe.recipeStepsText.isNullOrBlank()) {
                 Text(
-                    "做法已维护",
+                    "已维护做法详情",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
@@ -368,14 +378,14 @@ private fun RecipeDetailDialog(
                     )
                     OutlinedTextField(
                         value = duration,
-                        onValueChange = { duration = it.filter { ch -> ch.isDigit() } },
+                        onValueChange = { duration = it.filter(Char::isDigit) },
                         label = { Text("时长(分钟)") },
                         modifier = Modifier.weight(1f),
                         singleLine = true
                     )
                     OutlinedTextField(
                         value = servings,
-                        onValueChange = { servings = it.filter { ch -> ch.isDigit() } },
+                        onValueChange = { servings = it.filter(Char::isDigit) },
                         label = { Text("份量") },
                         modifier = Modifier.weight(1f),
                         singleLine = true
