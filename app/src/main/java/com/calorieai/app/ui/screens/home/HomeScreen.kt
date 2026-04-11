@@ -28,7 +28,7 @@ import com.calorieai.app.ui.components.AIChatWidget
 import com.calorieai.app.ui.components.AIWidgetMode
 import com.calorieai.app.ui.components.ExerciseDialog
 import com.calorieai.app.ui.components.ExpandableCalendarView
-import com.calorieai.app.ui.components.rememberFabAwareBottomPadding
+import com.calorieai.app.ui.components.FabAwareListScaffold
 import com.calorieai.app.ui.feedback.rememberAppHapticController
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -78,13 +78,10 @@ fun HomeScreen(
     
     // AI灏忓姪鎵嬬姸鎬?
     var aiWidgetState by remember { mutableStateOf(com.calorieai.app.ui.components.AIWidgetState.FLOATING) }
-    val listBottomSafePadding = rememberFabAwareBottomPadding(
-        fabVisible = true,
-        extraPadding = if (uiState.showAIWidget) 104.dp else 36.dp
-    )
-
-    Scaffold(
+    FabAwareListScaffold(
         containerColor = MaterialTheme.colorScheme.surface,
+        fabVisible = true,
+        listExtraBottomPadding = if (uiState.showAIWidget) 104.dp else 36.dp,
         topBar = {
             TopAppBar(
                 title = { Text("CalorieAI") }
@@ -111,7 +108,7 @@ fun HomeScreen(
                 Icon(Icons.Default.Add, contentDescription = "娣诲姞")
             }
         }
-        ) { paddingValues ->
+        ) { paddingValues, listBottomSafePadding ->
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier

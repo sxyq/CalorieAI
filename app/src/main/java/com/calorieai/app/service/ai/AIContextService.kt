@@ -10,6 +10,7 @@ import com.calorieai.app.data.repository.UserSettingsRepository
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,6 +26,20 @@ class AIContextService @Inject constructor(
     private val waterRecordRepository: WaterRecordRepository,
     private val userSettingsRepository: UserSettingsRepository
 ) {
+    private data class CachedContextEntry(
+        val value: String,
+        val expiresAtMillis: Long
+    )
+
+    companion object {
+        private const val QUICK_ACTION_CONTEXT_TTL_MS = 30_000L
+        private const val DIETARY_CONTEXT_TTL_MS = 60_000L
+        private const val NUTRITION_GAP_CONTEXT_TTL_MS = 30_000L
+        private const val ADVANCED_CONTEXT_TTL_MS = 20_000L
+    }
+
+    private val contextCache = ConcurrentHashMap<String, CachedContextEntry>()
+
     private data class NutrientSnapshot(
         val protein: Float = 0f,
         val carbs: Float = 0f,
@@ -35,6 +50,22 @@ class AIContextService @Inject constructor(
         val vitaminC: Float = 0f,
         val potassium: Float = 0f
     )
+
+    private suspend fun getCachedContext(
+        key: String,
+        ttlMillis: Long,
+        compute: suspend () -> String
+    ): String {
+        val now = System.currentTimeMillis()
+        contextCache[key]?.takeIf { now < it.expiresAtMillis }?.let { return it.value }
+        contextCache.entries.removeIf { (_, entry) -> entry.expiresAtMillis <= now }
+        val value = compute()
+        contextCache[key] = CachedContextEntry(
+            value = value,
+            expiresAtMillis = now + ttlMillis
+        )
+        return value
+    }
 
     private fun getRange(days: Long): Pair<Long, Long> {
         val today = LocalDate.now()
@@ -251,7 +282,11 @@ class AIContextService @Inject constructor(
     /**
      * 获取快捷功能使用的本地近期数据上下文（强制包含本地数据摘要）
      */
-    suspend fun getQuickActionContext(action: String, recentDays: Long = 14): String {
+    suspend fun getQuickActionContext(action: String, recentDays: Long = 14): String =
+        getCachedContext(
+            key = "quick_action|$action|$recentDays",
+            ttlMillis = QUICK_ACTION_CONTEXT_TTL_MS
+        ) {
         val (startTime, endTime) = getRange(recentDays)
         val foodRecords = foodRecordRepository.getRecordsBetweenSync(startTime, endTime)
         val exerciseRecords = exerciseRecordRepository.getRecordsBetweenSync(startTime, endTime)
@@ -336,7 +371,11 @@ class AIContextService @Inject constructor(
     /**
      * 获取AI个性化约束上下文（忌口/口味/预算/时长/特定人群）
      */
-    suspend fun getDietaryConstraintContext(): String {
+    suspend fun getDietaryConstraintContext(): String =
+        getCachedContext(
+            key = "dietary_constraints",
+            ttlMillis = DIETARY_CONTEXT_TTL_MS
+        ) {
         val settings = userSettingsRepository.getSettingsOnce()
         val allergens = settings?.dietaryAllergens?.takeIf { it.isNotBlank() } ?: "无明确过敏原"
         val flavors = settings?.flavorPreferences?.takeIf { it.isNotBlank() } ?: "未设置口味偏好"
@@ -366,6 +405,10 @@ class AIContextService @Inject constructor(
      */
     suspend fun getNutritionGapContext(days: Long): String {
         val safeDays = days.coerceAtLeast(1)
+        return getCachedContext(
+            key = "nutrition_gap|$safeDays",
+            ttlMillis = NUTRITION_GAP_CONTEXT_TTL_MS
+        ) {
         val (startTime, endTime) = getRange(safeDays)
         val foodRecords = foodRecordRepository.getRecordsBetweenSync(startTime, endTime)
         val activeDays = foodRecords
@@ -442,12 +485,17 @@ class AIContextService @Inject constructor(
             appendLine(gapLine("fat", "脂肪(g/日)", avg.fat))
             appendLine("- 记录条数：${foodRecords.size}，统计区间：${formatDate(startTime)} 至 ${formatDate(endTime)}")
         }
+        }
     }
 
     /**
      * 获取增强版AI指导上下文（用于菜谱/咨询/下一餐推荐）
      */
-    suspend fun getAdvancedDietGuidanceContext(action: String, recentDays: Long = 14): String {
+    suspend fun getAdvancedDietGuidanceContext(action: String, recentDays: Long = 14): String =
+        getCachedContext(
+            key = "advanced_guidance|$action|$recentDays",
+            ttlMillis = ADVANCED_CONTEXT_TTL_MS
+        ) {
         val baseContext = getQuickActionContext(action = action, recentDays = recentDays)
         val constraintContext = getDietaryConstraintContext()
         val gap7 = getNutritionGapContext(7)

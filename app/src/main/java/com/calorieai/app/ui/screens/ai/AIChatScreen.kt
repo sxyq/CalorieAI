@@ -277,7 +277,7 @@ private fun QuickActionCards(viewModel: AIChatViewModel, isDark: Boolean) {
                 Color(0xFF6366F1),
                 Color(0xFF8B5CF6)
             ),
-            onClick = { viewModel.startCalorieAssessment() }
+            onClick = { QuickActionRouter.dispatch(viewModel, AIQuickAction.CALORIE_ASSESSMENT) }
         )
         
         QuickActionCard(
@@ -288,7 +288,7 @@ private fun QuickActionCards(viewModel: AIChatViewModel, isDark: Boolean) {
                 Color(0xFF10B981),
                 Color(0xFF059669)
             ),
-            onClick = { viewModel.startMealPlanning() }
+            onClick = { QuickActionRouter.dispatch(viewModel, AIQuickAction.MEAL_PLANNING) }
         )
 
         QuickActionCard(
@@ -299,7 +299,7 @@ private fun QuickActionCards(viewModel: AIChatViewModel, isDark: Boolean) {
                 Color(0xFF7C3AED),
                 Color(0xFF6D28D9)
             ),
-            onClick = { viewModel.startWeeklyMealPlanning() }
+            onClick = { QuickActionRouter.dispatch(viewModel, AIQuickAction.WEEKLY_MEAL_PLANNING) }
         )
 
         QuickActionCard(
@@ -310,7 +310,7 @@ private fun QuickActionCards(viewModel: AIChatViewModel, isDark: Boolean) {
                 Color(0xFFFF7043),
                 Color(0xFFF4511E)
             ),
-            onClick = { viewModel.startNextMealRecommendation() }
+            onClick = { QuickActionRouter.dispatch(viewModel, AIQuickAction.NEXT_MEAL_RECOMMENDATION) }
         )
         
         QuickActionCard(
@@ -321,7 +321,7 @@ private fun QuickActionCards(viewModel: AIChatViewModel, isDark: Boolean) {
                 Color(0xFFF59E0B),
                 Color(0xFFD97706)
             ),
-            onClick = { viewModel.startHealthConsult() }
+            onClick = { QuickActionRouter.dispatch(viewModel, AIQuickAction.HEALTH_CONSULT) }
         )
     }
 }
@@ -402,11 +402,11 @@ private fun QuickActionCard(
 private fun QuickActionsBar(viewModel: AIChatViewModel, isDark: Boolean) {
     val actions = remember(viewModel) {
         listOf(
-            Triple(Icons.Default.Assessment, "热量评估") { viewModel.startCalorieAssessment() },
-            Triple(Icons.Default.RestaurantMenu, "菜谱规划") { viewModel.startMealPlanning() },
-            Triple(Icons.Default.DateRange, "周计划") { viewModel.startWeeklyMealPlanning() },
-            Triple(Icons.Default.Fastfood, "下一餐") { viewModel.startNextMealRecommendation() },
-            Triple(Icons.Default.HealthAndSafety, "健康咨询") { viewModel.startHealthConsult() }
+            Triple(Icons.Default.Assessment, "热量评估") { QuickActionRouter.dispatch(viewModel, AIQuickAction.CALORIE_ASSESSMENT) },
+            Triple(Icons.Default.RestaurantMenu, "菜谱规划") { QuickActionRouter.dispatch(viewModel, AIQuickAction.MEAL_PLANNING) },
+            Triple(Icons.Default.DateRange, "周计划") { QuickActionRouter.dispatch(viewModel, AIQuickAction.WEEKLY_MEAL_PLANNING) },
+            Triple(Icons.Default.Fastfood, "下一餐") { QuickActionRouter.dispatch(viewModel, AIQuickAction.NEXT_MEAL_RECOMMENDATION) },
+            Triple(Icons.Default.HealthAndSafety, "健康咨询") { QuickActionRouter.dispatch(viewModel, AIQuickAction.HEALTH_CONSULT) }
         )
     }
     
@@ -416,8 +416,12 @@ private fun QuickActionsBar(viewModel: AIChatViewModel, isDark: Boolean) {
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(actions.size) { index ->
-            val (icon, label, action) = actions[index]
+        items(
+            items = actions,
+            key = { it.second },
+            contentType = { "quick_action_chip" }
+        ) { actionItem ->
+            val (icon, label, action) = actionItem
             CompactActionChip(icon, label, action, isDark)
         }
     }
@@ -977,7 +981,11 @@ private fun HistoryDialog(
                     Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(sessions) { session ->
+                    items(
+                        items = sessions,
+                        key = { it.sessionId },
+                        contentType = { "chat_session" }
+                    ) { session ->
                         SessionItem(session, session.sessionId == currentId, viewModel, onDismiss)
                     }
                 }

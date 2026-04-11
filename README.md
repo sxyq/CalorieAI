@@ -449,3 +449,53 @@ $env:PATH="$env:JAVA_HOME\bin;$env:PATH"
 - 饮水提醒位于：`设置 -> 通知`，支持固定时段 + 间隔提醒 + 生效时间窗。
 - 若系统未授予通知权限，开启提醒时会触发权限请求；拒绝后可在系统设置中手动授权。
 
+
+## 2026-04-12 Incremental Update (Supersedes Prior 2026-04 Validation Notes)
+
+### Multi-module governance delivery
+- Added audit model v2 in `audit/tools/run_audit.py` with `--emit-v2`.
+- New v2 outputs:
+  - `audit/out/symbol_nodes_v2.json|csv`
+  - `audit/out/symbol_edges_v2.json|csv`
+  - `audit/out/audit_consistency_v2.json`
+- New v2 node coverage includes:
+  - `property_member`
+  - `property_top_level`
+  - `parameter_function`
+  - `parameter_constructor`
+- New v2 edge coverage includes:
+  - `DECLARES`, `HAS_PARAMETER`, `CALLS`, `READS`, `WRITES`
+  - `HAS_TYPE`, `RETURNS_TYPE`
+  - `INHERITS`, `IMPLEMENTS`, `OVERRIDES`
+
+### Behavior-equivalent structural consolidation
+- Added and integrated `ReminderResyncCoordinator` as unified notification resync entry.
+- Unified AI quick actions through `QuickActionRouter`.
+- Unified haptic dispatch through `HapticActionDispatcher`.
+- Unified FAB-aware list shell through `FabAwareListScaffold`.
+- Added `FeatureGate` abstraction and routed feature visibility via gate-driven flow.
+
+### Performance and stability
+- Added throttled voice model progress propagation via `VoiceModelStateMachine`.
+- Added/kept quick-action local-context caching path in AI context service.
+- Added list-key/contentType hygiene in AI chat hot paths to reduce invalid recomposition.
+- Added debounce + signature de-duplication in reminder resync coordinator.
+
+### Validation status (2026-04-12)
+- Audit (v1): executed successfully.
+- Audit (v2): executed successfully with all consistency checks passing.
+- Build commands attempted with JDK 17:
+  - `:app:assembleDebug -x lint`
+  - `:app:testDebugUnitTest`
+- Current blocker:
+  - Android SDK access/license issue in sandboxed environment (`platforms;android-34`, `build-tools;34.0.0`, SDK path permissions), not a Kotlin compile error from this change-set.
+
+### Build prerequisites (Windows PowerShell)
+```powershell
+$env:JAVA_HOME='D:\Environment\Java\JDK17\jdk-17.0.11+9'
+$env:PATH="$env:JAVA_HOME\bin;$env:PATH"
+$env:GRADLE_USER_HOME='D:\Project\CalorieAI\CalorieAI\.gradle-user'
+$env:ANDROID_USER_HOME='D:\Project\CalorieAI\CalorieAI\.android'
+.\gradlew.bat :app:assembleDebug -x lint
+.\gradlew.bat :app:testDebugUnitTest
+```

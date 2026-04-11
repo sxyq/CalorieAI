@@ -26,7 +26,7 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.calorieai.app.data.local.OnboardingDataStore
 import com.calorieai.app.data.repository.UserSettingsRepository
-import com.calorieai.app.service.notification.NotificationScheduler
+import com.calorieai.app.service.notification.ReminderResyncCoordinator
 import com.calorieai.app.service.update.AppUpdateInfo
 import com.calorieai.app.service.update.AppUpdateManager
 import com.calorieai.app.ui.navigation.NavGraph
@@ -50,7 +50,7 @@ class MainActivity : ComponentActivity() {
     lateinit var onboardingDataStore: OnboardingDataStore
 
     @Inject
-    lateinit var notificationScheduler: NotificationScheduler
+    lateinit var reminderResyncCoordinator: ReminderResyncCoordinator
 
     @Inject
     lateinit var appUpdateManager: AppUpdateManager
@@ -142,7 +142,7 @@ class MainActivity : ComponentActivity() {
                 // 閬垮厤鍦ㄩ灞忔覆鏌撳叧閿矾寰勮Е鍙?WorkManager 鍒濆鍖栵紝闄嶄綆鍐峰惎鍔ㄥ崱椤裤€?
                 delay(900)
                 withContext(Dispatchers.IO) {
-                    notificationScheduler.syncReminders(
+                    reminderResyncCoordinator.sync(
                         settings = currentSettings,
                         source = "MainActivity.launch"
                     )

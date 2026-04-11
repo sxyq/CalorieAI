@@ -57,8 +57,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.ui.components.markdown.MarkdownConfig
 import com.calorieai.app.ui.components.markdown.MarkdownText
+import com.calorieai.app.ui.screens.ai.AIQuickAction
 import com.calorieai.app.ui.screens.ai.AIChatViewModel
 import com.calorieai.app.ui.screens.ai.ChatMessage
+import com.calorieai.app.ui.screens.ai.QuickActionRouter
 import com.calorieai.app.ui.theme.GlassDarkColors
 import com.calorieai.app.ui.theme.GlassLightColors
 import kotlinx.coroutines.launch
@@ -72,12 +74,6 @@ enum class AIWidgetState {
 enum class AIWidgetMode {
     HEALTH_ONLY,
     RECIPE_ASSISTANT
-}
-
-private enum class AIQuickAction {
-    CALORIE_ASSESSMENT,
-    MEAL_PLANNING,
-    HEALTH_CONSULT
 }
 
 @OptIn(ExperimentalAnimationApi::class)
@@ -177,13 +173,7 @@ private fun AIChatMiniPanel(
                 Box(modifier = Modifier.weight(1f)) {
                     QuickActions(
                         mode = mode,
-                        onAction = { action ->
-                            when (action) {
-                                AIQuickAction.CALORIE_ASSESSMENT -> viewModel.startCalorieAssessment()
-                                AIQuickAction.MEAL_PLANNING -> viewModel.startMealPlanning()
-                                AIQuickAction.HEALTH_CONSULT -> viewModel.startHealthConsult()
-                            }
-                        }
+                        onAction = { action -> QuickActionRouter.dispatch(viewModel, action) }
                     )
                 }
             } else {

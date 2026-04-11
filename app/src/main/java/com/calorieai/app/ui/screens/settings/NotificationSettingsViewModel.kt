@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.repository.UserSettingsRepository
-import com.calorieai.app.service.notification.NotificationScheduler
+import com.calorieai.app.service.notification.ReminderResyncCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -20,7 +20,7 @@ import kotlinx.coroutines.sync.withLock
 @HiltViewModel
 class NotificationSettingsViewModel @Inject constructor(
     private val userSettingsRepository: UserSettingsRepository,
-    private val notificationScheduler: NotificationScheduler
+    private val reminderResyncCoordinator: ReminderResyncCoordinator
 ) : ViewModel() {
 
     private val formatter = DateTimeFormatter.ofPattern("HH:mm")
@@ -154,7 +154,7 @@ class NotificationSettingsViewModel @Inject constructor(
 
                 userSettingsRepository.saveSettings(updated)
                 latestPersistedSettings = updated
-                notificationScheduler.syncReminders(
+                reminderResyncCoordinator.sync(
                     settings = updated,
                     source = "NotificationSettings.save"
                 )

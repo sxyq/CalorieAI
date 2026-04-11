@@ -2,7 +2,6 @@
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calorieai.app.data.repository.UserSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -12,13 +11,13 @@ import kotlinx.coroutines.flow.stateIn
 
 @HiltViewModel
 class FeatureVisibilityViewModel @Inject constructor(
-    userSettingsRepository: UserSettingsRepository
+    featureGate: FeatureGate
 ) : ViewModel() {
 
-    val uiState: StateFlow<FeatureVisibilityUiState> = userSettingsRepository.getSettings()
+    val uiState: StateFlow<FeatureVisibilityUiState> = featureGate.observeWaterFeaturesEnabled()
         .map { settings ->
             FeatureVisibilityUiState(
-                showWaterFeatures = settings?.showWaterFeatures ?: true
+                showWaterFeatures = settings
             )
         }
         .stateIn(

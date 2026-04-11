@@ -23,8 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.WaterRecord
+import com.calorieai.app.ui.components.FabAwareListScaffold
 import com.calorieai.app.ui.components.WaterProgressCard
-import com.calorieai.app.ui.components.rememberFabAwareBottomPadding
 import com.calorieai.app.ui.theme.*
 import com.calorieai.app.viewmodel.WaterHistoryViewModel
 import java.text.SimpleDateFormat
@@ -45,18 +45,15 @@ fun WaterHistoryScreen(
     
     var showAddDialog by remember { mutableStateOf(false) }
     var showTargetDialog by remember { mutableStateOf(false) }
-    val listBottomSafePadding = rememberFabAwareBottomPadding(
-        fabVisible = true,
-        extraPadding = 8.dp
-    )
-
     LaunchedEffect(selectedDate) {
         selectedDate?.let { viewModel.setSelectedDateFromString(it) }
     }
 
     val progress = (todayAmount.toFloat() / targetAmount).coerceIn(0f, 1f)
 
-    Scaffold(
+    FabAwareListScaffold(
+        fabVisible = true,
+        listExtraBottomPadding = 8.dp,
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
@@ -79,7 +76,7 @@ fun WaterHistoryScreen(
                 Icon(Icons.Default.Add, contentDescription = "添加记录", tint = Color.White)
             }
         }
-    ) { paddingValues ->
+    ) { paddingValues, listBottomSafePadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -134,7 +131,11 @@ fun WaterHistoryScreen(
                     contentPadding = PaddingValues(bottom = listBottomSafePadding),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(waterRecords) { record ->
+                    items(
+                        items = waterRecords,
+                        key = { it.id },
+                        contentType = { "water_record" }
+                    ) { record ->
                         WaterRecordItemCard(
                             record = record,
                             isDark = isDark,

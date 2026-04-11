@@ -1,5 +1,6 @@
 ﻿package com.calorieai.app.ui.screens.settings
 
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.AIConfig
@@ -25,9 +26,9 @@ class AISettingsViewModel @Inject constructor(
     private val userSettingsRepository: UserSettingsRepository,
     private val voiceModelManager: VoiceModelManager
 ) : ViewModel() {
-
     private val _uiState = MutableStateFlow(AISettingsUiState())
     val uiState: StateFlow<AISettingsUiState> = _uiState.asStateFlow()
+    private val voiceStateMachine = VoiceModelStateMachine()
 
     init {
         loadConfigs()
@@ -146,6 +147,7 @@ class AISettingsViewModel @Inject constructor(
 
     fun refreshVoiceModelState() {
         val installedPackage = voiceModelManager.getInstalledPackage()
+        voiceStateMachine.reset()
         _uiState.update {
             it.copy(
                 isVoiceModelInstalled = installedPackage != null,
@@ -162,6 +164,7 @@ class AISettingsViewModel @Inject constructor(
     fun downloadVoiceModel(pkg: VoiceModelManager.VoiceModelPackage) {
         viewModelScope.launch {
             if (_uiState.value.isVoiceModelDownloading || _uiState.value.isVoiceModelRemoving) return@launch
+            voiceStateMachine.reset()
 
             _uiState.update {
                 it.copy(
@@ -173,13 +176,7 @@ class AISettingsViewModel @Inject constructor(
             }
 
             val result = voiceModelManager.downloadAndInstallModel(pkg) { progress ->
-                _uiState.update {
-                    it.copy(
-                        voiceModelStage = progress.stage,
-                        voiceModelProgressPercent = progress.percent,
-                        voiceModelProgressMessage = progress.message
-                    )
-                }
+                dispatchVoiceProgress(progress)
             }
 
             val installedPackage = voiceModelManager.getInstalledPackage()
@@ -216,6 +213,7 @@ class AISettingsViewModel @Inject constructor(
     fun uninstallVoiceModel() {
         viewModelScope.launch {
             if (_uiState.value.isVoiceModelDownloading || _uiState.value.isVoiceModelRemoving) return@launch
+            voiceStateMachine.reset()
 
             _uiState.update {
                 it.copy(
@@ -227,13 +225,7 @@ class AISettingsViewModel @Inject constructor(
             }
 
             val result = voiceModelManager.uninstallModel { progress ->
-                _uiState.update {
-                    it.copy(
-                        voiceModelStage = progress.stage,
-                        voiceModelProgressPercent = progress.percent,
-                        voiceModelProgressMessage = progress.message
-                    )
-                }
+                dispatchVoiceProgress(progress)
             }
 
             val errorMessage = result.exceptionOrNull()?.toReadableErrorMessage()
@@ -264,6 +256,21 @@ class AISettingsViewModel @Inject constructor(
                     }
                 )
             }
+        }
+    }
+
+    private fun dispatchVoiceProgress(progress: VoiceModelManager.OperationProgress) {
+        val reduced = voiceStateMachine.reduce(
+            progress = progress,
+            nowElapsedMillis = SystemClock.elapsedRealtime()
+        ) ?: return
+
+        _uiState.update {
+            it.copy(
+                voiceModelStage = reduced.stage,
+                voiceModelProgressPercent = reduced.percent,
+                voiceModelProgressMessage = reduced.message
+            )
         }
     }
 

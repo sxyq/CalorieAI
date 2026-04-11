@@ -30,7 +30,7 @@ class NotificationRescheduleReceiver : BroadcastReceiver() {
                     return@launch
                 }
 
-                entryPoint.notificationScheduler().syncReminders(
+                entryPoint.reminderResyncCoordinator().sync(
                     settings = settings,
                     source = "broadcast:$action",
                     force = true
@@ -48,7 +48,7 @@ class NotificationRescheduleReceiver : BroadcastReceiver() {
     @InstallIn(SingletonComponent::class)
     interface EntryPointAccessor {
         fun userSettingsRepository(): UserSettingsRepository
-        fun notificationScheduler(): NotificationScheduler
+        fun reminderResyncCoordinator(): ReminderResyncCoordinator
     }
 
     companion object {

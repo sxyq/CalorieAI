@@ -6,11 +6,8 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.hapticfeedback.HapticFeedback
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.repository.UserSettingsRepository
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -25,8 +22,7 @@ enum class AppHapticType {
 
 @Stable
 class AppHapticController(
-    private val hapticFeedback: HapticFeedback,
-    private val settings: UserSettings?
+    private val dispatcher: HapticActionDispatcher
 ) {
     fun click() = perform(AppHapticType.CLICK)
 
@@ -35,37 +31,30 @@ class AppHapticController(
     fun confirm() = perform(AppHapticType.CONFIRM)
 
     fun perform(type: AppHapticType) {
-        if (!isVibrationEnabled()) return
-        val hapticType = when (type) {
-            AppHapticType.CLICK -> HapticFeedbackType.TextHandleMove
-            AppHapticType.LONG_PRESS -> HapticFeedbackType.LongPress
-            AppHapticType.CONFIRM -> HapticFeedbackType.LongPress
-        }
-        runCatching {
-            hapticFeedback.performHapticFeedback(hapticType)
-        }
-    }
-
-    private fun isVibrationEnabled(): Boolean {
-        val current = settings ?: return true
-        if (!current.enableVibration) return false
-        return when (current.feedbackType.uppercase()) {
-            "NONE", "SOUND" -> false
-            else -> true
-        }
+        dispatcher.dispatch(type)
     }
 }
 
 @Composable
-fun rememberAppHapticController(): AppHapticController {
+fun rememberHapticActionDispatcher(): HapticActionDispatcher {
     val context = LocalContext.current.applicationContext
     val haptic = LocalHapticFeedback.current
     val repository = remember(context) { appHapticEntryPoint(context).userSettingsRepository() }
     val settings by repository.getSettings().collectAsState(initial = null)
     return remember(haptic, settings) {
-        AppHapticController(
+        HapticActionDispatcher(
             hapticFeedback = haptic,
             settings = settings
+        )
+    }
+}
+
+@Composable
+fun rememberAppHapticController(): AppHapticController {
+    val dispatcher = rememberHapticActionDispatcher()
+    return remember(dispatcher) {
+        AppHapticController(
+            dispatcher = dispatcher
         )
     }
 }
