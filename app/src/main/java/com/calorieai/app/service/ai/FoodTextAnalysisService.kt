@@ -3,17 +3,17 @@ package com.calorieai.app.service.ai
 import com.calorieai.app.data.model.FoodAnalysisResult
 import com.calorieai.app.data.model.FoodBatchAnalysisResult
 import com.calorieai.app.data.repository.APICallRecordRepository
-import com.calorieai.app.data.repository.AIConfigRepository
 import com.calorieai.app.data.repository.AITokenUsageRepository
 import com.calorieai.app.service.ai.common.AIApiClient
 import com.calorieai.app.service.ai.common.AIApiException
 import com.calorieai.app.service.ai.common.AIErrorCategory
 import com.calorieai.app.service.ai.common.AIErrorClassifier
+import com.calorieai.app.service.ai.common.AIResponseParsing
 import com.calorieai.app.service.ai.common.AIResponseSanitizer
+import com.calorieai.app.service.ai.common.ParsedUsage
 import com.calorieai.app.utils.SecureLogger
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import javax.inject.Inject
@@ -22,7 +22,7 @@ import javax.inject.Singleton
 @Singleton
 class FoodTextAnalysisService @Inject constructor(
     private val aiApiClient: AIApiClient,
-    private val aiConfigRepository: AIConfigRepository,
+    private val aiImportConfigResolver: AIImportConfigResolver,
     private val apiCallRecordRepository: APICallRecordRepository,
     private val aiTokenUsageRepository: AITokenUsageRepository
 ) {
@@ -30,65 +30,29 @@ class FoodTextAnalysisService @Inject constructor(
 
     companion object {
         private const val TAG = "FoodTextAnalysis"
-        
-        private const val SYSTEM_PROMPT = """你是专业营养师。请先判断用户是否在“明确列举多种独立食物”。
 
-【严格要求 - 必须遵守】
-1. 返回JSON对象，且根字段必须是 items 数组
-2. 只有当用户明确列举多种独立食物时，才返回多条 items
-3. 如果用户输入的是单一菜名/品牌餐品/套餐名称（如“汉堡王大皇堡”），必须只返回1条，不能拆成配料
-3. foodName 字段必须使用中文名称（由你命名）
-2. 必须严格使用英文标点符号（逗号、引号、冒号）
-3. 所有数值必须是纯数字，不能带引号，不能使用字符串
-4. 所有营养素字段必须返回，不能省略
-5. 如果无法准确估算，使用合理的估计值（不能全部填0）
-
-【拆分判定规则（非常重要）】
-- 应拆分：用户明确列出多食物，且通常带数量/单位，例如“100g牛肉 50g鸡肉 1个鸡蛋”
-- 不应拆分：品牌名、菜名、单个餐品、套餐/便当/盖饭/汉堡名，即使其内部有多个配料，也按1条返回
-- 当无法确定时，优先不拆分，按1条返回
-
-【13种必需营养素字段】
-- 基础营养素（3种）：protein, carbs, fat
-- 扩展营养素（10种）：fiber, sugar, saturatedFat, cholesterol, sodium, potassium, calcium, iron, vitaminA, vitaminC
-
-【JSON格式示例】
-{"items":[{"foodName":"空气炸锅大虾","estimatedWeight":200,"calories":198,"protein":35.0,"carbs":2.0,"fat":5.0,"fiber":0.0,"sugar":0.5,"saturatedFat":1.0,"cholesterol":180.0,"sodium":320.0,"potassium":280.0,"calcium":90.0,"iron":1.8,"vitaminA":40.0,"vitaminC":0.0},{"foodName":"小番茄","estimatedWeight":100,"calories":22,"protein":1.1,"carbs":4.8,"fat":0.2,"fiber":1.4,"sugar":3.2,"saturatedFat":0.0,"cholesterol":0.0,"sodium":5.0,"potassium":237.0,"calcium":10.0,"iron":0.3,"vitaminA":42.0,"vitaminC":14.0}]}
-
-【格式检查清单】
-✓ 所有字段名使用英文
-✓ 所有数值不带引号（如：13.4 而不是 "13.4"）
-✓ 使用英文逗号分隔
-✓ 使用英文引号包裹字符串值
-✓ 使用英文冒号分隔键值
-✓ 返回完整的13种营养素数据
-
-【禁止事项】
-✗ 不要使用中文字段名
-✗ 不要使用中文标点符号
-✗ 不要将数字用引号包裹
-✗ 不要省略任何营养素字段
-✗ 不要返回说明文字，只返回JSON对象"""
+        private const val SYSTEM_PROMPT = """你是营养师。只输出JSON，不要解释。
+根对象必须是 {"items":[...]}。
+每个item字段必须包含：
+foodName, estimatedWeight, calories, protein, carbs, fat, fiber, sugar, saturatedFat, cholesterol, sodium, potassium, calcium, iron, vitaminA, vitaminC
+规则：
+1) 仅当用户明确列出多个独立食物且带数量单位时，才拆分多条；
+2) 菜名/品牌餐品/套餐名不拆分，输出1条；
+3) 数值必须为数字，不加引号，英文标点。"""
     }
-
-    private data class ParsedUsage(
-        val promptTokens: Int,
-        val completionTokens: Int,
-        val cost: Double
-    )
 
     suspend fun analyzeFoodText(
         foodDescription: String,
-        maxRetries: Int = 2,
+        maxRetries: Int = 1,
         onRetry: ((attempt: Int, maxAttempts: Int) -> Unit)? = null,
         requestTag: String? = null
     ): Result<FoodBatchAnalysisResult> = withContext(Dispatchers.IO) {
         try {
-            val config = aiConfigRepository.getDefaultConfig().firstOrNull()
+            val config = resolveTextConfig()
                 ?: return@withContext Result.failure(Exception("未配置AI服务"))
             val batchId = UUID.randomUUID().toString().substring(0, 8)
 
-            val baseUserPrompt = buildString {
+            val userPrompt = buildString {
                 append("请拆分并分析以下食物，按多条items返回：")
                 append(foodDescription)
                 if (!requestTag.isNullOrBlank()) {
@@ -98,36 +62,32 @@ class FoodTextAnalysisService @Inject constructor(
                 }
             }
             var lastError: Throwable? = null
-            var lastResponseSnippet = ""
-            var lastFailureDetail = ""
             val maxAttempts = (maxRetries + 1).coerceAtLeast(1)
 
             for (attempt in 1..maxAttempts) {
                 val startTime = System.currentTimeMillis()
-                val userPrompt = if (attempt == 1) {
-                    baseUserPrompt
-                } else {
-                    buildRepairUserPrompt(baseUserPrompt, lastFailureDetail, lastResponseSnippet)
-                }
                 try {
                     val (responseText, rawResponse) = aiApiClient.chatRaw(
                         config = config,
                         systemPrompt = SYSTEM_PROMPT,
                         userMessage = userPrompt,
                         temperature = 0.2,
-                        maxTokens = 1400
+                        maxTokens = 900
                     )
-                    val parsedUsage = parseUsage(rawResponse, config.protocol.name, config.modelId)
+                    val parsedUsage = AIResponseParsing.parseUsage(
+                        rawResponse = rawResponse,
+                        protocol = config.protocol.name,
+                        modelId = config.modelId,
+                        aiApiClient = aiApiClient
+                    )
                     if (parsedUsage.promptTokens > 0 || parsedUsage.completionTokens > 0) {
                         recordTokenUsage(config.id, config.name, parsedUsage)
                     }
-                    val parsedItems = parseBatchAnalysisResult(responseText)
-                    val intentAlignedItems = alignItemsWithUserIntent(parsedItems, foodDescription)
-                    val normalizedItems = intentAlignedItems.mapIndexed { index, item ->
-                        normalizeNutritionData(item, foodDescription, index)
-                    }
-                    val validItems = normalizedItems.filter { validateNutritionData(it).isValid }
-                    if (validItems.isNotEmpty()) {
+                    val importableItems = FoodTextImportPostProcessor.process(
+                        responseText = responseText,
+                        foodDescription = foodDescription
+                    )
+                    if (importableItems.isNotEmpty()) {
                         recordApiCall(
                             configId = config.id,
                             configName = config.name,
@@ -144,12 +104,12 @@ class FoodTextAnalysisService @Inject constructor(
                             TAG,
                             "batch_analysis_success",
                             "attempt" to attempt,
-                            "itemCount" to validItems.size,
+                            "itemCount" to importableItems.size,
                             "inputLength" to foodDescription.length
                         )
                         return@withContext Result.success(
                             FoodBatchAnalysisResult(
-                                items = validItems,
+                                items = importableItems,
                                 promptTokens = parsedUsage.promptTokens,
                                 completionTokens = parsedUsage.completionTokens
                             )
@@ -158,11 +118,9 @@ class FoodTextAnalysisService @Inject constructor(
                     lastError = AIApiException(
                         message = "AI返回结果为空或无效",
                         category = AIErrorCategory.VALIDATION,
-                        retryEligible = true
+                        retryEligible = false
                     )
-                    lastResponseSnippet = responseText.take(800)
                     val errorInfo = AIErrorClassifier.classify(lastError)
-                    lastFailureDetail = errorInfo.detail
                     recordApiCall(
                         configId = config.id,
                         configName = config.name,
@@ -179,7 +137,6 @@ class FoodTextAnalysisService @Inject constructor(
                 } catch (e: Exception) {
                     lastError = e
                     val errorInfo = AIErrorClassifier.classify(e)
-                    lastFailureDetail = errorInfo.detail
                     recordApiCall(
                         configId = config.id,
                         configName = config.name,
@@ -196,7 +153,6 @@ class FoodTextAnalysisService @Inject constructor(
                 }
 
                 val errorInfo = AIErrorClassifier.classify(lastError)
-                lastFailureDetail = errorInfo.detail
                 if (attempt < maxAttempts && errorInfo.retryEligible) {
                     onRetry?.invoke(attempt, maxAttempts)
                     SecureLogger.w(
@@ -219,8 +175,14 @@ class FoodTextAnalysisService @Inject constructor(
     }
 
     private fun parseBatchAnalysisResult(content: String): List<FoodAnalysisResult> {
-        return AIResponseSanitizer.parseFoodItems(content, gson)
+        val sanitizedItems = AIResponseSanitizer.parseFoodItems(content, gson)
+        if (sanitizedItems.isNotEmpty()) return sanitizedItems
+
+        // 兜底兼容：模型偶发返回单对象
+        return AIResponseSanitizer.parseSingleFoodItem(content, gson)?.let { listOf(it) }.orEmpty()
     }
+
+    private suspend fun resolveTextConfig() = aiImportConfigResolver.resolveTextConfig()
 
     private fun alignItemsWithUserIntent(
         items: List<FoodAnalysisResult>,
@@ -354,23 +316,6 @@ class FoodTextAnalysisService @Inject constructor(
         val errorMessage: String
     )
 
-    private fun buildRepairUserPrompt(
-        baseUserPrompt: String,
-        lastFailureDetail: String,
-        lastResponseSnippet: String
-    ): String {
-        return buildString {
-            append(baseUserPrompt)
-            append("\n\n上次输出未通过校验，原因：")
-            append(lastFailureDetail.ifBlank { "字段缺失或JSON格式不稳定" })
-            append("\n请严格只返回一个 JSON 对象，根字段必须是 items 数组；不要输出Markdown代码块，不要附加解释文本。")
-            if (lastResponseSnippet.isNotBlank()) {
-                append("\n上次输出片段（请修复后重写，不要复述原文）：\n")
-                append(lastResponseSnippet)
-            }
-        }
-    }
-
     private suspend fun recordApiCall(
         configId: String,
         configName: String,
@@ -417,37 +362,4 @@ class FoodTextAnalysisService @Inject constructor(
         }
     }
 
-    private fun parseUsage(rawResponse: String, protocol: String, modelId: String): ParsedUsage {
-        val usage = when (protocol) {
-            "CLAUDE" -> aiApiClient.extractClaudeUsage(rawResponse)
-            else -> aiApiClient.extractOpenAIUsage(rawResponse)
-        }
-        val promptTokens = usage?.promptTokens ?: 0
-        val completionTokens = usage?.completionTokens ?: 0
-        val cost = if (usage != null) {
-            calculateCost(promptTokens, completionTokens, protocol, modelId)
-        } else {
-            0.0
-        }
-        return ParsedUsage(
-            promptTokens = promptTokens,
-            completionTokens = completionTokens,
-            cost = cost
-        )
-    }
-
-    private fun calculateCost(promptTokens: Int, completionTokens: Int, protocol: String, modelId: String): Double {
-        val rates = when (protocol) {
-            "OPENAI" -> when {
-                modelId.contains("gpt-4") -> 0.03 to 0.06
-                modelId.contains("gpt-3.5") -> 0.0015 to 0.002
-                else -> 0.001 to 0.002
-            }
-            "CLAUDE" -> 0.008 to 0.024
-            "KIMI" -> 0.006 to 0.006
-            else -> 0.001 to 0.002
-        }
-        val (inputRate, outputRate) = rates
-        return (promptTokens * inputRate + completionTokens * outputRate) / 1000.0
-    }
 }

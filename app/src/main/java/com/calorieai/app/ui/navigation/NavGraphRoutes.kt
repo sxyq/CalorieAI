@@ -7,6 +7,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.calorieai.app.data.model.MealType
 import androidx.navigation.compose.composable
 import com.calorieai.app.ui.screens.add.AddFoodScreen
 import com.calorieai.app.ui.screens.add.AddMethodSelectorScreen
@@ -14,6 +15,7 @@ import com.calorieai.app.ui.screens.add.FavoriteRecipesManagerScreen
 import com.calorieai.app.ui.screens.add.FavoriteRecipesScreen
 import com.calorieai.app.ui.screens.add.ManualAddScreen
 import com.calorieai.app.ui.screens.add.MealPlanManagerScreen
+import com.calorieai.app.ui.screens.add.NutritionOcrImportScreen
 import com.calorieai.app.ui.screens.add.PantryIngredientsManagerScreen
 import com.calorieai.app.ui.screens.ai.AIChatScreen
 import com.calorieai.app.ui.screens.camera.CameraScreen
@@ -41,6 +43,8 @@ import com.calorieai.app.ui.screens.settings.SettingsScreen
 import com.calorieai.app.ui.screens.stats.StatsScreen
 import com.calorieai.app.ui.screens.water.WaterTrackerScreen
 import com.calorieai.app.ui.screens.weight.WeightRecordScreen
+
+private const val OCR_RESULT_PAYLOAD_KEY = "ocr_result_payload"
 
 internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
     navController: NavHostController,
@@ -164,7 +168,7 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
                 navController.popBackStack()
             },
             onNavigateToManual = {
-                navController.navigate(Screen.ManualAdd.route)
+                navController.navigate(Screen.ManualAdd.createRoute(date))
             },
             onNavigateToAI = {
                 navController.navigate(Screen.AddFood.createRoute(date))
@@ -184,8 +188,19 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
         )
     }
 
-    composable(Screen.ManualAdd.route) {
+    composable(
+        route = Screen.ManualAdd.route,
+        arguments = listOf(
+            navArgument("date") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            }
+        )
+    ) { backStackEntry ->
+        val date = backStackEntry.arguments?.getString("date")
         ManualAddScreen(
+            selectedDate = date,
             onNavigateBack = { navController.popBackStack() }
         )
     }
@@ -239,8 +254,19 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
         )
     ) { backStackEntry ->
         val date = backStackEntry.arguments?.getString("date")
+        val ocrPayload by backStackEntry.savedStateHandle
+            .getStateFlow<String?>(OCR_RESULT_PAYLOAD_KEY, null)
+            .collectAsStateWithLifecycle()
+
+        LaunchedEffect(ocrPayload) {
+            if (!ocrPayload.isNullOrBlank()) {
+                backStackEntry.savedStateHandle[OCR_RESULT_PAYLOAD_KEY] = null
+            }
+        }
+
         AddFoodScreen(
             selectedDate = date,
+            ocrPayloadJson = ocrPayload,
             onNavigateBack = {
                 navController.popBackStack()
             },
@@ -251,6 +277,54 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
             },
             onNavigateToCamera = {
                 navController.navigate(Screen.Camera.route)
+            },
+            onNavigateToOcr = { targetDate, mealType ->
+                navController.navigate(
+                    Screen.NutritionOcrImport.createRoute(
+                        date = targetDate,
+                        mealType = mealType.name
+                    )
+                )
+            }
+        )
+    }
+
+    composable(
+        route = Screen.NutritionOcrImport.route,
+        arguments = listOf(
+            navArgument("date") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            },
+            navArgument("mealType") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            }
+        )
+    ) { backStackEntry ->
+        val date = backStackEntry.arguments?.getString("date")
+        val mealType = backStackEntry.arguments
+            ?.getString("mealType")
+            ?.let { raw -> runCatching { MealType.valueOf(raw) }.getOrNull() }
+
+        NutritionOcrImportScreen(
+            selectedDate = date,
+            selectedMealType = mealType,
+            onNavigateBack = {
+                navController.popBackStack()
+            },
+            onApplyPayload = { ocrPayload ->
+                navController.previousBackStackEntry
+                    ?.savedStateHandle
+                    ?.set(OCR_RESULT_PAYLOAD_KEY, ocrPayload)
+                navController.popBackStack()
+            },
+            onRecordSaved = { recordId ->
+                navController.navigate(Screen.Result.createRoute(recordId)) {
+                    popUpTo(Screen.AddFood.route) { inclusive = true }
+                }
             }
         )
     }
@@ -368,7 +442,9 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
             }
         )
     ) { backStackEntry ->
-        val configId = backStackEntry.arguments?.getString("configId")
+        val configId = backStackEntry.arguments
+            ?.getString("configId")
+            ?.let(android.net.Uri::decode)
         AIConfigDetailScreen(
             configId = configId,
             onNavigateBack = {

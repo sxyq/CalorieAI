@@ -365,7 +365,7 @@ class AIContextService @Inject constructor(
         sb.appendLine()
 
         sb.appendLine("请严格基于上述本地近期数据给出结论和建议；若数据不足，明确指出缺少哪些记录。")
-        return sb.toString()
+        sb.toString()
     }
 
     /**
@@ -390,7 +390,7 @@ class AIContextService @Inject constructor(
             else -> "通用健康"
         }
 
-        return buildString {
+        buildString {
             appendLine("【个性化饮食约束】")
             appendLine("- 过敏原/忌口：$allergens")
             appendLine("- 口味偏好：$flavors")
@@ -465,7 +465,7 @@ class AIContextService @Inject constructor(
             return "- $name：平均 ${String.format("%.1f", value)} / 建议 ${String.format("%.1f", ref)}（${String.format("%.0f", percent)}%，$tag，差额 ${String.format("%.1f", gap)}）"
         }
 
-        return buildString {
+        buildString {
             appendLine("【最近${safeDays}天营养缺口分析】")
             val coverage = (activeDays * 100f / safeDays.toFloat()).coerceIn(0f, 100f)
             appendLine("- 有效记录天数：$activeDays/$safeDays（覆盖率 ${String.format("%.0f", coverage)}%）")
@@ -500,7 +500,7 @@ class AIContextService @Inject constructor(
         val constraintContext = getDietaryConstraintContext()
         val gap7 = getNutritionGapContext(7)
         val gap30 = getNutritionGapContext(30)
-        return buildString {
+        buildString {
             appendLine(baseContext)
             appendLine()
             appendLine(constraintContext)

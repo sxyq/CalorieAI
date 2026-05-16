@@ -5,7 +5,6 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
 import com.calorieai.app.data.model.FavoriteRecipe
 import kotlinx.coroutines.flow.Flow
 
@@ -23,14 +22,8 @@ interface FavoriteRecipeDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(recipe: FavoriteRecipe)
 
-    @Update
-    suspend fun update(recipe: FavoriteRecipe)
-
     @Delete
     suspend fun delete(recipe: FavoriteRecipe)
-
-    @Query("DELETE FROM favorite_recipes WHERE sourceRecordId = :sourceRecordId")
-    suspend fun deleteBySourceRecordId(sourceRecordId: String)
 
     @Query("DELETE FROM favorite_recipes")
     suspend fun deleteAll()

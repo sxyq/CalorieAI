@@ -1,8 +1,6 @@
 package com.calorieai.app.ui.navigation
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -36,10 +34,27 @@ sealed class Screen(val route: String) {
     object FavoriteRecipesManager : Screen("favorite_recipes_manager")
     object PantryIngredientsManager : Screen("pantry_ingredients_manager")
     object RecipePlanManager : Screen("recipe_plan_manager")
-    object ManualAdd : Screen("manual_add")
+    object ManualAdd : Screen("manual_add?date={date}") {
+        fun createRoute(date: String? = null): String {
+            return optionalQueryRoute("manual_add", "date", date)
+        }
+    }
     object AddFood : Screen("add_food?date={date}") {
         fun createRoute(date: String? = null): String {
             return optionalQueryRoute("add_food", "date", date)
+        }
+    }
+    object NutritionOcrImport : Screen("nutrition_ocr_import?date={date}&mealType={mealType}") {
+        fun createRoute(date: String? = null, mealType: String? = null): String {
+            val queryParams = buildList {
+                if (!date.isNullOrBlank()) add("date=$date")
+                if (!mealType.isNullOrBlank()) add("mealType=$mealType")
+            }
+            return if (queryParams.isEmpty()) {
+                "nutrition_ocr_import"
+            } else {
+                "nutrition_ocr_import?${queryParams.joinToString("&")}"
+            }
         }
     }
     object Camera : Screen("camera")
@@ -62,7 +77,8 @@ sealed class Screen(val route: String) {
     object AIModelCallStats : Screen("ai_model_call_stats")
     object AIConfigDetail : Screen("ai_config_detail?configId={configId}") {
         fun createRoute(configId: String? = null): String {
-            return optionalQueryRoute("ai_config_detail", "configId", configId)
+            val encodedId = configId?.let(android.net.Uri::encode)
+            return optionalQueryRoute("ai_config_detail", "configId", encodedId)
         }
     }
     object About : Screen("about")
@@ -179,8 +195,7 @@ fun NavGraph(navController: NavHostController) {
                             else -> Unit // 菜谱长按功能暂未定义
                         }
                     },
-                    isDark = isDark,
-                    modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+                    isDark = isDark
                 )
             }
         }

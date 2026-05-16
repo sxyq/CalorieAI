@@ -61,7 +61,7 @@ fun MyScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = "鎴戠殑",
+                        text = "我的",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -137,7 +137,7 @@ private fun UserProfileHeader(
                 if (!userSettings?.userAvatarUri.isNullOrBlank()) {
                     AsyncImage(
                         model = userSettings?.userAvatarUri,
-                        contentDescription = "澶村儚",
+                        contentDescription = "头像",
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
@@ -154,7 +154,7 @@ private fun UserProfileHeader(
 
             // 鐢ㄦ埛鍚?
             Text(
-                text = userSettings?.userName ?: "鍋ュ悍鐢ㄦ埛",
+                text = userSettings?.userName ?: "健康用户",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -167,12 +167,14 @@ private fun UserProfileHeader(
                     val height = it.userHeight?.roundToInt()
                     val weight = it.userWeight?.roundToInt()
                     val bmi = it.bmi
-                    buildString {
-                        if (height != null) append("${height}cm")
-                        if (weight != null) append(" 路 ${weight}kg")
-                        if (bmi != null) append(" 路 BMI ${String.format("%.1f", bmi)}")
-                    }.takeIf { it.isNotEmpty() } ?: "瀹屽杽韬綋鏁版嵁锛岃幏鍙栦釜鎬у寲寤鸿"
-                } ?: "瀹屽杽韬綋鏁版嵁锛岃幏鍙栦釜鎬у寲寤鸿",
+                    listOfNotNull(
+                        height?.let { value -> "${value}cm" },
+                        weight?.let { value -> "${value}kg" },
+                        bmi?.let { value -> "BMI ${String.format("%.1f", value)}" }
+                    ).joinToString(separator = " · ")
+                        .takeIf { summary -> summary.isNotEmpty() }
+                        ?: "完善身体数据，获取个性化建议"
+                } ?: "完善身体数据，获取个性化建议",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -199,7 +201,7 @@ private fun FunctionMenu(
         ) {
             MenuItem(
                 icon = Icons.Outlined.AssignmentInd,
-                title = "韬綋妗ｆ",
+                title = "身体档案",
                 subtitle = "查看和编辑身体数据",
                 onClick = onNavigateToBodyProfile
             )
@@ -211,7 +213,7 @@ private fun FunctionMenu(
 
             MenuItem(
                 icon = Icons.Outlined.Settings,
-                title = "璁剧疆",
+                title = "设置",
                 subtitle = "个性化配置和偏好",
                 onClick = onNavigateToSettings
             )
@@ -318,7 +320,7 @@ private fun AppInfoCard(isDark: Boolean) {
             )
 
             Text(
-                text = "鐗堟湰 ${BuildConfig.VERSION_NAME}",
+                text = "版本 ${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -326,11 +328,10 @@ private fun AppInfoCard(isDark: Boolean) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "鏅鸿兘鍋ュ悍绠＄悊鍔╂墜",
+                text = "智能健康管理助手",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
 }
-

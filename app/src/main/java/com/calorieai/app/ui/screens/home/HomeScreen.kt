@@ -105,7 +105,7 @@ fun HomeScreen(
                 },
                 containerColor = MaterialTheme.colorScheme.primaryContainer
             ) {
-                Icon(Icons.Default.Add, contentDescription = "娣诲姞")
+                Icon(Icons.Default.Add, contentDescription = "添加")
             }
         }
         ) { paddingValues, listBottomSafePadding ->
@@ -158,7 +158,7 @@ fun HomeScreen(
                     if (uiState.records.isNotEmpty()) {
                         item {
                             Text(
-                                text = "楗璁板綍",
+                                text = "饮食记录",
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(bottom = 8.dp)
@@ -181,7 +181,7 @@ fun HomeScreen(
                         item {
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "杩愬姩璁板綍",
+                                text = "运动记录",
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(bottom = 8.dp)
@@ -260,10 +260,10 @@ fun TodayOverviewCard(
     // 鏍规嵁鏄惁鏄粖澶╂樉绀轰笉鍚岀殑鏍囬
     val today = java.time.LocalDate.now()
     val title = when (selectedDate) {
-        today -> "浠婃棩鎽勫叆"
-        today.minusDays(1) -> "鏄ㄦ棩鎽勫叆"
-        today.plusDays(1) -> "鏄庢棩鐩爣"
-        else -> "鎽勫叆缁熻"
+        today -> "今日摄入"
+        today.minusDays(1) -> "昨日摄入"
+        today.plusDays(1) -> "明日目标"
+        else -> "摄入统计"
     }
     
     Box(
@@ -299,19 +299,19 @@ fun TodayOverviewCard(
             ) {
                 CalorieInfo(
                     value = totalCalories.toString(),
-                    label = "宸叉憚鍏",
+                    label = "已摄入",
                     color = MaterialTheme.colorScheme.primary,
                     highlighted = true
                 )
                 CalorieInfo(
                     value = dailyGoal.toString(),
-                    label = "鐩爣",
+                    label = "目标",
                     color = MaterialTheme.colorScheme.onSurface,
                     highlighted = false
                 )
                 CalorieInfo(
                     value = remaining.toString(),
-                    label = "鍓╀綑",
+                    label = "剩余",
                     color = if (remaining < 0) MaterialTheme.colorScheme.error 
                             else MaterialTheme.colorScheme.secondary,
                     highlighted = true
@@ -370,20 +370,20 @@ fun TodayOverviewCard(
                 ) {
                     CalorieInfoSmall(
                         value = bmr.toString(),
-                        label = "鍩虹浠ｈ阿",
-                        icon = "馃敟",
+                        label = "基础代谢",
+                        icon = "🔥",
                         highlighted = false
                     )
                     CalorieInfoSmall(
                         value = "+${exerciseCalories}",
-                        label = "杩愬姩娑堣€",
-                        icon = "馃挭",
+                        label = "运动消耗",
+                        icon = "💪",
                         highlighted = true
                     )
                     CalorieInfoSmall(
                         value = "${if (netCalories >= 0) "+" else ""}$netCalories",
-                        label = "鐑噺宸€",
-                        icon = "鈿栵笍",
+                        label = "净摄入",
+                        icon = "⚖️",
                         color = when {
                             netCalories > 500 -> MaterialTheme.colorScheme.error
                             netCalories < -500 -> MaterialTheme.colorScheme.tertiary
@@ -490,7 +490,7 @@ fun FoodRecordItem(
     
     // 婊戝姩鍋忕Щ閲?
     var offsetX by remember { mutableFloatStateOf(0f) }
-    val maxSwipe = 280f // 鏈€澶ф粦鍔ㄨ窛绂伙紝纭繚"380鍗冨崱"绛夐暱鏂囨湰鑳藉畬鍏ㄦ樉绀?
+    val maxSwipe = 280f // 鏈€澶ф粦鍔ㄨ窛绂伙紝纭繚"380千卡"绛夐暱鏂囨湰鑳藉畬鍏ㄦ樉绀?
     
     // 鍔ㄧ敾鍖栧亸绉婚噺
     val animatedOffsetX by animateFloatAsState(
@@ -529,7 +529,7 @@ fun FoodRecordItem(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
-                        contentDescription = "缂栬緫",
+                        contentDescription = "编辑",
                         tint = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
@@ -550,7 +550,7 @@ fun FoodRecordItem(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "鍒犻櫎",
+                        contentDescription = "删除",
                         tint = MaterialTheme.colorScheme.onErrorContainer
                     )
                 }
@@ -617,13 +617,13 @@ fun FoodRecordItem(
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        text = "${record.totalCalories} 鍗冨崱",
+                        text = "${record.totalCalories} 千卡",
                         style = MaterialTheme.typography.bodySmall
                     )
                     if (record.isStarred) {
                         Icon(
                             imageVector = Icons.Default.Star,
-                            contentDescription = "宸叉敹钘",
+                            contentDescription = "已收藏",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.clickable { onStarClick() }
                         )
@@ -644,8 +644,8 @@ fun FoodRecordItem(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("鍒犻櫎璁板綍") },
-            text = { Text("纭畾瑕佸垹闄よ繖鏉¤褰曞悧锛") },
+            title = { Text("删除记录") },
+            text = { Text("确定要删除这条记录吗？") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -653,12 +653,12 @@ fun FoodRecordItem(
                         showDeleteDialog = false
                     }
                 ) {
-                    Text("鍒犻櫎", color = MaterialTheme.colorScheme.error)
+                    Text("删除", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("鍙栨秷")
+                    Text("取消")
                 }
             }
         )
@@ -682,13 +682,13 @@ fun EmptyState() {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "鏆傛棤璁板綍",
+            text = "暂无记录",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "鐐瑰嚮鍙充笅瑙掓寜閽坊鍔犻鐗",
+            text = "点击右下角按钮添加记录",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
         )
@@ -697,13 +697,13 @@ fun EmptyState() {
 
 private fun getMealTypeText(mealType: MealType): String {
     return when (mealType) {
-        MealType.BREAKFAST -> "鏃╅"
-        MealType.BREAKFAST_SNACK -> "鏃╁姞椁"
-        MealType.LUNCH -> "鍗堥"
-        MealType.LUNCH_SNACK -> "鍗堝姞椁"
-        MealType.DINNER -> "鏅氶"
-        MealType.DINNER_SNACK -> "鏅氬姞椁"
-        MealType.SNACK -> "鍔犻"
+        MealType.BREAKFAST -> "早餐"
+        MealType.BREAKFAST_SNACK -> "早餐加餐"
+        MealType.LUNCH -> "午餐"
+        MealType.LUNCH_SNACK -> "午餐加餐"
+        MealType.DINNER -> "晚餐"
+        MealType.DINNER_SNACK -> "晚餐加餐"
+        MealType.SNACK -> "加餐"
     }
 }
 
@@ -767,7 +767,7 @@ fun ExerciseRecordItem(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${record.durationMinutes}鍒嗛挓 路 ${record.caloriesBurned}鍗冨崱",
+                    text = "${record.durationMinutes}分钟 · ${record.caloriesBurned}千卡",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -787,8 +787,8 @@ fun ExerciseRecordItem(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("鍒犻櫎杩愬姩璁板綍") },
-            text = { Text("纭畾瑕佸垹闄よ繖鏉¤繍鍔ㄨ褰曞悧锛") },
+            title = { Text("删除运动记录") },
+            text = { Text("确定要删除这条运动记录吗？") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -796,17 +796,15 @@ fun ExerciseRecordItem(
                         showDeleteDialog = false
                     }
                 ) {
-                    Text("鍒犻櫎", color = MaterialTheme.colorScheme.error)
+                    Text("删除", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("鍙栨秷")
+                    Text("取消")
                 }
             }
         )
     }
 }
-
-
 

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.calorieai.app.service.ai.AIChatService
 import com.calorieai.app.utils.SecureLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -29,6 +30,7 @@ class AIChatViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(AIChatUiState())
     val uiState: StateFlow<AIChatUiState> = _uiState.asStateFlow()
+    private var persistSessionJob: Job? = null
 
     init {
         SecureLogger.event(TAG, "init")
@@ -83,10 +85,8 @@ class AIChatViewModel @Inject constructor(
     }
 
     fun loadSession(sessionId: String) {
-        // 保存当前会话
-        saveCurrentSession()
-        
         viewModelScope.launch {
+            saveCurrentSessionInternal(_uiState.value)
             SecureLogger.event(TAG, "load_session_start", "sessionId" to sessionId)
             val session = sessionUseCase.loadSession(sessionId)
             if (session != null) {
@@ -149,7 +149,16 @@ class AIChatViewModel @Inject constructor(
     }
 
     fun persistCurrentSession() {
-        saveCurrentSession()
+        persistCurrentSession {}
+    }
+
+    fun persistCurrentSession(onComplete: (String) -> Unit) {
+        persistSessionJob?.cancel()
+        val snapshot = _uiState.value
+        persistSessionJob = viewModelScope.launch {
+            saveCurrentSessionInternal(snapshot)
+            onComplete(snapshot.currentSessionId)
+        }
     }
 
     fun onInputChange(text: String) {

@@ -11,6 +11,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 
 class StatsSnapshotUseCaseTest {
     private val useCase = StatsSnapshotUseCase()
@@ -68,7 +69,8 @@ class StatsSnapshotUseCaseTest {
             weeklyGoalDays = 5
         )
 
-        assertEquals(140, snapshot.dailyMealRecords.size)
+        val expectedDays = ChronoUnit.DAYS.between(today.withDayOfMonth(1), today).toInt() + 1
+        assertEquals(expectedDays, snapshot.dailyMealRecords.size)
         assertTrue(snapshot.dailyMealRecords.any { it.level > 0 })
         assertTrue(snapshot.topFoodRows.isNotEmpty())
         assertEquals("Rice", snapshot.topFoodRows.first().foodName)

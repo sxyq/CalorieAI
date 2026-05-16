@@ -31,10 +31,6 @@ class FavoriteRecipeRepository @Inject constructor(
         favoriteRecipeDao.delete(recipe)
     }
 
-    suspend fun deleteBySourceRecordId(sourceRecordId: String) {
-        favoriteRecipeDao.deleteBySourceRecordId(sourceRecordId)
-    }
-
     suspend fun deleteAll() {
         favoriteRecipeDao.deleteAll()
     }

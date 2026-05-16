@@ -5,7 +5,6 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.calorieai.app.data.model.AIConfig
 import com.calorieai.app.data.model.AITokenUsage
 import com.calorieai.app.data.model.APICallRecord
 import com.calorieai.app.data.model.Converters
@@ -20,12 +19,13 @@ import com.calorieai.app.data.model.WeightRecord
 import com.calorieai.app.data.local.dao.WaterRecordDao
 import com.calorieai.app.data.local.dao.WeightRecordDao
 import com.calorieai.app.data.model.AIChatHistory
+import com.calorieai.app.data.local.entity.AIConfigEntity
 
 @Database(
     entities = [
         FoodRecord::class,
         UserSettings::class,
-        AIConfig::class,
+        AIConfigEntity::class,
         ExerciseRecord::class,
         AITokenUsage::class,
         WeightRecord::class,

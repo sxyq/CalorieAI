@@ -31,6 +31,8 @@ import com.calorieai.app.utils.HistoryStats
 import com.calorieai.app.utils.TodayStats
 import java.time.LocalDate
 
+private const val OVERVIEW_HEATMAP_FIXED_WEEKS = 12
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OverviewScreen(
@@ -49,7 +51,7 @@ fun OverviewScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "姒傝",
+                        text = "概览",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -75,7 +77,7 @@ fun OverviewScreen(
                     isDark = isDark,
                     totalCalories = uiState.lastMonthSummary?.totalCalories ?: 0,
                     exerciseCalories = uiState.lastMonthSummary?.totalExerciseCalories ?: 0,
-                    weightChange = null
+                    weightChange = uiState.lastMonthSummary?.weightChange
                 )
             }
             item {
@@ -96,13 +98,6 @@ fun OverviewScreen(
                     weeklyActiveDays = uiState.weeklyActiveDays,
                     weeklyRecordCount = uiState.weeklyRecordCount,
                     achievements = uiState.achievementBadges
-                )
-            }
-            item {
-                FoodRecordInfoTablesCard(
-                    isDark = isDark,
-                    tableRows = uiState.foodRecordTableRows,
-                    topFoods = uiState.topFoodRows
                 )
             }
             item {
@@ -130,11 +125,19 @@ private fun HeatmapCard(
 ) {
     val totalRecords = uiState.todayStats?.recordCount ?: 0
     val dailyMealRecords = uiState.dailyMealRecords
-    val heatmapData = remember(dailyMealRecords, totalRecords) {
+    val heatmapWeeks = OVERVIEW_HEATMAP_FIXED_WEEKS
+    val today = LocalDate.now()
+    val heatmapWindowStart = remember(today, heatmapWeeks) {
+        calculateFixedWeeksAlignedWindowStart(today = today, weeks = heatmapWeeks)
+    }
+    val heatmapData = remember(dailyMealRecords, totalRecords, heatmapWindowStart, today) {
         StatsHeatmapMapper.toHeatmapDataWithTodayOverride(
             dailyMealRecords = dailyMealRecords,
             todayRecordCount = totalRecords
-        )
+        ).filter { it.date in heatmapWindowStart..today }
+    }
+    val heatmapRangeLabel = remember(heatmapWindowStart, today) {
+        "${heatmapWindowStart.monthValue}/${heatmapWindowStart.dayOfMonth} - ${today.monthValue}/${today.dayOfMonth}"
     }
 
     val activeDays = uiState.monthlyActiveDays
@@ -158,27 +161,40 @@ private fun HeatmapCard(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top
             ) {
-                Text(
-                    text = "鏈湀娲昏穬搴",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                HeatmapLegend(
-                    labels = listOf("None", "Full"),
-                    isDark = isDark
-                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "本月活跃度",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "12周 · $heatmapRangeLabel",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Box(modifier = Modifier.padding(top = 2.dp)) {
+                    HeatmapLegend(
+                        labels = listOf("None", "Full"),
+                        isDark = isDark
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             CompactHeatmap(
                 data = heatmapData,
-                weeks = 20,
-                cellSize = 14,
+                weeks = heatmapWeeks,
+                cellSize = 13,
+                weekSpacing = 3,
+                allowHorizontalScroll = false,
                 isDark = isDark,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -189,12 +205,21 @@ private fun HeatmapCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                HeatmapStat("杩炵画鎵撳崱", "${activeDays}澶")
-                HeatmapStat("浠婃棩璁板綍", "${totalRecords}鏉")
-                HeatmapStat("娲昏穬搴", "${activityRate}%")
+                HeatmapStat("连续打卡", "${activeDays}天")
+                HeatmapStat("今日记录", "${totalRecords}条")
+                HeatmapStat("活跃度", "${activityRate}%")
             }
         }
     }
+}
+
+private fun calculateFixedWeeksAlignedWindowStart(
+    today: LocalDate = LocalDate.now(),
+    weeks: Int = OVERVIEW_HEATMAP_FIXED_WEEKS
+): LocalDate {
+    val safeWeeks = weeks.coerceAtLeast(1)
+    val sundayOfCurrentWeek = today.minusDays((today.dayOfWeek.value % 7).toLong())
+    return sundayOfCurrentWeek.minusWeeks((safeWeeks - 1).toLong())
 }
 
 @Composable
@@ -235,12 +260,12 @@ private fun MonthlySummaryCard(
             modifier = Modifier.padding(20.dp)
         ) {
             Text(
-                text = "鏈湀鎬荤粨",
+                text = "本月总结",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "缁熻鑼冨洿锛?{today.withDayOfMonth(1)} 鑷?$today",
+                text = "统计范围：${today.withDayOfMonth(1)} 至 $today",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -255,21 +280,21 @@ private fun MonthlySummaryCard(
                     isDark = isDark,
                     icon = Icons.Default.LocalFireDepartment,
                     value = if (totalCalories > 0) String.format("%,d", totalCalories) else "--",
-                    label = "鎬荤儹閲?鍗冨崱)",
+                    label = "总热量(千卡)",
                     color = MaterialTheme.colorScheme.primary
                 )
                 SummaryItem(
                     isDark = isDark,
                     icon = Icons.Default.DirectionsRun,
                     value = if (exerciseCalories > 0) String.format("%,d", exerciseCalories) else "--",
-                    label = "杩愬姩娑堣€?鍗冨崱)",
+                    label = "运动消耗(千卡)",
                     color = MaterialTheme.colorScheme.secondary
                 )
                 SummaryItem(
                     isDark = isDark,
                     icon = Icons.Default.TrendingDown,
                     value = weightChange?.let { String.format("%.1f", it) } ?: "--",
-                    label = "浣撻噸鍙樺寲(kg)",
+                    label = "体重变化(kg)",
                     color = MaterialTheme.colorScheme.tertiary
                 )
             }
@@ -330,7 +355,7 @@ private fun DataOverviewGrid(
                     isDark = isDark,
                     icon = Icons.Default.Restaurant,
                     value = if (avgCalories > 0) String.format("%,d", avgCalories) else "--",
-                    label = "浠婃棩鎽勫叆",
+                    label = "今日摄入",
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
@@ -338,7 +363,7 @@ private fun DataOverviewGrid(
                     isDark = isDark,
                     icon = Icons.Default.WaterDrop,
                     value = if (avgWater > 0) String.format("%,d", avgWater) else "--",
-                    label = "浠婃棩楗按(ml)",
+                    label = "今日饮水(ml)",
                     color = Color(0xFF26C6DA),
                     modifier = Modifier.weight(1f)
                 )
@@ -348,7 +373,7 @@ private fun DataOverviewGrid(
                     isDark = isDark,
                     icon = Icons.Default.MonitorWeight,
                     value = currentWeight?.let { String.format("%.1f", it) } ?: "--",
-                    label = "褰撳墠浣撻噸(kg)",
+                    label = "当前体重(kg)",
                     color = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.weight(1f)
                 )
@@ -356,7 +381,7 @@ private fun DataOverviewGrid(
                     isDark = isDark,
                     icon = Icons.Default.Timer,
                     value = if (avgExercise > 0) "$avgExercise" else "--",
-                    label = "浠婃棩杩愬姩(鍒嗛挓)",
+                    label = "今日运动(分钟)",
                     color = MaterialTheme.colorScheme.tertiary,
                     modifier = Modifier.weight(1f)
                 )
@@ -367,7 +392,7 @@ private fun DataOverviewGrid(
                     isDark = isDark,
                     icon = Icons.Default.Restaurant,
                     value = if (avgCalories > 0) String.format("%,d", avgCalories) else "--",
-                    label = "浠婃棩鎽勫叆",
+                    label = "今日摄入",
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
@@ -375,7 +400,7 @@ private fun DataOverviewGrid(
                     isDark = isDark,
                     icon = Icons.Default.MonitorWeight,
                     value = currentWeight?.let { String.format("%.1f", it) } ?: "--",
-                    label = "褰撳墠浣撻噸(kg)",
+                    label = "当前体重(kg)",
                     color = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.weight(1f)
                 )
@@ -384,7 +409,7 @@ private fun DataOverviewGrid(
                 isDark = isDark,
                 icon = Icons.Default.Timer,
                 value = if (avgExercise > 0) "$avgExercise" else "--",
-                label = "浠婃棩杩愬姩(鍒嗛挓)",
+                label = "今日运动(分钟)",
                 color = MaterialTheme.colorScheme.tertiary,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -458,12 +483,12 @@ private fun CheckInIncentiveCard(
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                text = "杩炵画璁板綍鎴愰暱",
+                text = "连续记录成长",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "鏈懆鐩爣 ${weeklyActiveDays}/${weeklyGoalDays} 澶?路 宸茶繛缁褰?${streakDays} 澶?路 鏈懆璁板綍 ${weeklyRecordCount} 鏉",
+                text = "本周目标 ${weeklyActiveDays}/${weeklyGoalDays} 天 · 已连续记录 ${streakDays} 天 · 本周记录 ${weeklyRecordCount} 条",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -479,7 +504,7 @@ private fun CheckInIncentiveCard(
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
-                        text = if (badge.achieved) "宸茶揪鎴?(${badge.progress})" else "杩涘害 ${badge.progress}",
+                        text = if (badge.achieved) "已达成(${badge.progress})" else "进度 ${badge.progress}",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (badge.achieved) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -505,13 +530,13 @@ private fun FoodRecordInfoTablesCard(
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                text = "楗璁板綍淇℃伅鏍",
+                text = "饮食记录信息表",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
 
             Text(
-                text = "琛?锛氬綋鏃ラ娆¤褰曟眹鎬",
+                text = "表1：当日餐次记录汇总",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -520,7 +545,7 @@ private fun FoodRecordInfoTablesCard(
             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
 
             Text(
-                text = "琛?锛氳繎14澶╅珮棰戦鐗",
+                text = "表2：近14天高频食物",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -544,7 +569,7 @@ private fun RecipeDataOverviewCard(
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                text = "鑿滆氨鐩稿叧缁熻",
+                text = "菜谱相关统计",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -554,7 +579,7 @@ private fun RecipeDataOverviewCard(
                 TableBodyCell("收藏菜谱：${recipeStats.favoriteCount}条", Modifier.weight(1f))
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                TableBodyCell("浣跨敤鎬绘鏁帮細${recipeStats.favoriteUseCount}娆", Modifier.weight(1f))
+                TableBodyCell("复用收藏：${recipeStats.favoriteUseCount}次", Modifier.weight(1f))
                 TableBodyCell("即将过期：${recipeStats.pantryExpiringSoonCount}项", Modifier.weight(1f))
             }
 
@@ -579,14 +604,14 @@ private fun FoodRecordSummaryTable(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth()) {
-            TableHeaderCell("椁愭", Modifier.weight(1.2f))
-            TableHeaderCell("鏉℃暟", Modifier.weight(0.8f))
-            TableHeaderCell("鐑噺", Modifier.weight(1f))
-            TableHeaderCell("铔嬬櫧", Modifier.weight(1f))
+            TableHeaderCell("餐次", Modifier.weight(1.2f))
+            TableHeaderCell("条数", Modifier.weight(0.8f))
+            TableHeaderCell("热量", Modifier.weight(1f))
+            TableHeaderCell("蛋白", Modifier.weight(1f))
         }
         if (rows.isEmpty()) {
             Text(
-                text = "褰撴棩鏆傛棤楗璁板綍",
+                text = "当日暂无饮食记录",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -609,14 +634,14 @@ private fun TopFoodTable(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth()) {
-            TableHeaderCell("椋熺墿", Modifier.weight(1.6f))
-            TableHeaderCell("娆℃暟", Modifier.weight(0.8f))
-            TableHeaderCell("鎬荤儹閲", Modifier.weight(1f))
-            TableHeaderCell("鏈€杩", Modifier.weight(1f))
+            TableHeaderCell("食物", Modifier.weight(1.6f))
+            TableHeaderCell("次数", Modifier.weight(0.8f))
+            TableHeaderCell("热量", Modifier.weight(1f))
+            TableHeaderCell("最近", Modifier.weight(1f))
         }
         if (rows.isEmpty()) {
             Text(
-                text = "杩?4澶╂殏鏃犲彲缁熻椋熺墿",
+                text = "近14天暂无可统计食物",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -698,8 +723,8 @@ private fun QuickAccessCard(
         ) {
             QuickAccessItem(
                 icon = Icons.Default.BarChart,
-                title = "璇︾粏缁熻",
-                subtitle = "鏌ョ湅瀹屾暣鏁版嵁鍒嗘瀽",
+                title = "详细统计",
+                subtitle = "查看完整数据分析",
                 onClick = onNavigateToStats
             )
             Divider(
@@ -708,8 +733,8 @@ private fun QuickAccessCard(
             )
             QuickAccessItem(
                 icon = Icons.Default.History,
-                title = "浣撻噸鍘嗗彶",
-                subtitle = "杩借釜浣撻噸鍙樺寲瓒嬪娍",
+                title = "体重历史",
+                subtitle = "追踪体重变化趋势",
                 onClick = onNavigateToWeightHistory
             )
             Divider(
@@ -718,8 +743,8 @@ private fun QuickAccessCard(
             )
             QuickAccessItem(
                 icon = Icons.Default.Flag,
-                title = "鍋ュ悍鐩爣",
-                subtitle = "绠＄悊鎮ㄧ殑鍋ュ悍璁″垝",
+                title = "健康目标",
+                subtitle = "管理您的健康计划",
                 onClick = onNavigateToGoals
             )
         }
@@ -779,4 +804,3 @@ private fun QuickAccessItem(
         )
     }
 }
-

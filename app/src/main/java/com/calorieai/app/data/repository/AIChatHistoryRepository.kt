@@ -27,15 +27,9 @@ class AIChatHistoryRepository @Inject constructor(
         }
     }
 
-    suspend fun getAllRawHistory(): List<AIChatHistory> {
-        return aiChatHistoryDao.getAllHistoryOnce()
-    }
-
     suspend fun getHistoryBySessionId(sessionId: String): Pair<AIChatHistory?, List<ChatMessageData>> {
         val history = aiChatHistoryDao.getHistoryBySessionId(sessionId)
-        val messages = history?.let {
-            json.decodeFromString<List<ChatMessageData>>(it.messages)
-        } ?: emptyList()
+        val messages = history?.let { parseMessages(it.messages) } ?: emptyList()
         return history to messages
     }
 
@@ -86,10 +80,6 @@ class AIChatHistoryRepository @Inject constructor(
         aiChatHistoryDao.deleteBySessionId(sessionId)
     }
 
-    suspend fun deleteAllHistory() {
-        aiChatHistoryDao.deleteAll()
-    }
-
     suspend fun togglePin(sessionId: String) {
         val history = aiChatHistoryDao.getHistoryBySessionId(sessionId)
         history?.let {
@@ -98,12 +88,8 @@ class AIChatHistoryRepository @Inject constructor(
         }
     }
 
-    suspend fun getRecentSessions(limit: Int): List<ChatSessionSummary> {
-        return aiChatHistoryDao.getRecentHistory(limit).map { it.toSummary() }
-    }
-
     private fun AIChatHistory.toSummary(): ChatSessionSummary {
-        val messages = json.decodeFromString<List<ChatMessageData>>(this.messages)
+        val messages = parseMessages(this.messages)
         val lastMessage = messages.lastOrNull()?.content?.take(30) ?: "无消息"
         
         return ChatSessionSummary(
@@ -114,5 +100,9 @@ class AIChatHistoryRepository @Inject constructor(
             messageCount = messageCount,
             isPinned = isPinned
         )
+    }
+
+    private fun parseMessages(rawMessages: String): List<ChatMessageData> {
+        return json.decodeFromString(rawMessages)
     }
 }

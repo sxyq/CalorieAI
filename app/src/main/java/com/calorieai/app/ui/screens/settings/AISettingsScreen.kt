@@ -2,6 +2,8 @@ package com.calorieai.app.ui.screens.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,12 +20,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calorieai.app.data.model.AIConfig
 import com.calorieai.app.data.model.AIProtocol
 import com.calorieai.app.service.voice.VoiceModelManager
 import com.calorieai.app.ui.components.TokenUsageCard
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.ui.components.interactiveScale
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -36,7 +37,7 @@ fun AISettingsScreen(
     onNavigateToCallStats: () -> Unit,
     viewModel: AISettingsViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val visibleConfigs = remember(uiState.configs) {
         uiState.configs.filterNot { config ->
@@ -58,10 +59,10 @@ fun AISettingsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("AI閰嶇疆") },
+                title = { Text("AI配置") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "杩斿洖")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
                 }
             )
@@ -77,7 +78,7 @@ fun AISettingsScreen(
         ) {
             item { RateLimitInfoCard() }
             item {
-                VoiceModelCard(
+                ResponsiveVoiceModelCard(
                     isInstalled = uiState.isVoiceModelInstalled,
                     installedLabel = uiState.installedVoiceModelLabel,
                     isDownloading = uiState.isVoiceModelDownloading,
@@ -93,12 +94,20 @@ fun AISettingsScreen(
             item { TokenUsageCard(stats = uiState.tokenUsageStats) }
             item {
                 ModelCallStatsEntryCard(
-                    onClick = onNavigateToCallStats
+                    onClick = {
+                        runCatching(onNavigateToCallStats).onFailure {
+                            viewModel.showTransientMessage("打开模型调用统计失败")
+                        }
+                    }
                 )
             }
             item {
                 AddConfigButton(
-                    onClick = { onNavigateToDetail(null) }
+                    onClick = {
+                        runCatching { onNavigateToDetail(null) }.onFailure {
+                            viewModel.showTransientMessage("打开 AI 配置详情失败")
+                        }
+                    }
                 )
             }
 
@@ -134,7 +143,11 @@ fun AISettingsScreen(
                         config = config,
                         isDefault = isDefault,
                         isPreset = config.isPreset,
-                        onClick = { onNavigateToDetail(config.id) },
+                        onClick = {
+                            runCatching { onNavigateToDetail(config.id) }.onFailure {
+                                viewModel.showTransientMessage("打开 ${config.name} 失败")
+                            }
+                        },
                         onSetDefault = { viewModel.setDefaultConfig(config.id) },
                         onDelete = { viewModel.deleteConfig(config) }
                     )
@@ -289,6 +302,158 @@ private fun VoiceModelCard(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ResponsiveVoiceModelCard(
+    isInstalled: Boolean,
+    installedLabel: String?,
+    isDownloading: Boolean,
+    isRemoving: Boolean,
+    progressPercent: Int,
+    progressMessage: String?,
+    stage: VoiceModelManager.OperationStage,
+    onDownload: (VoiceModelManager.VoiceModelPackage) -> Unit,
+    onDelete: () -> Unit,
+    onRefresh: () -> Unit
+) {
+    var showPicker by remember { mutableStateOf(false) }
+    val isBusy = isDownloading || isRemoving
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .liquidGlass(
+                shape = RoundedCornerShape(16.dp),
+                tint = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+            )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.GraphicEq,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "离线语音模型",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Text(
+                text = if (isInstalled) {
+                    "状态：已安装（可离线语音输入）\n${installedLabel ?: ""}"
+                } else {
+                    "状态：未安装，请先下载模型后再使用离线语音输入"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (stage != VoiceModelManager.OperationStage.IDLE || progressPercent > 0 || !progressMessage.isNullOrBlank()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    LinearProgressIndicator(
+                        progress = { progressPercent.coerceIn(0, 100) / 100f },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        text = progressMessage ?: "处理中 ${progressPercent}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Button(
+                onClick = { showPicker = true },
+                enabled = !isBusy,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (isDownloading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("下载中 ${progressPercent}%")
+                } else {
+                    Text(if (isInstalled) "重新下载语音模型" else "下载语音模型")
+                }
+            }
+
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                maxItemsInEachRow = 2
+            ) {
+                OutlinedButton(
+                    onClick = onDelete,
+                    enabled = !isBusy && isInstalled,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (isRemoving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("删除中")
+                    } else {
+                        Text("删除模型")
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = onRefresh,
+                    enabled = !isBusy,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("刷新状态")
+                }
+            }
+        }
+    }
+
+    if (showPicker) {
+        AlertDialog(
+            onDismissRequest = { showPicker = false },
+            title = { Text("选择语音模型包") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    VoiceModelOptionItem(
+                        title = VoiceModelManager.VoiceModelPackage.LARGE_CN.displayName,
+                        subtitle = "${VoiceModelManager.VoiceModelPackage.LARGE_CN.sizeHint}，识别更准",
+                        onClick = {
+                            showPicker = false
+                            onDownload(VoiceModelManager.VoiceModelPackage.LARGE_CN)
+                        }
+                    )
+                    VoiceModelOptionItem(
+                        title = VoiceModelManager.VoiceModelPackage.SMALL_CN.displayName,
+                        subtitle = "${VoiceModelManager.VoiceModelPackage.SMALL_CN.sizeHint}，下载更快",
+                        onClick = {
+                            showPicker = false
+                            onDownload(VoiceModelManager.VoiceModelPackage.SMALL_CN)
+                        }
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showPicker = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+}
+
 @Composable
 private fun VoiceModelOptionItem(
     title: String,
@@ -350,13 +515,13 @@ private fun ModelCallStatsEntryCard(
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "妯″瀷璋冪敤缁熻",
+                    text = "模型调用统计",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
                 Text(
-                    text = "鏌ョ湅 Prompt 涓庡洖澶嶇殑璋冪敤鏁版嵁",
+                    text = "查看 Prompt 与回复的调用数据",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                 )
@@ -384,14 +549,14 @@ private fun AIPersonalizationCard(
 ) {
     var modeExpanded by remember { mutableStateOf(false) }
     val modeOptions = listOf(
-        "GENERAL" to "閫氱敤鍋ュ悍",
-        "DIABETES" to "鎺х硸",
-        "GOUT" to "鐥涢",
-        "PREGNANCY" to "瀛曟湡",
-        "CHILD" to "鍎跨",
-        "FITNESS" to "鍋ヨ韩"
+        "GENERAL" to "通用健康",
+        "DIABETES" to "控糖",
+        "GOUT" to "痛风",
+        "PREGNANCY" to "孕期",
+        "CHILD" to "儿童",
+        "FITNESS" to "健身"
     )
-    val selectedModeLabel = modeOptions.firstOrNull { it.first == uiState.specialPopulationMode }?.second ?: "閫氱敤鍋ュ悍"
+    val selectedModeLabel = modeOptions.firstOrNull { it.first == uiState.specialPopulationMode }?.second ?: "通用健康"
 
     Box(
         modifier = Modifier
@@ -403,12 +568,12 @@ private fun AIPersonalizationCard(
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
-                text = "AI涓€у寲蹇屽彛绯荤粺",
+                text = "AI个性化偏好设置",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "杩欎簺閰嶇疆浼氫綔涓篈I鎻愮ず璇嶇殑涓€閮ㄥ垎锛岀敤浜庡懆璁″垝銆佷笅涓€椁愭帹鑽愬拰鍋ュ悍鍜ㄨ銆",
+                text = "这些配置会作为 AI 分析与建议的上下文，配置越清晰，推荐越贴近你的目标。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -416,21 +581,21 @@ private fun AIPersonalizationCard(
             OutlinedTextField(
                 value = uiState.dietaryAllergens,
                 onValueChange = onDietaryAllergensChange,
-                label = { Text("杩囨晱鍘?蹇屽彛锛堥€楀彿鍒嗛殧锛") },
+                label = { Text("过敏/忌口（逗号分隔）") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
             OutlinedTextField(
                 value = uiState.flavorPreferences,
                 onValueChange = onFlavorPreferencesChange,
-                label = { Text("鍙ｅ懗鍋忓ソ锛堥€楀彿鍒嗛殧锛") },
+                label = { Text("口味偏好（逗号分隔）") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
             OutlinedTextField(
                 value = uiState.budgetPreference,
                 onValueChange = onBudgetPreferenceChange,
-                label = { Text("棰勭畻鍋忓ソ锛堝锛氱粡娴?鍧囪　/楂樺搧璐級") },
+                label = { Text("预算偏好（如：经济/均衡/高品质）") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -439,14 +604,14 @@ private fun AIPersonalizationCard(
                 OutlinedTextField(
                     value = uiState.maxCookingMinutes,
                     onValueChange = onMaxCookingMinutesChange,
-                    label = { Text("鐑归オ鏃堕暱涓婇檺(鍒嗛挓)") },
+                    label = { Text("烹饪时长上限(分钟)") },
                     modifier = Modifier.weight(1f),
                     singleLine = true
                 )
                 OutlinedTextField(
                     value = uiState.weeklyRecordGoalDays,
                     onValueChange = onWeeklyRecordGoalDaysChange,
-                    label = { Text("姣忓懆璁板綍鐩爣(澶?") },
+                    label = { Text("每周记录目标(天)") },
                     modifier = Modifier.weight(1f),
                     singleLine = true
                 )
@@ -460,7 +625,7 @@ private fun AIPersonalizationCard(
                     value = selectedModeLabel,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("鐗瑰畾浜虹兢妯″紡") },
+                    label = { Text("特定人群模式") },
                     modifier = Modifier
                         .menuAnchor()
                         .fillMaxWidth(),
@@ -488,7 +653,7 @@ private fun AIPersonalizationCard(
                 onClick = onSave,
                 modifier = Modifier.align(Alignment.End)
             ) {
-                Text("淇濆瓨涓€у寲绾︽潫")
+                Text("保存个性化偏好")
             }
         }
     }
@@ -532,7 +697,7 @@ fun AddConfigButton(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "娣诲姞鏂扮殑AI閰嶇疆",
+                text = "添加新的AI配置",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -614,7 +779,7 @@ fun AIConfigItem(
                         if (isDefault) {
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "榛樿",
+                                text = "默认",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier
@@ -646,7 +811,7 @@ fun AIConfigItem(
                     IconButton(onClick = { showDeleteDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
-                            contentDescription = "鏇村"
+                            contentDescription = "更多"
                         )
                     }
                 }
@@ -669,7 +834,7 @@ fun AIConfigItem(
                     onClick = onSetDefault,
                     modifier = Modifier.align(Alignment.End)
                 ) {
-                    Text("璁句负榛樿")
+                    Text("设为默认")
                 }
             }
         }
@@ -679,7 +844,7 @@ fun AIConfigItem(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("鍒犻櫎閰嶇疆") },
+            title = { Text("删除配置") },
             text = { Text("确定要删除 \"${config.name}\" 吗？") },
             confirmButton = {
                 TextButton(
@@ -688,12 +853,12 @@ fun AIConfigItem(
                         showDeleteDialog = false
                     }
                 ) {
-                    Text("鍒犻櫎", color = MaterialTheme.colorScheme.error)
+                    Text("删除", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("鍙栨秷")
+                    Text("取消")
                 }
             }
         )
@@ -726,7 +891,7 @@ fun RateLimitInfoCard() {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "API璋冪敤闄愬埗",
+                    text = "API调用限制",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onTertiaryContainer
@@ -736,17 +901,17 @@ fun RateLimitInfoCard() {
             Spacer(modifier = Modifier.height(8.dp))
             
             Text(
-                text = "鈥?榛樿API姣忓ぉ闄愬埗50娆¤皟鐢",
+                text = "• 默认 API 每天限制 50 次调用",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onTertiaryContainer
             )
             Text(
-                text = "鈥?瓒呰繃闄愬埗鍚庨渶绛夊緟娆℃棩閲嶇疆",
+                text = "• 超过限制后需等待次日重置",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onTertiaryContainer
             )
             Text(
-                text = "鈥?寤鸿閰嶇疆鑷繁鐨凙PI瀵嗛挜浠ヨ幏寰楁洿楂橀搴",
+                text = "• 建议配置自己的 API 密钥以获得更高额度",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onTertiaryContainer
             )
@@ -773,13 +938,13 @@ fun EmptyConfigState() {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "鏆傛棤AI閰嶇疆",
+            text = "暂无AI配置",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "鐐瑰嚮涓婃柟鎸夐挳娣诲姞閰嶇疆",
+            text = "点击上方按钮添加配置",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
         )

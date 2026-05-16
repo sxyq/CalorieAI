@@ -1,31 +1,34 @@
 package com.calorieai.app.data.local
 
 import androidx.room.*
-import com.calorieai.app.data.model.AIConfig
+import com.calorieai.app.data.local.entity.AIConfigEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AIConfigDao {
     @Query("SELECT * FROM ai_configs")
-    fun getAllConfigs(): Flow<List<AIConfig>>
+    fun getAllConfigs(): Flow<List<AIConfigEntity>>
+
+    @Query("SELECT * FROM ai_configs")
+    suspend fun getAllConfigsOnce(): List<AIConfigEntity>
 
     @Query("SELECT * FROM ai_configs WHERE isDefault = 1 LIMIT 1")
-    fun getDefaultConfig(): Flow<AIConfig?>
+    fun getDefaultConfig(): Flow<AIConfigEntity?>
 
     @Query("SELECT * FROM ai_configs WHERE id = :id")
-    suspend fun getConfigById(id: String): AIConfig?
+    suspend fun getConfigById(id: String): AIConfigEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertConfig(config: AIConfig)
+    suspend fun insertConfig(config: AIConfigEntity)
 
     @Query("DELETE FROM ai_configs")
     suspend fun deleteAll()
 
     @Update
-    suspend fun updateConfig(config: AIConfig)
+    suspend fun updateConfig(config: AIConfigEntity)
 
     @Delete
-    suspend fun deleteConfig(config: AIConfig)
+    suspend fun deleteConfig(config: AIConfigEntity)
 
     @Query("DELETE FROM ai_configs WHERE id = :id")
     suspend fun deleteConfigById(id: String)

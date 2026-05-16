@@ -16,8 +16,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calorieai.app.ui.components.EnumSelectorCard
-import com.calorieai.app.ui.components.SettingsSection
-import com.calorieai.app.ui.components.SettingsSwitchItem
 import com.calorieai.app.ui.components.SettingsTopAppBar
 import com.calorieai.app.ui.feedback.rememberAppHapticController
 

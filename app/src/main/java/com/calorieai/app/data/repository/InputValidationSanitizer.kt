@@ -25,6 +25,10 @@ private fun sanitize(raw: String?, max: Int): String? {
     return normalized?.takeIf { it.isNotBlank() }
 }
 
+private fun sanitizeOrDefault(raw: String?, max: Int, default: String): String {
+    return sanitize(raw, max) ?: default
+}
+
 private fun Float.safe(min: Float, max: Float): Float {
     if (isNaN() || isInfinite()) return min
     return coerceIn(min, max)
@@ -122,9 +126,9 @@ fun sanitizeAIConfig(config: AIConfig): AIConfig {
     return config.copy(
         name = sanitize(config.name, MAX_NAME) ?: "未命名配置",
         icon = sanitize(config.icon, MAX_SHORT_TEXT) ?: config.icon.take(MAX_SHORT_TEXT),
-        apiUrl = sanitize(config.apiUrl, MAX_URL) ?: "",
-        apiKey = sanitize(config.apiKey, MAX_API_KEY) ?: "",
-        modelId = sanitize(config.modelId, MAX_MEDIUM_TEXT) ?: ""
+        apiUrl = sanitizeOrDefault(config.apiUrl, MAX_URL, ""),
+        apiKey = sanitizeOrDefault(config.apiKey, MAX_API_KEY, ""),
+        modelId = sanitizeOrDefault(config.modelId, MAX_MEDIUM_TEXT, "")
     )
 }
 
@@ -137,23 +141,23 @@ fun sanitizeUserSettings(settings: UserSettings): UserSettings {
         dietaryAllergens = sanitize(settings.dietaryAllergens, MAX_MEDIUM_TEXT),
         flavorPreferences = sanitize(settings.flavorPreferences, MAX_MEDIUM_TEXT),
         budgetPreference = sanitize(settings.budgetPreference, MAX_SHORT_TEXT),
-        specialPopulationMode = sanitize(settings.specialPopulationMode, MAX_SHORT_TEXT) ?: "GENERAL",
-        breakfastReminderTime = sanitize(settings.breakfastReminderTime, 5) ?: "08:00",
-        lunchReminderTime = sanitize(settings.lunchReminderTime, 5) ?: "12:00",
-        dinnerReminderTime = sanitize(settings.dinnerReminderTime, 5) ?: "18:00",
-        waterReminderTimesJson = sanitize(settings.waterReminderTimesJson, MAX_JSON_TEXT) ?: "[]",
-        waterReminderWindowStart = sanitize(settings.waterReminderWindowStart, 5) ?: "09:00",
-        waterReminderWindowEnd = sanitize(settings.waterReminderWindowEnd, 5) ?: "21:00",
+        specialPopulationMode = sanitizeOrDefault(settings.specialPopulationMode, MAX_SHORT_TEXT, "GENERAL"),
+        breakfastReminderTime = sanitizeOrDefault(settings.breakfastReminderTime, 5, "08:00"),
+        lunchReminderTime = sanitizeOrDefault(settings.lunchReminderTime, 5, "12:00"),
+        dinnerReminderTime = sanitizeOrDefault(settings.dinnerReminderTime, 5, "18:00"),
+        waterReminderTimesJson = sanitizeOrDefault(settings.waterReminderTimesJson, MAX_JSON_TEXT, "[]"),
+        waterReminderWindowStart = sanitizeOrDefault(settings.waterReminderWindowStart, 5, "09:00"),
+        waterReminderWindowEnd = sanitizeOrDefault(settings.waterReminderWindowEnd, 5, "21:00"),
         selectedAIPresetId = sanitize(settings.selectedAIPresetId, MAX_SHORT_TEXT),
         customAIEndpoint = sanitize(settings.customAIEndpoint, MAX_URL),
         customAIModel = sanitize(settings.customAIModel, MAX_MEDIUM_TEXT),
-        themeMode = sanitize(settings.themeMode, MAX_SHORT_TEXT) ?: "SYSTEM",
-        fontSize = sanitize(settings.fontSize, MAX_SHORT_TEXT) ?: "MEDIUM",
-        feedbackType = sanitize(settings.feedbackType, MAX_SHORT_TEXT) ?: "BOTH",
-        backgroundBehavior = sanitize(settings.backgroundBehavior, MAX_SHORT_TEXT) ?: "STANDARD",
-        startupPage = sanitize(settings.startupPage, MAX_SHORT_TEXT) ?: "HOME",
+        themeMode = sanitizeOrDefault(settings.themeMode, MAX_SHORT_TEXT, "SYSTEM"),
+        fontSize = sanitizeOrDefault(settings.fontSize, MAX_SHORT_TEXT, "MEDIUM"),
+        feedbackType = sanitizeOrDefault(settings.feedbackType, MAX_SHORT_TEXT, "BOTH"),
+        backgroundBehavior = sanitizeOrDefault(settings.backgroundBehavior, MAX_SHORT_TEXT, "STANDARD"),
+        startupPage = sanitizeOrDefault(settings.startupPage, MAX_SHORT_TEXT, "HOME"),
         lastBackupTime = sanitize(settings.lastBackupTime, MAX_SHORT_TEXT),
-        wallpaperType = sanitize(settings.wallpaperType, MAX_SHORT_TEXT) ?: "SOLID",
+        wallpaperType = sanitizeOrDefault(settings.wallpaperType, MAX_SHORT_TEXT, "SOLID"),
         wallpaperColor = sanitize(settings.wallpaperColor, MAX_SHORT_TEXT),
         wallpaperGradientStart = sanitize(settings.wallpaperGradientStart, MAX_SHORT_TEXT),
         wallpaperGradientEnd = sanitize(settings.wallpaperGradientEnd, MAX_SHORT_TEXT),

@@ -8,10 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -173,9 +170,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     Surface(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .windowInsetsPadding(WindowInsets.navigationBars),
+                        modifier = Modifier.fillMaxSize(),
                         color = if (wallpaperEnabled) {
                             Color.Transparent
                         } else {
@@ -224,19 +219,19 @@ private fun AppUpdateDialog(
     AlertDialog(
         onDismissRequest = onLater,
         title = {
-            Text("鍙戠幇鏂扮増鏈?${updateInfo.latestVersionName}")
+            Text("发现新版本 ${updateInfo.latestVersionName}")
         },
         text = {
             Text(updateInfo.changelog)
         },
         confirmButton = {
             TextButton(onClick = onDownload) {
-                Text("绔嬪嵆涓嬭浇")
+                Text("立即下载")
             }
         },
         dismissButton = {
             TextButton(onClick = onLater) {
-                Text("绋嶅悗")
+                Text("稍后")
             }
         }
     )
@@ -321,4 +316,3 @@ private fun parseHexColor(value: String?): Color? {
         null
     }
 }
-

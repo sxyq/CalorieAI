@@ -9,6 +9,8 @@ import com.calorieai.app.data.repository.AIConfigRepository
 import com.calorieai.app.data.repository.FoodRecordRepository
 import com.calorieai.app.data.repository.UserSettingsRepository
 import com.calorieai.app.service.ai.common.AIApiClient
+import com.calorieai.app.service.ai.common.AIResponseParsing
+import com.calorieai.app.service.ai.common.ParsedUsage
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -35,12 +37,6 @@ class MealPlanService @Inject constructor(
     private val gson = Gson()
     private val cacheDir = File(context.cacheDir, "meal_plans")
 
-    private data class ParsedUsage(
-        val promptTokens: Int,
-        val completionTokens: Int,
-        val cost: Double
-    )
-    
     companion object {
         private const val CACHE_DURATION_HOURS = 24L
         private const val CACHE_FILE_NAME = "current_meal_plan.json"
@@ -223,7 +219,7 @@ $dataContext
             // 创建响应
             val response = MealPlanResponse(
                 plan = mealPlan,
-                personalizedTips = generatePersonalizedTips(dataContext, mealPlan),
+                personalizedTips = generatePersonalizedTips(mealPlan),
                 alternatives = emptyList()
             )
             
@@ -249,7 +245,14 @@ $dataContext
         errorMessage: String? = null
     ) {
         try {
-            val parsedUsage = rawResponse?.let { parseUsage(it, protocol, modelId) }
+            val parsedUsage = rawResponse?.let {
+                AIResponseParsing.parseUsage(
+                    rawResponse = it,
+                    protocol = protocol,
+                    modelId = modelId,
+                    aiApiClient = aiApiClient
+                )
+            }
                 ?: ParsedUsage(promptTokens = 0, completionTokens = 0, cost = 0.0)
             apiCallRecordRepository.recordCall(
                 configId = configId,
@@ -269,48 +272,12 @@ $dataContext
         }
     }
 
-    private fun parseUsage(rawResponse: String, protocol: String, modelId: String): ParsedUsage {
-        val usage = when (protocol) {
-            "CLAUDE" -> aiApiClient.extractClaudeUsage(rawResponse)
-            else -> aiApiClient.extractOpenAIUsage(rawResponse)
-        }
-        val promptTokens = usage?.promptTokens ?: 0
-        val completionTokens = usage?.completionTokens ?: 0
-        val cost = if (usage != null) {
-            calculateCost(promptTokens, completionTokens, protocol, modelId)
-        } else {
-            0.0
-        }
-        return ParsedUsage(
-            promptTokens = promptTokens,
-            completionTokens = completionTokens,
-            cost = cost
-        )
-    }
-
-    private fun calculateCost(promptTokens: Int, completionTokens: Int, protocol: String, modelId: String): Double {
-        val rates = when (protocol) {
-            "OPENAI" -> when {
-                modelId.contains("gpt-4") -> 0.03 to 0.06
-                modelId.contains("gpt-3.5") -> 0.0015 to 0.002
-                else -> 0.001 to 0.002
-            }
-            "CLAUDE" -> 0.008 to 0.024
-            "KIMI" -> 0.006 to 0.006
-            else -> 0.001 to 0.002
-        }
-
-        val (inputRate, outputRate) = rates
-        return (promptTokens * inputRate + completionTokens * outputRate) / 1000.0
-    }
-    
     /**
      * 解析菜谱JSON
      */
     private fun parseMealPlan(jsonContent: String): MealPlan? {
         return try {
-            // 提取JSON部分
-            val json = extractJson(jsonContent)
+            val json = AIResponseParsing.extractJsonFromText(jsonContent)
             gson.fromJson(json, MealPlan::class.java)
         } catch (e: JsonSyntaxException) {
             null
@@ -320,30 +287,9 @@ $dataContext
     }
     
     /**
-     * 从响应中提取JSON
-     */
-    private fun extractJson(content: String): String {
-        // 尝试提取代码块中的JSON
-        val jsonBlockRegex = """```(?:json)?\s*([\s\S]*?)```""".toRegex()
-        val match = jsonBlockRegex.find(content)
-        if (match != null) {
-            return match.groupValues[1].trim()
-        }
-        
-        // 尝试直接解析
-        val startIndex = content.indexOf('{')
-        val endIndex = content.lastIndexOf('}')
-        if (startIndex >= 0 && endIndex > startIndex) {
-            return content.substring(startIndex, endIndex + 1)
-        }
-        
-        return content
-    }
-    
-    /**
      * 生成个性化建议
      */
-    private fun generatePersonalizedTips(context: String, plan: MealPlan): List<String> {
+    private fun generatePersonalizedTips(plan: MealPlan): List<String> {
         val tips = mutableListOf<String>()
         
         // 根据热量分析

@@ -7,6 +7,8 @@ import com.calorieai.app.data.repository.AITokenUsageRepository
 import com.calorieai.app.service.ai.common.AIApiClient
 import com.calorieai.app.service.ai.common.AIApiException
 import com.calorieai.app.service.ai.common.AIErrorClassifier
+import com.calorieai.app.service.ai.common.AIResponseParsing
+import com.calorieai.app.service.ai.common.ParsedUsage
 import com.calorieai.app.utils.SecureLogger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -634,12 +636,6 @@ $pantrySummary
         return aiRateLimiter.getTodayCallCount(config.id)
     }
 
-    private data class ParsedUsage(
-        val promptTokens: Int,
-        val completionTokens: Int,
-        val cost: Double
-    )
-
     private suspend fun recordTokenUsage(
         configId: String,
         configName: String,
@@ -648,7 +644,12 @@ $pantrySummary
         modelId: String
     ) {
         try {
-            val parsedUsage = parseUsage(rawResponse, protocol, modelId)
+            val parsedUsage = AIResponseParsing.parseUsage(
+                rawResponse = rawResponse,
+                protocol = protocol,
+                modelId = modelId,
+                aiApiClient = aiApiClient
+            )
             if (parsedUsage.promptTokens > 0 || parsedUsage.completionTokens > 0) {
                 aiTokenUsageRepository.recordTokenUsage(
                     configId = configId,
@@ -676,7 +677,14 @@ $pantrySummary
         errorMessage: String? = null
     ) {
         try {
-            val parsedUsage = rawResponse?.let { parseUsage(it, protocol, modelId) }
+            val parsedUsage = rawResponse?.let {
+                AIResponseParsing.parseUsage(
+                    rawResponse = it,
+                    protocol = protocol,
+                    modelId = modelId,
+                    aiApiClient = aiApiClient
+                )
+            }
                 ?: ParsedUsage(promptTokens = 0, completionTokens = 0, cost = 0.0)
             apiCallRecordRepository.recordCall(
                 configId = configId,
@@ -696,38 +704,4 @@ $pantrySummary
         }
     }
 
-    private fun parseUsage(rawResponse: String, protocol: String, modelId: String): ParsedUsage {
-        val usage = when (protocol) {
-            "CLAUDE" -> aiApiClient.extractClaudeUsage(rawResponse)
-            else -> aiApiClient.extractOpenAIUsage(rawResponse)
-        }
-        val promptTokens = usage?.promptTokens ?: 0
-        val completionTokens = usage?.completionTokens ?: 0
-        val cost = if (usage != null) {
-            calculateCost(promptTokens, completionTokens, protocol, modelId)
-        } else {
-            0.0
-        }
-        return ParsedUsage(
-            promptTokens = promptTokens,
-            completionTokens = completionTokens,
-            cost = cost
-        )
-    }
-
-    private fun calculateCost(promptTokens: Int, completionTokens: Int, protocol: String, modelId: String): Double {
-        val rates = when (protocol) {
-            "OPENAI" -> when {
-                modelId.contains("gpt-4") -> 0.03 to 0.06
-                modelId.contains("gpt-3.5") -> 0.0015 to 0.002
-                else -> 0.001 to 0.002
-            }
-            "CLAUDE" -> 0.008 to 0.024
-            "KIMI" -> 0.006 to 0.006
-            else -> 0.001 to 0.002
-        }
-
-        val (inputRate, outputRate) = rates
-        return (promptTokens * inputRate + completionTokens * outputRate) / 1000.0
-    }
 }

@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,7 +38,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.widget.Toast
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.ui.theme.GlassLightColors
 import com.calorieai.app.ui.theme.GlassDarkColors
 import kotlinx.coroutines.launch
@@ -53,8 +51,21 @@ import com.calorieai.app.ui.components.markdown.MarkdownConfig
 @Composable
 fun AIChatScreen(
     onNavigateBack: () -> Unit,
+    initialSessionId: String? = null
+) {
+    AIChatScreenContent(
+        onNavigateBack = onNavigateBack,
+        initialSessionId = initialSessionId,
+        viewModel = sharedAIChatViewModel()
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AIChatScreenContent(
+    onNavigateBack: () -> Unit,
     initialSessionId: String? = null,
-    viewModel: AIChatViewModel = hiltViewModel()
+    viewModel: AIChatViewModel
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
@@ -540,7 +551,6 @@ private fun AnimatedMessageItem(msg: ChatMessage, isDark: Boolean) {
                     )
                 } else {
                     AssistantMessageContent(
-                        messageId = msg.id,
                         text = displayContent,
                         isDark = isDark
                     )
@@ -576,26 +586,41 @@ private fun AnimatedMessageItem(msg: ChatMessage, isDark: Boolean) {
 
 @Composable
 private fun AssistantMessageContent(
-    messageId: String,
     text: String,
     isDark: Boolean
 ) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
-    val sections = remember(text) { text.split(Regex("\\n\\s*\\n")).filter { it.isNotBlank() } }
-    val needCollapse = sections.size > 4 || text.length > 420
-    var expanded by rememberSaveable(messageId) { mutableStateOf(false) }
-    val visibleText = if (!needCollapse || expanded) {
-        text
-    } else {
-        val collapsed = sections.take(3).joinToString("\n\n")
-        if (collapsed.isBlank()) text.take(420) else collapsed
-    }
+    val sections = remember(text) { parseAssistantSections(text) }
+    val useStructuredSections = remember(sections) { shouldUseStructuredAssistantSections(sections) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (visibleText.isNotBlank()) {
+        if (useStructuredSections) {
+            sections.forEach { section ->
+                val copyText = section.body.ifBlank { section.fullText }
+                if (section.highlighted) {
+                    HighlightedAssistantSectionCard(
+                        section = section,
+                        isDark = isDark,
+                        onCopy = {
+                            clipboardManager.setText(AnnotatedString(stripMarkdownForCopy(copyText)))
+                            Toast.makeText(context, "已复制本段", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                } else {
+                    NormalAssistantSectionCard(
+                        section = section,
+                        isDark = isDark,
+                        onCopy = {
+                            clipboardManager.setText(AnnotatedString(stripMarkdownForCopy(copyText)))
+                            Toast.makeText(context, "已复制本段", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+            }
+        } else if (text.isNotBlank()) {
             MarkdownText(
-                text = visibleText,
+                text = text,
                 isDark = isDark,
                 config = MarkdownConfig.ChatReadable
             )
@@ -609,7 +634,7 @@ private fun AssistantMessageContent(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextButton(
@@ -627,23 +652,15 @@ private fun AssistantMessageContent(
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("复制内容", fontSize = 12.sp, fontWeight = FontWeight.Medium)
             }
-
-            if (needCollapse) {
-                TextButton(
-                    onClick = { expanded = !expanded },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                ) {
-                    Icon(
-                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(if (expanded) "收起详情" else "展开详情", fontSize = 12.sp)
-                }
-            }
         }
     }
+}
+
+private fun shouldUseStructuredAssistantSections(sections: List<AssistantSection>): Boolean {
+    if (sections.size < 2) return false
+    val titledSections = sections.count { !it.title.isNullOrBlank() }
+    val highlightedSections = sections.count { it.highlighted }
+    return titledSections >= 2 || highlightedSections >= 1
 }
 
 @Composable
@@ -713,6 +730,15 @@ private fun stripMarkdownForCopy(text: String): String {
         .replace(Regex("\\[([^\\]]+)]\\(([^)]+)\\)"), "$1")
         .replace(Regex("(?m)^\\s*[-*+]\\s+"), "• ")
         .replace(Regex("\\n{3,}"), "\n\n")
+        .trim()
+}
+
+private fun cleanMarkdownPreview(text: String): String {
+    return stripMarkdownForCopy(text)
+        .replace("\\n", " ")
+        .replace("\\t", " ")
+        .replace(Regex("[^\\p{L}\\p{N}\\p{P}\\p{Zs}]"), " ")
+        .replace(Regex("\\s+"), " ")
         .trim()
 }
 
@@ -1003,6 +1029,8 @@ private fun SessionItem(
     onSelect: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val displayTitle = remember(session.title) { cleanMarkdownPreview(session.title) }
+    val displayPreview = remember(session.lastMessage) { cleanMarkdownPreview(session.lastMessage) }
     
     Row(
         modifier = Modifier
@@ -1030,17 +1058,17 @@ private fun SessionItem(
         
         Column(Modifier.weight(1f)) {
             Text(
-                session.title,
+                displayTitle.ifBlank { "新对话" },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = FontWeight.Medium
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                session.lastMessage,
+                displayPreview.ifBlank { "暂无消息" },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(Modifier.height(2.dp))

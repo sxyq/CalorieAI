@@ -3,6 +3,7 @@ package com.calorieai.app.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,10 +15,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.DayOfWeek
@@ -205,7 +210,9 @@ fun CompactHeatmap(
     onDayClick: ((LocalDate) -> Unit)? = null,
     isDark: Boolean = false,
     weeks: Int = 12,
-    cellSize: Int = 12
+    cellSize: Int = 12,
+    weekSpacing: Int = 4,
+    allowHorizontalScroll: Boolean = true
 ) {
     val scheme = colorScheme ?: HeatmapColorScheme.forTheme(isDark)
     val prepared = remember(data, maxValue, scheme) {
@@ -219,23 +226,74 @@ fun CompactHeatmap(
     val weekColumns = remember(today, weeks) {
         buildRecentDates(today = today, weeks = weeks).chunked(7)
     }
-
+    val weekColumnWidth = remember(cellSize, weekSpacing) {
+        (cellSize + weekSpacing).coerceAtLeast(cellSize).dp
+    }
     Column(modifier = modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        CompactMonthLabels(weekColumns)
-        Spacer(modifier = Modifier.height(4.dp))
+        if (allowHorizontalScroll) {
+            val horizontalScrollState = rememberScrollState()
+            LaunchedEffect(weekColumns.size, horizontalScrollState.maxValue) {
+                if (horizontalScrollState.maxValue > 0) {
+                    horizontalScrollState.scrollTo(horizontalScrollState.maxValue)
+                }
+            }
+            Column(modifier = Modifier.horizontalScroll(horizontalScrollState)) {
+                CompactMonthLabels(
+                    weekColumns = weekColumns,
+                    weekColumnWidth = weekColumnWidth,
+                    weekSpacing = weekSpacing
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                CompactHeatmapColumns(
+                    weekColumns = weekColumns,
+                    prepared = prepared,
+                    scheme = scheme,
+                    onDayClick = onDayClick,
+                    cellSize = cellSize,
+                    weekSpacing = weekSpacing
+                )
+            }
+        } else {
+            Column {
+                CompactMonthLabels(
+                    weekColumns = weekColumns,
+                    weekColumnWidth = weekColumnWidth,
+                    weekSpacing = weekSpacing
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                CompactHeatmapColumns(
+                    weekColumns = weekColumns,
+                    prepared = prepared,
+                    scheme = scheme,
+                    onDayClick = onDayClick,
+                    cellSize = cellSize,
+                    weekSpacing = weekSpacing
+                )
+            }
+        }
+    }
+}
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            weekColumns.forEach { week ->
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    week.forEach { date ->
-                        CompactCell(
-                            date = date,
-                            level = prepared.levelFor(date),
-                            scheme = scheme,
-                            onDayClick = onDayClick,
-                            cellSize = cellSize
-                        )
-                    }
+@Composable
+private fun CompactHeatmapColumns(
+    weekColumns: List<List<LocalDate>>,
+    prepared: PreparedHeatmap,
+    scheme: HeatmapColorScheme,
+    onDayClick: ((LocalDate) -> Unit)?,
+    cellSize: Int,
+    weekSpacing: Int
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(weekSpacing.dp)) {
+        weekColumns.forEach { week ->
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                week.forEach { date ->
+                    CompactCell(
+                        date = date,
+                        level = prepared.levelFor(date),
+                        scheme = scheme,
+                        onDayClick = onDayClick,
+                        cellSize = cellSize
+                    )
                 }
             }
         }
@@ -293,15 +351,19 @@ private fun WeekdayLabels() {
 }
 
 @Composable
-private fun CompactMonthLabels(weekColumns: List<List<LocalDate>>) {
+private fun CompactMonthLabels(
+    weekColumns: List<List<LocalDate>>,
+    weekColumnWidth: Dp,
+    weekSpacing: Int
+) {
     val labelByWeekIndex = remember(weekColumns) {
         buildMonthLabelByWeekIndex(weekColumns)
     }
 
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(weekSpacing.dp)) {
         weekColumns.forEachIndexed { index, _ ->
             Box(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.width(weekColumnWidth),
                 contentAlignment = Alignment.CenterStart
             ) {
                 val label = labelByWeekIndex[index] ?: return@Box

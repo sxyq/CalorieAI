@@ -42,9 +42,11 @@ import com.calorieai.app.ui.components.liquidGlass
 @Composable
 fun AddFoodScreen(
     selectedDate: String? = null,
+    ocrPayloadJson: String? = null,
     onNavigateBack: () -> Unit,
     onNavigateToResult: (String) -> Unit,
     onNavigateToCamera: () -> Unit,
+    onNavigateToOcr: (String?, MealType) -> Unit,
     viewModel: AddFoodViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -53,6 +55,13 @@ fun AddFoodScreen(
     // 设置选中的日期
     LaunchedEffect(selectedDate) {
         viewModel.setDateContext(selectedDate)
+    }
+
+    LaunchedEffect(ocrPayloadJson) {
+        val payload = parseOcrNutritionPayload(ocrPayloadJson)
+        if (payload != null) {
+            viewModel.applyOcrPayload(payload)
+        }
     }
     
     // 语音输入状态
@@ -110,6 +119,7 @@ fun AddFoodScreen(
                 // 输入方式选择 - 软玻璃按钮
                 SoftInputMethodSelector(
                     onCameraClick = onNavigateToCamera,
+                    onOcrClick = { onNavigateToOcr(selectedDate, uiState.selectedMealType) },
                     onVoiceClick = {
                         when {
                             isListening -> {
@@ -285,20 +295,20 @@ private fun AutoMealTypeHintCard(
 @Composable
 private fun SoftInputMethodSelector(
     onCameraClick: () -> Unit,
+    onOcrClick: () -> Unit,
     onVoiceClick: () -> Unit,
     isVoiceListening: Boolean
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // 拍照按钮 - 软玻璃
         SoftGlassButton(
             onClick = onCameraClick,
             modifier = Modifier.weight(1f),
-            icon = { 
+            icon = {
                 Icon(
-                    Icons.Default.CameraAlt, 
+                    Icons.Default.CameraAlt,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp)
                 )
@@ -306,14 +316,27 @@ private fun SoftInputMethodSelector(
             label = "拍照识别",
             tint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
         )
-        
-        // 语音按钮 - 软玻璃，录音中状态
+
+        SoftGlassButton(
+            onClick = onOcrClick,
+            modifier = Modifier.weight(1f),
+            icon = {
+                Icon(
+                    Icons.Default.Description,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+            },
+            label = "OCR识别",
+            tint = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)
+        )
+
         val voiceTint = if (isVoiceListening) {
             MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f)
         } else {
             MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
         }
-        
+
         SoftGlassButton(
             onClick = onVoiceClick,
             modifier = Modifier.weight(1f),

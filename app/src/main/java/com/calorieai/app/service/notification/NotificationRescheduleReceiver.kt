@@ -1,8 +1,10 @@
 ﻿package com.calorieai.app.service.notification
 
+import android.app.AlarmManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 import com.calorieai.app.data.repository.UserSettingsRepository
 import dagger.hilt.EntryPoint
@@ -20,6 +22,14 @@ class NotificationRescheduleReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                if (
+                    action == AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED &&
+                    !canScheduleExactAlarms(context)
+                ) {
+                    Log.w(TAG, "reschedule skipped: exact alarm still not granted")
+                    return@launch
+                }
+
                 val entryPoint = EntryPointAccessors.fromApplication(
                     context.applicationContext,
                     EntryPointAccessor::class.java
@@ -53,6 +63,12 @@ class NotificationRescheduleReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "NotificationReschedule"
+
+        private fun canScheduleExactAlarms(context: Context): Boolean {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+            val alarmManager = context.getSystemService(AlarmManager::class.java)
+            return runCatching { alarmManager.canScheduleExactAlarms() }.getOrDefault(false)
+        }
     }
 }
 

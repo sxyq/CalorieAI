@@ -1,12 +1,22 @@
 package com.calorieai.app.service.backup
 
 import com.calorieai.app.data.model.AIChatHistory
+import com.calorieai.app.data.model.AIConfig
 import com.calorieai.app.data.model.APICallRecord
+import com.calorieai.app.data.model.ConfidenceLevel
+import com.calorieai.app.data.model.ExerciseRecord
+import com.calorieai.app.data.model.ExerciseType
 import com.calorieai.app.data.model.FavoriteRecipe
 import com.calorieai.app.data.model.FoodRecord
+import com.calorieai.app.data.model.IconType
+import com.calorieai.app.data.model.Ingredient
+import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.model.PantryIngredient
 import com.calorieai.app.data.model.RecipePlan
+import com.calorieai.app.data.model.WaterRecord
+import com.calorieai.app.data.model.WeightRecord
 import com.calorieai.app.data.model.UserSettings
+import com.calorieai.app.data.model.AIProtocol
 
 internal fun FoodRecord.toBackup() = FoodRecordBackup(
     id = id,
@@ -200,6 +210,203 @@ internal fun com.calorieai.app.data.model.AIConfig.toBackup() = AIConfigBackup(
     apiUrl = apiUrl,
     apiKey = null,
     hasApiKey = apiKey.isNotBlank(),
+    modelId = modelId,
+    isImageUnderstanding = isImageUnderstanding,
+    isDefault = isDefault,
+    isPreset = isPreset
+)
+
+internal fun FoodRecordBackup.toModel() = FoodRecord(
+    id = id,
+    foodName = foodName,
+    userInput = userInput,
+    totalCalories = totalCalories,
+    protein = protein,
+    fat = fat,
+    carbs = carbs,
+    fiber = fiber,
+    sugar = sugar,
+    sodium = sodium,
+    cholesterol = cholesterol,
+    saturatedFat = saturatedFat,
+    calcium = calcium,
+    iron = iron,
+    vitaminC = vitaminC,
+    vitaminA = vitaminA,
+    potassium = potassium,
+    ingredients = ingredients.map {
+        Ingredient(
+            name = it.name,
+            weight = it.weight,
+            calories = it.calories
+        )
+    },
+    mealType = MealType.valueOf(mealType),
+    recordTime = recordTime,
+    iconUrl = iconUrl,
+    iconLocalPath = iconLocalPath,
+    isStarred = isStarred,
+    confidence = runCatching { ConfidenceLevel.valueOf(confidence) }.getOrElse { ConfidenceLevel.MEDIUM },
+    notes = notes
+)
+
+internal fun ExerciseRecordBackup.toModel() = ExerciseRecord(
+    id = id,
+    exerciseType = ExerciseType.valueOf(exerciseType),
+    durationMinutes = durationMinutes,
+    caloriesBurned = caloriesBurned,
+    notes = notes,
+    recordTime = recordTime
+)
+
+internal fun WeightRecordBackup.toModel() = WeightRecord(
+    id = id,
+    weight = weight,
+    recordDate = recordDate,
+    note = note
+)
+
+internal fun WaterRecordBackup.toModel() = WaterRecord(
+    id = id,
+    amount = amount,
+    recordTime = recordTime,
+    recordDate = recordDate,
+    note = note
+)
+
+internal fun FavoriteRecipeBackup.toModel() = FavoriteRecipe(
+    id = id,
+    sourceRecordId = sourceRecordId,
+    foodName = foodName,
+    userInput = userInput,
+    totalCalories = totalCalories,
+    protein = protein,
+    carbs = carbs,
+    fat = fat,
+    fiber = fiber,
+    sugar = sugar,
+    sodium = sodium,
+    cholesterol = cholesterol,
+    saturatedFat = saturatedFat,
+    calcium = calcium,
+    iron = iron,
+    vitaminC = vitaminC,
+    vitaminA = vitaminA,
+    potassium = potassium,
+    recipeIngredientsText = recipeIngredientsText,
+    recipeStepsText = recipeStepsText,
+    recipeToolsText = recipeToolsText,
+    recipeDifficulty = recipeDifficulty,
+    recipeDurationMinutes = recipeDurationMinutes,
+    recipeServings = recipeServings,
+    recipeSourceType = recipeSourceType,
+    recipeUpdatedAt = recipeUpdatedAt,
+    createdAt = createdAt,
+    lastUsedAt = lastUsedAt,
+    useCount = useCount
+)
+
+internal fun PantryIngredientBackup.toModel() = PantryIngredient(
+    id = id,
+    name = name,
+    quantity = quantity,
+    unit = unit,
+    expiresAt = expiresAt,
+    notes = notes,
+    createdAt = createdAt,
+    updatedAt = updatedAt
+)
+
+internal fun RecipePlanBackup.toModel() = RecipePlan(
+    id = id,
+    title = title,
+    startDateEpochDay = startDateEpochDay,
+    endDateEpochDay = endDateEpochDay,
+    menuText = menuText,
+    generatedByAI = generatedByAI,
+    createdAt = createdAt,
+    updatedAt = updatedAt
+)
+
+internal fun AIChatHistoryBackup.toModel() = AIChatHistory(
+    id = id,
+    sessionId = sessionId,
+    title = title,
+    messages = messages,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+    messageCount = messageCount,
+    isPinned = isPinned
+)
+
+internal fun APICallLogBackup.toModel() = APICallRecord(
+    id = id,
+    timestamp = timestamp,
+    configId = configId,
+    configName = configName,
+    modelId = modelId,
+    inputText = inputText,
+    outputText = outputText,
+    promptTokens = promptTokens,
+    completionTokens = completionTokens,
+    totalTokens = totalTokens,
+    cost = cost,
+    duration = duration,
+    isSuccess = isSuccess,
+    errorMessage = errorMessage
+)
+
+internal fun UserSettingsBackup.toModel() = UserSettings(
+    dailyCalorieGoal = dailyCalorieGoal,
+    userName = userName,
+    userGender = userGender,
+    userAge = userAge,
+    userHeight = userHeight,
+    userWeight = userWeight,
+    activityLevel = activityLevel,
+    dietaryPreference = dietaryPreference,
+    showWaterFeatures = showWaterFeatures,
+    enableWaterReminder = enableWaterReminder,
+    waterReminderTimesJson = waterReminderTimesJson,
+    waterReminderIntervalMinutes = waterReminderIntervalMinutes,
+    waterReminderWindowStart = waterReminderWindowStart,
+    waterReminderWindowEnd = waterReminderWindowEnd,
+    isNotificationEnabled = isNotificationEnabled,
+    isDarkMode = isDarkMode,
+    themeMode = themeMode,
+    useDeadlinerStyle = useDeadlinerStyle,
+    hideDividers = hideDividers,
+    fontSize = fontSize,
+    enableAnimations = enableAnimations,
+    feedbackType = feedbackType,
+    enableVibration = enableVibration,
+    enableSound = enableSound,
+    backgroundBehavior = backgroundBehavior,
+    startupPage = startupPage,
+    enableQuickAdd = enableQuickAdd,
+    enableLongPressHomeToAdd = enableLongPressHomeToAdd,
+    enableLongPressOverviewToStats = enableLongPressOverviewToStats,
+    enableLongPressMyToProfileEdit = enableLongPressMyToProfileEdit,
+    enableGoalReminder = enableGoalReminder,
+    enableStreakReminder = enableStreakReminder,
+    enableAutoBackup = enableAutoBackup,
+    enableCloudSync = enableCloudSync,
+    showAIWidget = showAIWidget,
+    wallpaperType = wallpaperType,
+    wallpaperColor = wallpaperColor,
+    wallpaperGradientStart = wallpaperGradientStart,
+    wallpaperGradientEnd = wallpaperGradientEnd,
+    wallpaperImageUri = wallpaperImageUri
+)
+
+internal fun AIConfigBackup.toModel() = AIConfig(
+    id = id,
+    name = name,
+    icon = icon,
+    iconType = IconType.valueOf(iconType),
+    protocol = AIProtocol.valueOf(protocol),
+    apiUrl = apiUrl,
+    apiKey = apiKey ?: "",
     modelId = modelId,
     isImageUnderstanding = isImageUnderstanding,
     isDefault = isDefault,

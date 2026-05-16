@@ -50,10 +50,10 @@ class NotificationHelper @Inject constructor(
 
         val waterChannel = NotificationChannel(
             CHANNEL_ID_WATER,
-            "楗按鎻愰啋",
+            "饮水提醒",
             NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
-            description = "鎸夋椂娈垫垨闂撮殧鎻愰啋楗按"
+            description = "按时段或间隔提醒饮水"
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 200, 120, 200)
         }
@@ -133,14 +133,14 @@ class NotificationHelper @Inject constructor(
         }
 
         val contentText = if (reminderLabel.isNullOrBlank()) {
-            "璇ヨˉ鍏呮按鍒嗕簡锛屼繚鎸佷粖澶╅ギ姘寸洰鏍囪繘搴?;"
+            "该补充水分了，保持今天饮水目标进度！"
         } else {
-            "[$reminderLabel] 璇ヨˉ鍏呮按鍒嗕簡锛屼繚鎸佷粖澶╅ギ姘寸洰鏍囪繘搴?;"
+            "[$reminderLabel] 该补充水分了，保持今天饮水目标进度！"
         }
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_WATER)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("楗按鎻愰啋")
+            .setContentTitle("饮水提醒")
             .setContentText(contentText)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)

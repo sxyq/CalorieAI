@@ -114,19 +114,28 @@ object SecureLogger {
     }
 
     private fun logInternal(priority: Int, tag: String, message: String, throwable: Throwable?) {
-        when (priority) {
-            Log.ERROR -> Log.e(tag, message, throwable)
-            Log.WARN -> Log.w(tag, message, throwable)
-            Log.INFO -> Log.i(tag, message, throwable)
-            Log.DEBUG -> {
-                if (BuildConfig.DEBUG) {
-                    Log.d(tag, message, throwable)
+        runCatching {
+            when (priority) {
+                Log.ERROR -> Log.e(tag, message, throwable)
+                Log.WARN -> Log.w(tag, message, throwable)
+                Log.INFO -> Log.i(tag, message, throwable)
+                Log.DEBUG -> {
+                    if (BuildConfig.DEBUG) {
+                        Log.d(tag, message, throwable)
+                    }
+                    Unit
+                }
+                else -> {
+                    if (BuildConfig.DEBUG) {
+                        Log.v(tag, message, throwable)
+                    }
+                    Unit
                 }
             }
-            else -> {
-                if (BuildConfig.DEBUG) {
-                    Log.v(tag, message, throwable)
-                }
+        }.onFailure {
+            // Unit tests may run without android.util.Log mocked.
+            if (BuildConfig.DEBUG) {
+                println("[$tag] $message${throwable?.let { " | ${it.message}" } ?: ""}")
             }
         }
     }

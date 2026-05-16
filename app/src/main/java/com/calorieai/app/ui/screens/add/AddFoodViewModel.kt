@@ -4,11 +4,11 @@ import android.content.Context
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calorieai.app.data.model.FoodAnalysisResult
 import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.repository.FoodRecordRepository
 import com.calorieai.app.service.ai.FoodTextAnalysisService
-import com.calorieai.app.data.model.FoodAnalysisResult
 import com.calorieai.app.service.ai.common.AIErrorCategory
 import com.calorieai.app.service.ai.common.AIErrorClassifier
 import com.calorieai.app.service.voice.VoiceInputHelper
@@ -17,12 +17,12 @@ import com.calorieai.app.utils.buildRecordTimeForDateAndMeal
 import com.calorieai.app.utils.inferMainMealType
 import com.calorieai.app.utils.isSameLocalDate
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import javax.inject.Inject
@@ -35,9 +35,13 @@ class AddFoodViewModel @Inject constructor(
     private val aiConfigRepository: com.calorieai.app.data.repository.AIConfigRepository,
     private val voiceInputHelper: VoiceInputHelper
 ) : ViewModel() {
+
     private companion object {
         const val MAX_FOOD_DESCRIPTION_LENGTH = 2000
     }
+
+    private var lastAppliedOcrText: String? = null
+    private var lastAppliedOcrPayloadJson: String? = null
 
     private val _uiState = MutableStateFlow(AddFoodUiState())
     val uiState: StateFlow<AddFoodUiState> = _uiState.asStateFlow()
@@ -51,6 +55,36 @@ class AddFoodViewModel @Inject constructor(
 
     fun onMealTypeChange(mealType: MealType) {
         _uiState.value = _uiState.value.copy(selectedMealType = mealType)
+    }
+
+    fun applyOcrText(ocrText: String) {
+        val normalized = ocrText.trim()
+        if (normalized.isBlank() || normalized == lastAppliedOcrText) return
+
+        val currentText = _uiState.value.foodDescription.trim()
+        val merged = if (currentText.isBlank()) {
+            normalized
+        } else {
+            "$currentText\n$normalized"
+        }
+
+        _uiState.value = _uiState.value.copy(
+            foodDescription = merged.take(MAX_FOOD_DESCRIPTION_LENGTH)
+        )
+        lastAppliedOcrText = normalized
+    }
+
+    fun applyOcrPayload(payload: OcrNutritionPayload) {
+        val payloadJson = payload.toJson()
+        if (payloadJson == lastAppliedOcrPayloadJson) return
+
+        val description = payload.toDescription().take(MAX_FOOD_DESCRIPTION_LENGTH)
+        _uiState.value = _uiState.value.copy(
+            foodDescription = description,
+            ocrPayload = payload
+        )
+        lastAppliedOcrPayloadJson = payloadJson
+        lastAppliedOcrText = description
     }
 
     fun startVoiceInput(context: Context) {
@@ -78,7 +112,7 @@ class AddFoodViewModel @Inject constructor(
     fun clearError() {
         _uiState.value = _uiState.value.copy(errorMessage = null, retryMessage = null)
     }
-    
+
     fun clearRetryMessage() {
         _uiState.value = _uiState.value.copy(retryMessage = null)
     }
@@ -121,9 +155,13 @@ class AddFoodViewModel @Inject constructor(
                 selectedDate = selectedDateMillis,
                 isHistoricalDateMode = isHistoricalDateMode,
                 autoMealType = autoMealType,
-                selectedMealType = if (isHistoricalDateMode) currentState.selectedMealType else autoMealType
+                selectedMealType = if (isHistoricalDateMode) {
+                    currentState.selectedMealType
+                } else {
+                    autoMealType
+                }
             )
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             setDateContext(null)
         }
     }
@@ -168,9 +206,25 @@ class AddFoodViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                // 使用 NonCancellable 确保切后台时分析不中断
+                val ocrPayload = currentState.ocrPayload
+                if (ocrPayload != null) {
+                    val record = FoodRecord(
+                        foodName = ocrPayload.foodName,
+                        userInput = description,
+                        totalCalories = ocrPayload.totalCalories(),
+                        protein = ocrPayload.totalProtein(),
+                        carbs = ocrPayload.totalCarbs(),
+                        fat = ocrPayload.totalFat(),
+                        mealType = effectiveMealType,
+                        recordTime = baseRecordTime
+                    )
+                    foodRecordRepository.addRecord(record)
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    onSuccess(record.id)
+                    return@launch
+                }
+
                 withContext(NonCancellable) {
-                    // 调用AI服务分析食物，带重试机制
                     val analysisResult = foodTextAnalysisService.analyzeFoodText(
                         foodDescription = description,
                         maxRetries = maxRetries,
@@ -188,7 +242,7 @@ class AddFoodViewModel @Inject constructor(
                         val errorInfo = AIErrorClassifier.classify(error)
                         val uiMessage = when (errorInfo.category) {
                             AIErrorCategory.PARSE,
-                            AIErrorCategory.VALIDATION -> "AI\u8FD4\u56DE\u7ED3\u679C\u4E0D\u7A33\u5B9A\uFF0C\u8BF7\u91CD\u8BD5\u6216\u8C03\u6574\u63CF\u8FF0\u540E\u518D\u8BD5\u3002"
+                            AIErrorCategory.VALIDATION -> "AI返回结果不稳定，请重试或调整描述后再试。"
                             else -> errorInfo.userMessage
                         }
                         _uiState.value = _uiState.value.copy(
@@ -212,7 +266,6 @@ class AddFoodViewModel @Inject constructor(
                         return@withContext
                     }
 
-                    // 过滤无效条目，确保多食材拆分后每条都可入库
                     val validItems = parsedItems.filter { item ->
                         item.foodName.isNotBlank() && (
                             item.calories > 0 ||
@@ -234,13 +287,11 @@ class AddFoodViewModel @Inject constructor(
                     val promptTokens = batchResult?.promptTokens ?: 0
                     val completionTokens = batchResult?.completionTokens ?: 0
 
-                    // 记录Token使用情况（在单独的协程中，避免阻塞主流程）
                     if (promptTokens > 0 || completionTokens > 0) {
                         viewModelScope.launch {
                             try {
                                 aiConfigRepository.getDefaultConfig().firstOrNull()?.let { config ->
-                                    // 估算成本（简化计算，实际应根据模型价格）
-                                    val cost = (promptTokens + completionTokens) * 0.000002 // 假设每1000 tokens $0.002
+                                    val cost = (promptTokens + completionTokens) * 0.000002
                                     aiTokenUsageRepository.recordTokenUsage(
                                         configId = config.id,
                                         configName = config.name,
@@ -249,16 +300,15 @@ class AddFoodViewModel @Inject constructor(
                                         cost = cost
                                     )
                                 }
-                            } catch (e: Exception) {
-                                // 记录token失败不影响主流程
+                            } catch (_: Exception) {
                             }
                         }
                     }
 
-                    // 多食材逐条保存，首页将展示分开的记录
                     val records = validItems.mapIndexed { index, item ->
                         FoodRecord(
-                            foodName = item.foodName.takeIf { it.isNotBlank() } ?: extractFoodName(description, index),
+                            foodName = item.foodName.takeIf { it.isNotBlank() }
+                                ?: extractFoodName(description, index),
                             userInput = description,
                             totalCalories = item.calories.toInt().coerceAtLeast(0),
                             protein = item.protein,
@@ -304,37 +354,30 @@ class AddFoodViewModel @Inject constructor(
         }
     }
 
-
-
     private fun extractFoodName(description: String, index: Int = 0): String {
-        // 尝试从描述中提取食物名称
-        // 1. 首先尝试按逗号、顿号分割，取可能包含食物的部分
-        val separators = listOf("，", ",", "、", " ")
+        val separators = listOf("，", ",", "。", " ")
         var name = description
-        
+
         for (separator in separators) {
             val parts = description.split(separator)
-            // 查找包含常见食物关键词的部分
             val foodPart = parts.find { part ->
-                part.contains(Regex("(吃|喝|了|份|个|碗|盘|杯|块|片|根|条|粒|颗|只|斤|克|g|kg)"))
+                part.contains(Regex("(吃|喝|个|份|片|块|碗|盘|杯|勺|包|盒|瓶|g|kg)"))
             }
             if (foodPart != null && foodPart.length < name.length) {
                 name = foodPart
                 break
             }
         }
-        
-        // 2. 清理常见的非食物词汇
-        val cleanWords = listOf("今天", "我", "吃", "了", "一份", "一个", "一碗", "一杯", "一盘", "一些", "一点", "大约", "大概", "大概", "左右")
+
+        val cleanWords = listOf(
+            "今天", "我", "吃", "喝", "一份", "一个", "一片", "一块", "一碗", "一点", "大约", "大概", "左右"
+        )
         var cleanedName = name
-        for (word in cleanWords) {
+        cleanWords.forEach { word ->
             cleanedName = cleanedName.replace(word, "")
         }
-        
-        // 3. 如果清理后为空，使用原始描述
+
         val finalName = cleanedName.trim().takeIf { it.isNotBlank() } ?: name.trim()
-        
-        // 4. 截取前20个字符，如果为空返回默认名称
         return finalName.take(20).takeIf { it.isNotBlank() } ?: "未命名食物${index + 1}"
     }
 
@@ -352,9 +395,9 @@ data class AddFoodUiState(
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val analysisResult: FoodAnalysisResult? = null,
-    val retryMessage: String? = null,  // 重试提示信息
-    val retryAttempt: Int = 0,  // 当前重试次数
-    val maxRetries: Int = 2,  // 最大重试次数
-    val selectedDate: Long = System.currentTimeMillis()  // 历史日期模式时的目标日期
+    val retryMessage: String? = null,
+    val retryAttempt: Int = 0,
+    val maxRetries: Int = 1,
+    val selectedDate: Long = System.currentTimeMillis(),
+    val ocrPayload: OcrNutritionPayload? = null
 )
-

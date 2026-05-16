@@ -51,7 +51,7 @@ fun AppearanceSettingsScreen(
     Scaffold(
         topBar = {
             SettingsTopAppBar(
-                title = "鐣岄潰澶栬",
+                title = "界面外观",
                 onNavigateBack = onNavigateBack
             )
         }
@@ -63,7 +63,7 @@ fun AppearanceSettingsScreen(
                 .verticalScroll(rememberScrollState(), enabled = true)
         ) {
             // 涓婚妯″紡閫夋嫨
-            SettingsSection(title = "涓婚") {
+            SettingsSection(title = "主题") {
                 ThemeSelector(
                     selectedTheme = uiState.themeMode,
                     onThemeSelected = viewModel::updateThemeMode
@@ -71,7 +71,7 @@ fun AppearanceSettingsScreen(
             }
 
             // 瀛椾綋澶у皬
-            SettingsSection(title = "瀛椾綋") {
+            SettingsSection(title = "字体") {
                 FontSizeSelector(
                     selectedSize = uiState.fontSize,
                     onSizeSelected = viewModel::updateFontSize
@@ -79,14 +79,14 @@ fun AppearanceSettingsScreen(
             }
 
             // AI鍔╂墜璁剧疆
-            SettingsSection(title = "AI鍔╂墜") {
+            SettingsSection(title = "AI助手") {
                 AIWidgetToggle(
                     checked = uiState.showAIWidget,
                     onCheckedChange = viewModel::updateShowAIWidget
                 )
             }
 
-            SettingsSection(title = "妤楊喗鎸夐崝鐔诲厴") {
+            SettingsSection(title = "饮水功能") {
                 WaterFeatureToggle(
                     checked = uiState.showWaterFeatures,
                     onCheckedChange = viewModel::updateShowWaterFeatures
@@ -134,17 +134,17 @@ private fun ThemeSelector(
                 Column {
                     Text(
                         text = when (theme) {
-                            ThemeMode.LIGHT -> "娴呰壊"
-                            ThemeMode.DARK -> "娣辫壊"
-                            ThemeMode.SYSTEM -> "璺熼殢绯荤粺"
+                            ThemeMode.LIGHT -> "浅色"
+                            ThemeMode.DARK -> "深色"
+                            ThemeMode.SYSTEM -> "跟随系统"
                         },
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
                         text = when (theme) {
-                            ThemeMode.LIGHT -> "濮嬬粓浣跨敤娴呰壊涓婚"
-                            ThemeMode.DARK -> "濮嬬粓浣跨敤娣辫壊涓婚"
-                            ThemeMode.SYSTEM -> "鏍规嵁绯荤粺璁剧疆鑷姩鍒囨崲"
+                            ThemeMode.LIGHT -> "始终使用浅色主题"
+                            ThemeMode.DARK -> "始终使用深色主题"
+                            ThemeMode.SYSTEM -> "根据系统设置自动切换"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -255,7 +255,7 @@ private fun WallpaperSelector(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "閫夋嫨澹佺焊绫诲瀷",
+                text = "选择壁纸类型",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -263,7 +263,7 @@ private fun WallpaperSelector(
                 onClick = onResetWallpaper,
                 enabled = !isDefaultWallpaper
             ) {
-                Text("鎭㈠澹佺焊榛樿")
+                Text("恢复壁纸默认")
             }
         }
 
@@ -323,9 +323,9 @@ private fun WallpaperTypeOption(
     onClick: () -> Unit
 ) {
     val label = when (type) {
-        WallpaperType.GRADIENT -> "娓愬彉"
-        WallpaperType.SOLID -> "绾壊"
-        WallpaperType.IMAGE -> "鍥剧墖"
+        WallpaperType.GRADIENT -> "渐变"
+        WallpaperType.SOLID -> "纯色"
+        WallpaperType.IMAGE -> "图片"
     }
 
     Box(
@@ -373,7 +373,7 @@ private fun GradientColorSelector(
 
     Column {
         Text(
-            text = "閫夋嫨娓愬彉閰嶈壊",
+            text = "选择渐变配色",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 12.dp)
@@ -457,7 +457,7 @@ private fun SolidColorSelector(
 
     Column {
         Text(
-            text = "閫夋嫨鑳屾櫙棰滆壊",
+            text = "选择背景颜色",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 12.dp)
@@ -534,7 +534,7 @@ private fun ImageWallpaperSelector(
 
     Column {
         Text(
-            text = "閫夋嫨鍥剧墖澹佺焊",
+            text = "选择图片壁纸",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 12.dp)
@@ -551,7 +551,7 @@ private fun ImageWallpaperSelector(
                 Box(modifier = Modifier.fillMaxSize()) {
                     AsyncImage(
                         model = imageUri,
-                        contentDescription = "澹佺焊棰勮",
+                        contentDescription = "壁纸预览",
                         modifier = Modifier.fillMaxSize()
                     )
                     // 鍒犻櫎鎸夐挳
@@ -563,7 +563,7 @@ private fun ImageWallpaperSelector(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "鍒犻櫎",
+                            contentDescription = "删除",
                             tint = Color.White
                         )
                     }
@@ -596,7 +596,7 @@ private fun ImageWallpaperSelector(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "鐐瑰嚮閫夋嫨鍥剧墖",
+                            text = "点击选择图片",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -609,6 +609,7 @@ private fun ImageWallpaperSelector(
 
 // 浣跨敤Compose Foundation鐨凢lowRow锛堥渶瑕佹坊鍔犱緷璧栵級
 // 杩欓噷浣跨敤绠€鍖栫殑Row+Column瀹炵幇
+@Suppress("UNUSED_PARAMETER")
 @Composable
 private fun FlowRow(
     modifier: Modifier = Modifier,
@@ -642,11 +643,11 @@ private fun AIWidgetToggle(
     ) {
         Column {
             Text(
-                text = "鏄剧ずAI鍔╂墜",
+                text = "显示AI助手",
                 style = MaterialTheme.typography.bodyLarge
             )
             Text(
-                text = "鍦ㄩ椤垫樉绀篈I鍔╂墜鎮诞鎸夐挳",
+                text = "在首页显示AI助手悬浮按钮",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -687,5 +688,3 @@ private fun WaterFeatureToggle(
         )
     }
 }
-
-

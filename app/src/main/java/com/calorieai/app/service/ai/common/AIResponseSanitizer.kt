@@ -16,11 +16,13 @@ object AIResponseSanitizer {
     )
 
     private val fieldAliases = linkedMapOf(
+        "chinese name food" to "foodName",
         "food_name" to "foodName",
         "food name" to "foodName",
         "name" to "foodName",
         "食物名称" to "foodName",
         "名称" to "foodName",
+        "estimated_weight" to "estimatedWeight",
         "estimated weight" to "estimatedWeight",
         "weight" to "estimatedWeight",
         "重量" to "estimatedWeight",
@@ -30,19 +32,21 @@ object AIResponseSanitizer {
         "蛋白质" to "protein",
         "碳水" to "carbs",
         "碳水化合物" to "carbs",
+        "carbohydrate" to "carbs",
         "脂肪" to "fat",
         "膳食纤维" to "fiber",
         "纤维" to "fiber",
         "糖分" to "sugar",
         "糖" to "sugar",
+        "saturated_fat" to "saturatedFat",
         "饱和脂肪" to "saturatedFat",
         "胆固醇" to "cholesterol",
         "钠" to "sodium",
         "钾" to "potassium",
         "钙" to "calcium",
         "铁" to "iron",
-        "维生素A" to "vitaminA",
-        "维生素C" to "vitaminC",
+        "维生素a" to "vitaminA",
+        "维生素c" to "vitaminC",
         "描述" to "description"
     )
 
@@ -64,12 +68,21 @@ object AIResponseSanitizer {
         "vitaminC"
     )
 
-    fun parseFoodItems(raw: String, gson: Gson): List<FoodAnalysisResult> {
-        val root = parseJsonElement(raw) ?: return emptyList()
-        val candidates = collectFoodObjects(root)
-        if (candidates.isEmpty()) return emptyList()
+    private val foodNameStartAliases = listOf(
+        "foodName", "food_name", "Chinese name food", "食物名称", "名称"
+    )
 
-        return candidates.mapNotNull { parseFoodObject(it, gson) }
+    fun parseFoodItems(raw: String, gson: Gson): List<FoodAnalysisResult> {
+        val root = parseJsonElement(raw)
+        if (root != null) {
+            val candidates = collectFoodObjects(root)
+            if (candidates.isNotEmpty()) {
+                val parsed = candidates.mapNotNull { parseFoodObject(it, gson) }
+                if (parsed.isNotEmpty()) return parsed
+            }
+        }
+
+        return parseFoodItemsByPattern(raw)
     }
 
     fun parseSingleFoodItem(raw: String, gson: Gson): FoodAnalysisResult? {
@@ -100,6 +113,10 @@ object AIResponseSanitizer {
             .replace("国际单位", "")
             .replace("iu", "")
 
+        if (normalized in setOf("zero", "none", "nil", "null", "无", "没有")) {
+            return "0"
+        }
+
         val number = Regex("-?\\d+(?:\\.\\d+)?").find(normalized)?.value ?: return null
         val parsed = number.toFloatOrNull()?.coerceAtLeast(0f) ?: return null
         return parsed.toString()
@@ -112,6 +129,13 @@ object AIResponseSanitizer {
             val parsed = runCatching { JsonParser.parseString(sanitized) }.getOrNull()
             if (parsed != null) {
                 return parsed
+            }
+            val balanced = closeJsonStructures(sanitized)
+            if (balanced != sanitized) {
+                val reparsed = runCatching { JsonParser.parseString(balanced) }.getOrNull()
+                if (reparsed != null) {
+                    return reparsed
+                }
             }
         }
         return null
@@ -206,6 +230,18 @@ object AIResponseSanitizer {
             .trim()
 
         result = Regex("^\\s*json\\s*[:：]?", RegexOption.IGNORE_CASE).replace(result, "")
+        result = Regex("\\[(?:\\s*)(\"[^\"]+\"|'[^']+'|[A-Za-z_\\u4e00-\\u9fa5\\s]+)(?:\\s*),(?:\\s*)([^\\]]+)\\]")
+            .replace(result) { match ->
+                val key = match.groupValues[1].trim().trim('"', '\'')
+                val value = match.groupValues[2].trim()
+                "\"$key\": $value"
+            }
+        result = Regex("\\[[^\\]\\n]*(?:同理|省略|填零|可省略|其他)[^\\]\\n]*\\]").replace(result, "")
+        result = result
+            .replace("{,", "{")
+            .replace("[,", "[")
+            .replace("(]", "]")
+            .replace(")", "}")
 
         result = Regex("'([A-Za-z_\\u4e00-\\u9fa5][A-Za-z0-9_\\-\\u4e00-\\u9fa5\\s]*)'\\s*:")
             .replace(result) { match ->
@@ -243,8 +279,60 @@ object AIResponseSanitizer {
             }
         }
 
+        result = Regex("(?<=[0-9}\"\\]])\\s*(?=\"[A-Za-z_\\u4e00-\\u9fa5][^\"]*\"\\s*:)").replace(result, ", ")
+        result = Regex(",\\s*,+").replace(result, ", ")
         result = Regex(",\\s*([}\\]])").replace(result, "$1")
         return result
+    }
+
+    private fun closeJsonStructures(input: String): String {
+        if (input.isBlank()) return input
+
+        val builder = StringBuilder(input.trim())
+        var quoteCount = 0
+        var escaped = false
+        builder.forEach { ch ->
+            if (escaped) {
+                escaped = false
+            } else if (ch == '\\') {
+                escaped = true
+            } else if (ch == '"') {
+                quoteCount++
+            }
+        }
+        if (quoteCount % 2 != 0) {
+            builder.append('"')
+        }
+
+        val closers = ArrayDeque<Char>()
+        var inString = false
+        escaped = false
+        builder.forEach { ch ->
+            if (inString) {
+                if (escaped) {
+                    escaped = false
+                } else if (ch == '\\') {
+                    escaped = true
+                } else if (ch == '"') {
+                    inString = false
+                }
+                return@forEach
+            }
+
+            when (ch) {
+                '"' -> inString = true
+                '{' -> closers.addLast('}')
+                '[' -> closers.addLast(']')
+                '}', ']' -> if (closers.isNotEmpty() && closers.last() == ch) {
+                    closers.removeLast()
+                }
+            }
+        }
+
+        while (closers.isNotEmpty()) {
+            builder.append(closers.removeLast())
+        }
+        return builder.toString()
     }
 
     private fun collectFoodObjects(element: JsonElement, depth: Int = 0): List<JsonObject> {
@@ -288,10 +376,30 @@ object AIResponseSanitizer {
     }
 
     private fun parseFoodObject(obj: JsonObject, gson: Gson): FoodAnalysisResult? {
+        if (obj.get("has_food")?.asBoolean == false) return null
+
         val direct = runCatching { gson.fromJson(obj, FoodAnalysisResult::class.java) }.getOrNull()
-        if (direct != null && hasSignal(direct)) {
+        if (direct != null && hasSignal(direct) && !isQuantityLike(direct.foodName)) {
             return direct
         }
+
+        obj.get("food_info")
+            ?.takeIf { it.isJsonObject }
+            ?.asJsonObject
+            ?.let { info ->
+                val parsedInfo = parseFoodObject(info, gson)
+                if (parsedInfo != null) {
+                    val parentName = obj.get("foodName")?.asString?.trim()
+                        ?: obj.get("name")?.asString?.trim()
+                        ?: ""
+                    val looksLikeQuantity = isQuantityLike(parentName) || Regex("\\d").containsMatchIn(parentName)
+                    return if (parentName.isNotBlank() && !looksLikeQuantity) {
+                        parsedInfo.copy(foodName = parentName)
+                    } else {
+                        parsedInfo
+                    }
+                }
+            }
 
         fun stringOf(vararg keys: String): String {
             return keys.firstNotNullOfOrNull { key ->
@@ -316,7 +424,7 @@ object AIResponseSanitizer {
             estimatedWeight = numberOf("estimatedWeight", "weight", "重量", "估计重量").toInt().coerceAtLeast(0),
             calories = numberOf("calories", "热量", "卡路里"),
             protein = numberOf("protein", "蛋白质"),
-            carbs = numberOf("carbs", "碳水", "碳水化合物"),
+            carbs = numberOf("carbs", "carbohydrate", "碳水", "碳水化合物"),
             fat = numberOf("fat", "脂肪"),
             fiber = numberOf("fiber", "膳食纤维", "纤维"),
             sugar = numberOf("sugar", "糖分", "糖"),
@@ -335,11 +443,145 @@ object AIResponseSanitizer {
     }
 
     private fun hasSignal(result: FoodAnalysisResult): Boolean {
-        return result.foodName.isNotBlank() ||
+        return (result.foodName.isNotBlank() && !isQuantityLike(result.foodName)) ||
             result.calories > 0f ||
             result.protein > 0f ||
             result.carbs > 0f ||
             result.fat > 0f
+    }
+
+    private fun parseFoodItemsByPattern(raw: String): List<FoodAnalysisResult> {
+        val normalized = normalizeLooseStructuredText(raw)
+        val positions = findFoodNamePositions(normalized)
+        if (positions.isEmpty()) return emptyList()
+
+        return positions.mapIndexedNotNull { index, start ->
+            val end = positions.getOrNull(index + 1) ?: normalized.length
+            parseFoodFragment(normalized.substring(start, end))
+        }
+    }
+
+    private fun normalizeLooseStructuredText(raw: String): String {
+        return toHalfWidth(raw)
+            .replace("\uFEFF", "")
+            .replace("，", ",")
+            .replace("：", ":")
+            .replace("；", ",")
+            .replace("“", "\"")
+            .replace("”", "\"")
+            .replace("‘", "'")
+            .replace("’", "'")
+            .replace(Regex("\\[(?:\\s*)(\"[^\"]+\"|'[^']+'|[A-Za-z_\\u4e00-\\u9fa5\\s]+)(?:\\s*),(?:\\s*)([^\\]]+)\\]")) { match ->
+                val key = match.groupValues[1].trim().trim('"', '\'')
+                val value = match.groupValues[2].trim()
+                "\"$key\": $value"
+            }
+    }
+
+    private fun findFoodNamePositions(normalized: String): List<Int> {
+        return foodNameStartAliases.flatMap { alias ->
+            val keyRegex = Regex(
+                "(?:\"|')?${buildAliasKeyPattern(alias)}(?:\"|')?\\s*:",
+                RegexOption.IGNORE_CASE
+            )
+            keyRegex.findAll(normalized).map { it.range.first }.toList()
+        }.distinct().sorted()
+    }
+
+    private fun parseFoodFragment(fragment: String): FoodAnalysisResult? {
+        val foodName = extractStringValue(
+            fragment = fragment,
+            aliases = aliasesFor("foodName") + "Chinese name food"
+        )
+        val estimatedWeight = extractNumberValue(fragment, aliasesFor("estimatedWeight")).toInt()
+        val parsed = FoodAnalysisResult(
+            foodName = foodName,
+            estimatedWeight = estimatedWeight.coerceAtLeast(0),
+            calories = extractNumberValue(fragment, aliasesFor("calories")),
+            protein = extractNumberValue(fragment, aliasesFor("protein")),
+            carbs = extractNumberValue(fragment, aliasesFor("carbs")),
+            fat = extractNumberValue(fragment, aliasesFor("fat")),
+            fiber = extractNumberValue(fragment, aliasesFor("fiber")),
+            sugar = extractNumberValue(fragment, aliasesFor("sugar")),
+            saturatedFat = extractNumberValue(fragment, aliasesFor("saturatedFat")),
+            cholesterol = extractNumberValue(fragment, aliasesFor("cholesterol")),
+            sodium = extractNumberValue(fragment, aliasesFor("sodium")),
+            potassium = extractNumberValue(fragment, aliasesFor("potassium")),
+            calcium = extractNumberValue(fragment, aliasesFor("calcium")),
+            iron = extractNumberValue(fragment, aliasesFor("iron")),
+            vitaminA = extractNumberValue(fragment, aliasesFor("vitaminA")),
+            vitaminC = extractNumberValue(fragment, aliasesFor("vitaminC")),
+            description = extractStringValue(fragment, aliasesFor("description"))
+        )
+        return parsed.takeIf(::hasSignal)
+    }
+
+    private fun aliasesFor(canonical: String): List<String> {
+        return buildList {
+            add(canonical)
+            fieldAliases.filterValues { it == canonical }.keys.forEach(::add)
+        }.distinct()
+    }
+
+    private fun extractStringValue(fragment: String, aliases: List<String>): String {
+        aliases.forEach { alias ->
+            val quoted = Regex(
+                "(?:\"|')?${buildAliasKeyPattern(alias)}(?:\"|')?\\s*:\\s*(?:\"|')([^\"'\\n\\r]+)",
+                RegexOption.IGNORE_CASE
+            ).find(fragment)
+            if (quoted != null) {
+                return quoted.groupValues[1].trim()
+            }
+
+            val plain = Regex(
+                "(?:\"|')?${buildAliasKeyPattern(alias)}(?:\"|')?\\s*:\\s*([^,}\\]\\n\\r]+)",
+                RegexOption.IGNORE_CASE
+            ).find(fragment)
+            if (plain != null) {
+                return plain.groupValues[1].trim().trim('"', '\'')
+            }
+        }
+        return ""
+    }
+
+    private fun extractNumberValue(fragment: String, aliases: List<String>): Float {
+        aliases.forEach { alias ->
+            val pair = Regex(
+                "\\[(?:\"|')?${Regex.escape(alias)}(?:\"|')?\\s*,\\s*([^\\]]+)\\]",
+                RegexOption.IGNORE_CASE
+            ).find(fragment)
+            val pairValue = pair?.groupValues?.getOrNull(1)?.let(::normalizeNumericLiteral)?.toFloatOrNull()
+            if (pairValue != null) {
+                return pairValue
+            }
+
+            val standard = Regex(
+                "(?:\"|')?${buildAliasKeyPattern(alias)}(?:\"|')?\\s*:\\s*([^,}\\]\\n\\r]+)",
+                RegexOption.IGNORE_CASE
+            ).find(fragment)
+            val standardValue = standard?.groupValues?.getOrNull(1)?.let(::normalizeNumericLiteral)?.toFloatOrNull()
+            if (standardValue != null) {
+                return standardValue
+            }
+        }
+        return 0f
+    }
+
+    private fun buildAliasKeyPattern(alias: String): String {
+        return if (alias.all { it.isLetter() || it == '_' || it == ' ' }) {
+            "(?<![A-Za-z])${Regex.escape(alias)}(?![A-Za-z])"
+        } else {
+            Regex.escape(alias)
+        }
+    }
+
+    private fun isQuantityLike(name: String): Boolean {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return false
+        return Regex(
+            "^\\d+(?:\\.\\d+)?\\s*(g|kg|ml|l|克|千克|毫升|升|个|份|片|勺|杯|碗)?$",
+            RegexOption.IGNORE_CASE
+        ).matches(trimmed)
     }
 
     private fun toHalfWidth(input: String): String {

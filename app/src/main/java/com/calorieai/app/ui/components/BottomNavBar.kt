@@ -75,6 +75,8 @@ fun BottomNavBar(
     val isLowEnd = remember { GlassDeviceUtils.isLowEndDevice(context) }
     val supportsBlur = false
     val haptics = rememberAppHapticController()
+    val navigationBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val containerHeight = remember(navigationBarInset) { 80.dp + navigationBarInset }
 
     // 背景颜色 #F3EDF7（浅色）/#211F26（深色），透明度 95%
     val backgroundColor = Color.White
@@ -88,7 +90,7 @@ fun BottomNavBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(80.dp)
+            .height(containerHeight)
             .drawBehind {
                 // 背景
                 drawRect(backgroundColor)
@@ -126,7 +128,8 @@ fun BottomNavBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight()
+                .height(80.dp)
+                .align(Alignment.TopCenter)
                 .padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
@@ -420,6 +423,8 @@ fun BottomNavBarWithFab(
     val isLowEnd = remember { GlassDeviceUtils.isLowEndDevice(context) }
     val supportsBlur = false
     val haptics = rememberAppHapticController()
+    val navigationBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val containerHeight = remember(navigationBarInset) { 96.dp + navigationBarInset }
 
     val backgroundColor = Color.White
     val borderColor = Color(0xFFE5E7EB)
@@ -428,7 +433,9 @@ fun BottomNavBarWithFab(
     val highlightHeight = with(density) { 1.dp.toPx() }
 
     Box(
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
+            .height(containerHeight)
     ) {
         // 底部导航栏（为FAB留出空间）
         Box(
@@ -436,6 +443,7 @@ fun BottomNavBarWithFab(
                 .fillMaxWidth()
                 .padding(top = 24.dp)
                 .height(72.dp)
+                .align(Alignment.TopCenter)
                 .drawBehind {
                     drawRect(backgroundColor)
                     drawRect(

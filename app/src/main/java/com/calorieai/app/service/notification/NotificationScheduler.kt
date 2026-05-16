@@ -27,21 +27,12 @@ class NotificationScheduler @Inject constructor(
     @Volatile
     private var lastSyncSignature: String? = null
 
-    fun syncMealReminders(
-        settings: UserSettings,
-        source: String = "unknown",
-        force: Boolean = false
-    ) {
-        // Backward-compatible entrypoint.
-        syncReminders(settings = settings, source = source, force = force)
-    }
-
     fun syncReminders(
         settings: UserSettings,
         source: String = "unknown",
         force: Boolean = false
     ) {
-        val signature = buildSyncSignature(settings)
+        val signature = ReminderSyncSignature.build(settings)
         if (!force && signature == lastSyncSignature) {
             Log.d(TAG, "sync skipped: same signature, source=$source")
             return
@@ -435,32 +426,6 @@ class NotificationScheduler @Inject constructor(
         val normalized = normalizeReminderTime(raw, fallback)
         return runCatching { LocalTime.parse(normalized) }
             .getOrElse { LocalTime.parse(fallback) }
-    }
-
-    private fun buildSyncSignature(settings: UserSettings): String {
-        return buildString {
-            append(settings.isNotificationEnabled)
-            append('|')
-            append(settings.breakfastReminderTime)
-            append('|')
-            append(settings.lunchReminderTime)
-            append('|')
-            append(settings.dinnerReminderTime)
-            append('|')
-            append(settings.showWaterFeatures)
-            append('|')
-            append(settings.enableWaterReminder)
-            append('|')
-            append(settings.waterReminderTimesJson)
-            append('|')
-            append(settings.waterReminderIntervalMinutes)
-            append('|')
-            append(settings.waterReminderWindowStart)
-            append('|')
-            append(settings.waterReminderWindowEnd)
-            append('|')
-            append(ZoneId.systemDefault().id)
-        }
     }
 
     private fun shouldSuppressDuplicateTrigger(keySuffix: String): Boolean {

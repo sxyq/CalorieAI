@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -26,11 +27,30 @@ class AIModelCallStatsViewModel @Inject constructor(
 
     private fun observeRecords() {
         viewModelScope.launch {
-            apiCallRecordRepository.getAllRecords().collect { records ->
-                _uiState.update {
-                    buildUiState(records = records)
+            apiCallRecordRepository.getAllRecords()
+                .catch { throwable ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            records = emptyList(),
+                            loadError = throwable.message?.takeIf(String::isNotBlank)
+                                ?: "调用记录加载失败"
+                        )
+                    }
                 }
-            }
+                .collect { records ->
+                    _uiState.update {
+                        runCatching { buildUiState(records = records) }
+                            .getOrElse { error ->
+                                it.copy(
+                                    isLoading = false,
+                                    records = emptyList(),
+                                    loadError = error.message?.takeIf(String::isNotBlank)
+                                        ?: "模型调用统计加载失败"
+                                )
+                            }
+                    }
+                }
         }
     }
 
@@ -192,6 +212,7 @@ class AIModelCallStatsViewModel @Inject constructor(
 data class AIModelCallStatsUiState(
     val isLoading: Boolean = true,
     val records: List<APICallRecord> = emptyList(),
+    val loadError: String? = null,
     val totalCalls: Int = 0,
     val successCalls: Int = 0,
     val failedCalls: Int = 0,

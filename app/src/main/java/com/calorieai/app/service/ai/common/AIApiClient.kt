@@ -1,8 +1,8 @@
 package com.calorieai.app.service.ai.common
 
-import com.calorieai.app.utils.SecureLogger
 import com.calorieai.app.data.model.AIConfig
 import com.calorieai.app.data.model.AIProtocol
+import com.calorieai.app.utils.SecureLogger
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonParser
@@ -36,7 +36,6 @@ class AIApiClient @Inject constructor(
         private const val TAG = "AIApiClient"
     }
 
-    // 简单的请求/响应数据类（完全模仿 Deadliner）
     data class Message(
         val role: String,
         val content: String
@@ -154,7 +153,7 @@ class AIApiClient @Inject constructor(
                                 "type" to "input_image",
                                 "input_image" to mapOf(
                                     "type" to "base64",
-                                    "data" to base64Image
+                                    "data" to listOf(base64Image)
                                 )
                             ),
                             mapOf("type" to "text", "text" to userMessage)
@@ -217,6 +216,11 @@ class AIApiClient @Inject constructor(
         )
     }
 
+    private fun buildAuthorizationHeader(apiKey: String): String {
+        val token = apiKey.trim()
+        return if (token.startsWith("Bearer ", ignoreCase = true)) token else "Bearer $token"
+    }
+
     private fun executeJsonPost(
         config: AIConfig,
         requestBody: Any,
@@ -225,7 +229,7 @@ class AIApiClient @Inject constructor(
         val body = gson.toJson(requestBody).toRequestBody(MEDIA_JSON.toMediaType())
         val httpRequest = Request.Builder()
             .url(config.apiUrl)
-            .addHeader("Authorization", "Bearer ${config.apiKey}")
+            .addHeader("Authorization", buildAuthorizationHeader(config.apiKey))
             .addHeader("Content-Type", MEDIA_JSON)
             .post(body)
             .build()
@@ -279,8 +283,13 @@ class AIApiClient @Inject constructor(
         return runCatching {
             val root = JsonParser.parseString(rawResponse).asJsonObject
 
-            val fromChoices = extractFromChoices(root.get("choices"))
-                ?: extractFromChoices(root.get("data"))
+            val fromChoices = root.getAsJsonArray("choices")
+                ?.firstOrNull()
+                ?.let { firstChoice ->
+                    val choice = if (firstChoice.isJsonObject) firstChoice.asJsonObject else return@let null
+                    extractText(choice.get("message"))
+                        ?: extractText(choice.get("delta"))
+                }
             if (!fromChoices.isNullOrBlank()) {
                 return fromChoices
             }
@@ -295,46 +304,8 @@ class AIApiClient @Inject constructor(
                 return fromOutput
             }
 
-            val fallbackKeys = listOf(
-                "content",
-                "text",
-                "output_text",
-                "answer",
-                "result",
-                "response",
-                "data",
-                "message"
-            )
-            fallbackKeys.firstNotNullOfOrNull { key ->
-                extractText(root.get(key))
-            } ?: root.entrySet().firstNotNullOfOrNull { entry ->
-                extractText(entry.value)
-            }
+            extractText(root.get("content"))
         }.getOrNull()?.takeIf { it.isNotBlank() }
-    }
-
-    private fun extractFromChoices(container: JsonElement?): String? {
-        if (container == null || container.isJsonNull) return null
-
-        if (container.isJsonObject) {
-            val obj = container.asJsonObject
-            return extractFromChoices(obj.get("choices"))
-                ?: extractFromChoices(obj.get("data"))
-                ?: extractText(obj.get("message"))
-                ?: extractText(obj.get("content"))
-        }
-
-        if (!container.isJsonArray) return null
-
-        return container.asJsonArray
-            .firstOrNull()
-            ?.let { firstChoice ->
-                if (!firstChoice.isJsonObject) return@let null
-                val choice = firstChoice.asJsonObject
-                extractText(choice.get("message"))
-                    ?: extractText(choice.get("delta"))
-                    ?: extractText(choice.get("content"))
-            }
     }
 
     private fun extractText(element: JsonElement?): String? {
@@ -350,6 +321,8 @@ class AIApiClient @Inject constructor(
             element.isJsonObject -> {
                 val obj = element.asJsonObject
                 extractText(obj.get("text"))
+                    ?: extractText(obj.get("reasoning_content"))
+                    ?: extractText(obj.get("reasoning"))
                     ?: extractText(obj.get("value"))
                     ?: extractText(obj.get("output_text"))
                     ?: extractText(obj.get("content"))
@@ -449,7 +422,7 @@ class AIApiClient @Inject constructor(
     fun extractOpenAIUsage(rawResponse: String): Usage? {
         return try {
             gson.fromJson(rawResponse, ChatResponse::class.java).usage
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
@@ -458,9 +431,6 @@ class AIApiClient @Inject constructor(
         return extractOpenAIUsage(rawResponse)
     }
 
-    /**
-     * 流式聊天 - 返回Flow<String>实现打字机效果
-     */
     fun chatStream(
         config: AIConfig,
         systemPrompt: String,
@@ -468,21 +438,10 @@ class AIApiClient @Inject constructor(
         temperature: Double = 0.7,
         maxTokens: Int = 1000
     ): Flow<String> = callbackFlow {
-        val isOmniModel = isOmniModel(config.modelId)
-        
-        val requestBody = if (isOmniModel) {
+        val requestBody = if (isOmniModel(config.modelId)) {
             mapOf(
                 "model" to config.modelId,
-                "messages" to listOf(
-                    mapOf(
-                        "role" to "system",
-                        "content" to listOf(mapOf("type" to "text", "text" to systemPrompt))
-                    ),
-                    mapOf(
-                        "role" to "user",
-                        "content" to listOf(mapOf("type" to "text", "text" to userMessage))
-                    )
-                ),
+                "messages" to buildOmniTextMessages(systemPrompt, userMessage),
                 "stream" to true
             )
         } else {
@@ -497,10 +456,10 @@ class AIApiClient @Inject constructor(
         }
 
         val body = gson.toJson(requestBody).toRequestBody(MEDIA_JSON.toMediaType())
-        
+
         val httpRequest = Request.Builder()
             .url(config.apiUrl)
-            .addHeader("Authorization", "Bearer ${config.apiKey}")
+            .addHeader("Authorization", buildAuthorizationHeader(config.apiKey))
             .addHeader("Content-Type", MEDIA_JSON)
             .addHeader("Accept", "text/event-stream")
             .post(body)
@@ -518,14 +477,13 @@ class AIApiClient @Inject constructor(
                     close()
                     return
                 }
-                
+
                 try {
                     val content = extractStreamChunk(data)
                     if (!content.isNullOrBlank()) {
                         trySend(content)
                     }
-                } catch (e: Exception) {
-                    // 忽略单条流式消息解析错误，继续处理后续消息
+                } catch (_: Exception) {
                 }
             }
 

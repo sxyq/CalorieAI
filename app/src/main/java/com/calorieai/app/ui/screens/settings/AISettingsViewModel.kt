@@ -145,6 +145,10 @@ class AISettingsViewModel @Inject constructor(
         _uiState.update { it.copy(saveMessage = null) }
     }
 
+    fun showTransientMessage(message: String) {
+        _uiState.update { it.copy(saveMessage = message) }
+    }
+
     fun refreshVoiceModelState() {
         val installedPackage = voiceModelManager.getInstalledPackage()
         voiceStateMachine.reset()

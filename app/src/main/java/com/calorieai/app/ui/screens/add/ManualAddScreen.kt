@@ -49,11 +49,16 @@ import kotlinx.coroutines.flow.collectLatest
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManualAddScreen(
+    selectedDate: String? = null,
     onNavigateBack: () -> Unit,
     viewModel: ManualAddViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(selectedDate) {
+        viewModel.setDateContext(selectedDate)
+    }
 
     LaunchedEffect(Unit) {
         viewModel.events.collectLatest { event ->
@@ -121,11 +126,27 @@ fun ManualAddScreen(
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
 
+                FoodNameInput(
+                    value = uiState.foodName,
+                    onValueChange = viewModel::updateFoodName,
+                    placeholder = "输入食物名称，例如：鸡胸肉沙拉"
+                )
+
+                CalorieInput(
+                    value = uiState.calories,
+                    onValueChange = viewModel::updateCalories
+                )
+
                 FavoriteRecipeQuickEntryCard(
                     favorites = uiState.favoriteRecipes,
                     favoriteRecipeMealTypeMap = uiState.favoriteRecipeMealTypeMap,
                     selectedMealType = uiState.favoriteMealType,
+                    showGramInput = uiState.showFavoriteQuickAddGramInput,
+                    gramInput = uiState.favoriteQuickAddGrams,
                     onMealTypeSelected = viewModel::updateFavoriteMealType,
+                    onToggleGramInput = viewModel::toggleFavoriteQuickAddGramInput,
+                    onGramInputChange = viewModel::updateFavoriteQuickAddGrams,
+                    onResetGramInput = viewModel::resetFavoriteQuickAddGramsToDefault,
                     onQuickAdd = { recipe ->
                         viewModel.addFavoriteRecipeToToday(recipe)
                     }
@@ -302,7 +323,12 @@ private fun FavoriteRecipeQuickEntryCard(
     favorites: List<FavoriteRecipe>,
     favoriteRecipeMealTypeMap: Map<String, MealType>,
     selectedMealType: MealType,
+    showGramInput: Boolean,
+    gramInput: String,
     onMealTypeSelected: (MealType) -> Unit,
+    onToggleGramInput: () -> Unit,
+    onGramInputChange: (String) -> Unit,
+    onResetGramInput: () -> Unit,
     onQuickAdd: (FavoriteRecipe) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -310,7 +336,6 @@ private fun FavoriteRecipeQuickEntryCard(
         .filter { recipe ->
             favoriteRecipeMealTypeMap[recipe.id] == selectedMealType
         }
-        .sortedByDescending { it.lastUsedAt ?: 0L }
     val mealTypes = listOf(MealType.BREAKFAST, MealType.LUNCH, MealType.DINNER, MealType.SNACK)
 
     Box(
@@ -377,6 +402,50 @@ private fun FavoriteRecipeQuickEntryCard(
                         selected = selectedMealType == mealType,
                         onClick = { onMealTypeSelected(mealType) },
                         label = { Text(getMealTypeName(mealType)) }
+                    )
+                }
+            }
+
+            AssistChip(
+                onClick = onToggleGramInput,
+                label = {
+                    Text(if (showGramInput) "收起克重输入" else "设置录入克重")
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Straighten,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            )
+
+            AnimatedVisibility(
+                visible = showGramInput,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = onResetGramInput) {
+                            Text("使用导入克重")
+                        }
+                    }
+                    OutlinedTextField(
+                        value = gramInput,
+                        onValueChange = onGramInputChange,
+                        label = { Text("克重") },
+                        placeholder = { Text("100") },
+                        suffix = { Text("g") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done
+                        ),
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }

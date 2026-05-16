@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.repository.UserSettingsRepository
+import com.calorieai.app.service.notification.NotificationCapabilityManager
 import com.calorieai.app.service.notification.ReminderResyncCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalTime
@@ -20,6 +21,7 @@ import kotlinx.coroutines.sync.withLock
 @HiltViewModel
 class NotificationSettingsViewModel @Inject constructor(
     private val userSettingsRepository: UserSettingsRepository,
+    private val notificationCapabilityManager: NotificationCapabilityManager,
     private val reminderResyncCoordinator: ReminderResyncCoordinator
 ) : ViewModel() {
 
@@ -92,36 +94,51 @@ class NotificationSettingsViewModel @Inject constructor(
         copy(waterReminderWindowEnd = time)
     }
 
+    fun refreshCapabilityState() {
+        _uiState.value = applyCapabilityState(_uiState.value)
+    }
+
     private fun observeSettings() {
         viewModelScope.launch {
             userSettingsRepository.getSettings().collectLatest { settings ->
                 if (settings == null) return@collectLatest
                 latestPersistedSettings = settings
-                _uiState.value = NotificationSettingsUiState(
-                    isLoaded = true,
-                    isNotificationEnabled = settings.isNotificationEnabled,
-                    breakfastReminderTime = parseTime(settings.breakfastReminderTime, LocalTime.of(8, 0)),
-                    lunchReminderTime = parseTime(settings.lunchReminderTime, LocalTime.of(12, 0)),
-                    dinnerReminderTime = parseTime(settings.dinnerReminderTime, LocalTime.of(18, 0)),
-                    enableGoalReminder = settings.enableGoalReminder,
-                    enableStreakReminder = settings.enableStreakReminder,
-                    showWaterFeatures = settings.showWaterFeatures,
-                    enableWaterReminder = settings.enableWaterReminder,
-                    waterReminderTimes = parseReminderTimes(settings.waterReminderTimesJson),
-                    waterReminderIntervalMinutes = settings.waterReminderIntervalMinutes
-                        .takeIf { it > 0 }
-                        ?.toString()
-                        .orEmpty(),
-                    waterReminderWindowStart = parseTime(settings.waterReminderWindowStart, LocalTime.of(9, 0)),
-                    waterReminderWindowEnd = parseTime(settings.waterReminderWindowEnd, LocalTime.of(21, 0))
+                _uiState.value = applyCapabilityState(
+                    NotificationSettingsUiState(
+                        isLoaded = true,
+                        isNotificationEnabled = settings.isNotificationEnabled,
+                        breakfastReminderTime = parseTime(settings.breakfastReminderTime, LocalTime.of(8, 0)),
+                        lunchReminderTime = parseTime(settings.lunchReminderTime, LocalTime.of(12, 0)),
+                        dinnerReminderTime = parseTime(settings.dinnerReminderTime, LocalTime.of(18, 0)),
+                        enableGoalReminder = settings.enableGoalReminder,
+                        enableStreakReminder = settings.enableStreakReminder,
+                        showWaterFeatures = settings.showWaterFeatures,
+                        enableWaterReminder = settings.enableWaterReminder,
+                        waterReminderTimes = parseReminderTimes(settings.waterReminderTimesJson),
+                        waterReminderIntervalMinutes = settings.waterReminderIntervalMinutes
+                            .takeIf { it > 0 }
+                            ?.toString()
+                            .orEmpty(),
+                        waterReminderWindowStart = parseTime(settings.waterReminderWindowStart, LocalTime.of(9, 0)),
+                        waterReminderWindowEnd = parseTime(settings.waterReminderWindowEnd, LocalTime.of(21, 0))
+                    )
                 )
             }
         }
     }
 
     private fun updateStateAndPersist(transform: NotificationSettingsUiState.() -> NotificationSettingsUiState) {
-        _uiState.value = _uiState.value.transform()
+        _uiState.value = applyCapabilityState(_uiState.value.transform())
         persistCurrentState()
+    }
+
+    private fun applyCapabilityState(state: NotificationSettingsUiState): NotificationSettingsUiState {
+        return state.copy(
+            hasNotificationPermission = notificationCapabilityManager.hasNotificationPermission(),
+            notificationsEnabledInSystem = notificationCapabilityManager.areNotificationsEnabledInSystem(),
+            canScheduleExactAlarms = notificationCapabilityManager.canScheduleExactAlarms(),
+            supportsExactAlarmPermission = notificationCapabilityManager.supportsExactAlarmPermission()
+        )
     }
 
     private fun persistCurrentState() {
@@ -195,6 +212,10 @@ class NotificationSettingsViewModel @Inject constructor(
 data class NotificationSettingsUiState(
     val isLoaded: Boolean = false,
     val isNotificationEnabled: Boolean = true,
+    val hasNotificationPermission: Boolean = true,
+    val notificationsEnabledInSystem: Boolean = true,
+    val canScheduleExactAlarms: Boolean = true,
+    val supportsExactAlarmPermission: Boolean = false,
     val breakfastReminderTime: LocalTime = LocalTime.of(8, 0),
     val lunchReminderTime: LocalTime = LocalTime.of(12, 0),
     val dinnerReminderTime: LocalTime = LocalTime.of(18, 0),

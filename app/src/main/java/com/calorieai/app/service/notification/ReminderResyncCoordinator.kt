@@ -1,7 +1,6 @@
 package com.calorieai.app.service.notification
 
 import com.calorieai.app.data.model.UserSettings
-import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -38,7 +37,7 @@ class ReminderResyncCoordinator @Inject constructor(
         source: String,
         force: Boolean = false
     ) {
-        val signature = buildSignature(settings)
+        val signature = ReminderSyncSignature.build(settings)
         if (!force && signature == lastDispatchedSignature) {
             return
         }
@@ -71,32 +70,6 @@ class ReminderResyncCoordinator @Inject constructor(
                 force = request.force
             )
             lastDispatchedSignature = request.signature
-        }
-    }
-
-    private fun buildSignature(settings: UserSettings): String {
-        return buildString {
-            append(settings.isNotificationEnabled)
-            append('|')
-            append(settings.breakfastReminderTime)
-            append('|')
-            append(settings.lunchReminderTime)
-            append('|')
-            append(settings.dinnerReminderTime)
-            append('|')
-            append(settings.showWaterFeatures)
-            append('|')
-            append(settings.enableWaterReminder)
-            append('|')
-            append(settings.waterReminderTimesJson)
-            append('|')
-            append(settings.waterReminderIntervalMinutes)
-            append('|')
-            append(settings.waterReminderWindowStart)
-            append('|')
-            append(settings.waterReminderWindowEnd)
-            append('|')
-            append(ZoneId.systemDefault().id)
         }
     }
 

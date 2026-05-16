@@ -2,15 +2,44 @@ package com.calorieai.app.ui.screens.camera
 
 import android.net.Uri
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,14 +48,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.background
-import com.calorieai.app.ui.components.liquidGlass
 import coil.compose.rememberAsyncImagePainter
 import com.calorieai.app.data.model.FoodAnalysisResult
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.model.getMealTypeName
+import com.calorieai.app.ui.components.liquidGlass
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,7 +75,7 @@ fun PhotoAnalysisScreen(
                 title = { Text("拍照识别") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
                 }
             )
@@ -64,13 +90,15 @@ fun PhotoAnalysisScreen(
                 uiState.isAnalyzing -> {
                     AnalyzingContent(retryMessage = uiState.retryMessage)
                 }
+
                 uiState.error != null -> {
                     ErrorContent(
-                        error = uiState.error!!,
+                        error = uiState.error.orEmpty(),
                         onRetry = { viewModel.analyzePhoto(photoUri, context) },
                         onBack = onNavigateBack
                     )
                 }
+
                 uiState.analysisResult != null -> {
                     AnalysisResultContent(
                         photoUri = photoUri,
@@ -90,7 +118,6 @@ fun PhotoAnalysisScreen(
             }
         }
     }
-
 }
 
 @Composable
@@ -115,12 +142,14 @@ private fun AnalyzingContent(retryMessage: String?) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = retryMessage ?: "优先执行单次识别，必要时自动补救一次",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        if (!retryMessage.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = retryMessage,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
@@ -155,9 +184,7 @@ private fun ErrorContent(
             modifier = Modifier.padding(horizontal = 32.dp)
         )
         Spacer(modifier = Modifier.height(24.dp))
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             OutlinedButton(onClick = onBack) {
                 Text("返回")
             }
@@ -170,7 +197,6 @@ private fun ErrorContent(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AnalysisResultContent(
     photoUri: Uri,
@@ -195,9 +221,9 @@ private fun AnalysisResultContent(
             .verticalScroll(scrollState)
             .padding(16.dp)
     ) {
-        // 图片预览
         Box(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
                 .liquidGlass(
                     shape = RoundedCornerShape(12.dp),
                     tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
@@ -216,12 +242,11 @@ private fun AnalysisResultContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 用户提示输入
         OutlinedTextField(
             value = userHint,
             onValueChange = onUserHintChange,
             label = { Text("补充描述（可选）") },
-            placeholder = { Text("例如：这是外卖的宫保鸡丁，米饭大约吃了一多半") },
+            placeholder = { Text("例如：这是外卖的宫保鸡丁，米饭大约吃了一大半") },
             modifier = Modifier.fillMaxWidth(),
             minLines = 2,
             maxLines = 3,
@@ -236,17 +261,15 @@ private fun AnalysisResultContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 分析结果卡片
         Box(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
                 .liquidGlass(
                     shape = RoundedCornerShape(16.dp),
                     tint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
                 )
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
+            Column(modifier = Modifier.padding(16.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -285,7 +308,6 @@ private fun AnalysisResultContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 保存按钮
         Button(
             onClick = onSave,
             modifier = Modifier.fillMaxWidth(),

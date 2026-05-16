@@ -30,7 +30,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calorieai.app.data.model.APICallRecord
 import com.calorieai.app.ui.components.liquidGlass
 import java.text.SimpleDateFormat
@@ -53,7 +53,7 @@ fun AIModelCallStatsScreen(
     onNavigateBack: () -> Unit,
     viewModel: AIModelCallStatsViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -83,7 +83,13 @@ fun AIModelCallStatsScreen(
             EmptyStatsState(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
+                    .padding(paddingValues),
+                message = uiState.loadError ?: "暂无模型调用记录",
+                subMessage = if (uiState.loadError == null) {
+                    "发生调用后，这里会展示 Prompt 与回复统计"
+                } else {
+                    "请返回后重试；若仍失败，可先在设置中导出备份并反馈日志"
+                }
             )
             return@Scaffold
         }
@@ -315,7 +321,11 @@ private fun APICallRecordItem(record: APICallRecord) {
 }
 
 @Composable
-private fun EmptyStatsState(modifier: Modifier = Modifier) {
+private fun EmptyStatsState(
+    modifier: Modifier = Modifier,
+    message: String,
+    subMessage: String
+) {
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center
@@ -331,12 +341,12 @@ private fun EmptyStatsState(modifier: Modifier = Modifier) {
             )
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "暂无模型调用记录",
+                text = message,
                 style = MaterialTheme.typography.titleMedium
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "发生调用后，这里会展示 Prompt 与回复统计",
+                text = subMessage,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

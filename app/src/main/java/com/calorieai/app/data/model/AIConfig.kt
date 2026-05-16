@@ -1,11 +1,6 @@
 package com.calorieai.app.data.model
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
-
-@Entity(tableName = "ai_configs")
 data class AIConfig(
-    @PrimaryKey
     val id: String = java.util.UUID.randomUUID().toString(),
     val name: String,
     val icon: String,

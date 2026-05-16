@@ -1,11 +1,17 @@
 package com.calorieai.app.ui.components
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,7 +79,17 @@ fun <T : Enum<T>> EnumSelectorCard(
     itemDescription: ((T) -> String)? = null,
     modifier: Modifier = Modifier
 ) {
-    SettingsSection(title = title, modifier = modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
         EnumSelector(
             items = items,
             selectedItem = selectedItem,
@@ -82,86 +98,4 @@ fun <T : Enum<T>> EnumSelectorCard(
             itemDescription = itemDescription
         )
     }
-}
-
-@Composable
-fun SettingsSection(
-    title: String,
-    modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-        content()
-        HorizontalDivider(
-            modifier = Modifier.padding(top = 8.dp),
-            thickness = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-        )
-    }
-}
-
-@Composable
-fun SettingsSwitchItem(
-    title: String,
-    subtitle: String? = null,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            subtitle?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SettingsTopAppBar(
-    title: String,
-    onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    TopAppBar(
-        title = { 
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge
-            )
-        },
-        navigationIcon = {
-            IconButton(onClick = onNavigateBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "返回"
-                )
-            }
-        },
-        modifier = modifier
-    )
 }

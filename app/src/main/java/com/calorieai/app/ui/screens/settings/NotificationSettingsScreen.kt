@@ -1,7 +1,7 @@
 ﻿package com.calorieai.app.ui.screens.settings
 
 import android.Manifest
-import android.content.pm.PackageManager
+import android.content.Context
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,7 +32,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -43,11 +43,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.calorieai.app.service.notification.NotificationCapabilityManager
 import com.calorieai.app.ui.components.SettingsTopAppBar
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -70,25 +73,17 @@ fun NotificationSettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val needRuntimeNotificationPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
     var pickerTarget by remember { mutableStateOf<TimePickerTarget?>(null) }
-    val hasNotificationPermission = remember {
-        mutableStateOf(
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED
-        )
-    }
 
     val requestNotificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
-        hasNotificationPermission.value = granted
+        viewModel.refreshCapabilityState()
         if (granted) {
             viewModel.updateNotificationEnabled(true)
         } else {
@@ -96,6 +91,18 @@ fun NotificationSettingsScreen(
             scope.launch {
                 snackbarHostState.showSnackbar("通知权限未授予，无法开启提醒")
             }
+        }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshCapabilityState()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -116,6 +123,59 @@ fun NotificationSettingsScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
+            SettingsSection(title = "系统状态") {
+                PermissionStatusItem(
+                    title = "通知权限",
+                    status = if (uiState.hasNotificationPermission && uiState.notificationsEnabledInSystem) {
+                        "已允许"
+                    } else {
+                        "未完全允许"
+                    },
+                    description = if (uiState.hasNotificationPermission && uiState.notificationsEnabledInSystem) {
+                        "系统允许应用发送通知。"
+                    } else if (!uiState.hasNotificationPermission && needRuntimeNotificationPermission) {
+                        "Android 13 及以上需要先授予通知权限，否则提醒不会显示。"
+                    } else {
+                        "系统通知开关当前关闭，提醒将不会展示。"
+                    },
+                    actionLabel = when {
+                        !uiState.hasNotificationPermission && needRuntimeNotificationPermission -> "授予通知权限"
+                        !uiState.notificationsEnabledInSystem -> "打开系统通知设置"
+                        else -> null
+                    },
+                    onAction = {
+                        when {
+                            !uiState.hasNotificationPermission && needRuntimeNotificationPermission -> {
+                                requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+
+                            !uiState.notificationsEnabledInSystem -> {
+                                context.startActivity(
+                                    NotificationCapabilityManager.createAppNotificationSettingsIntent(context)
+                                )
+                            }
+                        }
+                    }
+                )
+
+                if (uiState.supportsExactAlarmPermission) {
+                    SettingsSectionDivider()
+                    PermissionStatusItem(
+                        title = "精确提醒",
+                        status = if (uiState.canScheduleExactAlarms) "已授权" else "未授权",
+                        description = if (uiState.canScheduleExactAlarms) {
+                            "系统允许精确闹钟，餐次和喝水提醒可以按设定时间触发。"
+                        } else {
+                            "未授权时应用只能退回近似闹钟，提醒可能延后。"
+                        },
+                        actionLabel = if (uiState.canScheduleExactAlarms) null else "授权精确提醒",
+                        onAction = {
+                            openExactAlarmSettings(context)
+                        }
+                    )
+                }
+            }
+
             SettingsSection(
                 title = "主要",
                 mainContent = true,
@@ -131,10 +191,25 @@ fun NotificationSettingsScreen(
                             return@SettingsSwitchItem
                         }
 
-                        if (!needRuntimeNotificationPermission || hasNotificationPermission.value) {
-                            viewModel.updateNotificationEnabled(true)
-                        } else {
-                            requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        when {
+                            needRuntimeNotificationPermission && !uiState.hasNotificationPermission -> {
+                                requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+
+                            !uiState.notificationsEnabledInSystem -> {
+                                context.startActivity(
+                                    NotificationCapabilityManager.createAppNotificationSettingsIntent(context)
+                                )
+                            }
+
+                            else -> {
+                                viewModel.updateNotificationEnabled(true)
+                                if (uiState.supportsExactAlarmPermission && !uiState.canScheduleExactAlarms) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("未授权精确提醒，系统可能延后通知时间")
+                                    }
+                                }
+                            }
                         }
                     },
                     isMainSwitch = true
@@ -266,6 +341,7 @@ fun NotificationSettingsScreen(
                     ?: LocalTime.of(10, 0)
                 TimePickerTarget.WaterWindowStart -> uiState.waterReminderWindowStart
                 TimePickerTarget.WaterWindowEnd -> uiState.waterReminderWindowEnd
+                else -> LocalTime.of(10, 0)
             }
 
             TimePickerDialog(
@@ -284,6 +360,57 @@ fun NotificationSettingsScreen(
                 onDismiss = { pickerTarget = null }
             )
         }
+    }
+}
+
+private fun openExactAlarmSettings(context: Context) {
+    NotificationCapabilityManager.createExactAlarmSettingsIntent(context)?.let { intent ->
+        context.startActivity(intent)
+    }
+}
+
+@Composable
+private fun PermissionStatusItem(
+    title: String,
+    status: String,
+    description: String,
+    actionLabel: String?,
+    onAction: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = status,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            if (actionLabel != null) {
+                TextButton(onClick = onAction) {
+                    Text(actionLabel)
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

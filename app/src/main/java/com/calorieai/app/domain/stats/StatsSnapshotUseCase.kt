@@ -20,6 +20,7 @@ import com.calorieai.app.utils.TodayStats
 import com.calorieai.app.utils.WeeklyStat
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.time.temporal.WeekFields
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -169,8 +170,10 @@ class StatsSnapshotUseCase @Inject constructor() {
         recordsByDate: Map<LocalDate, List<FoodRecord>>
     ): List<DailyMealRecord> {
         val today = LocalDate.now()
-        val daysToShow = 140
-        val startDate = today.minusDays(daysToShow.toLong() - 1)
+        val defaultStartDate = today.withDayOfMonth(1)
+        val startDateCandidate = recordsByDate.keys.minOrNull()?.withDayOfMonth(1) ?: defaultStartDate
+        val startDate = if (startDateCandidate.isAfter(today)) defaultStartDate else startDateCandidate
+        val daysToShow = ChronoUnit.DAYS.between(startDate, today).toInt().coerceAtLeast(0) + 1
 
         data class DayIntensity(
             val date: LocalDate,

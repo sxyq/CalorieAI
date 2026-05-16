@@ -1,3 +1,7 @@
+import java.io.File
+import java.io.ByteArrayOutputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -5,6 +9,82 @@ plugins {
     id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22"
 }
+
+val localProperties = Properties().apply {
+    val propsFile = rootProject.file("local.properties")
+    if (propsFile.exists()) {
+        propsFile.inputStream().use { load(it) }
+    }
+}
+
+fun decryptWindowsLocalSecret(encryptedValue: String): String {
+    if (encryptedValue.isBlank()) return ""
+    check(System.getProperty("os.name").contains("Windows", ignoreCase = true)) {
+        "default.longcat.api.key.encrypted is only supported on Windows hosts"
+    }
+
+    val stdout = ByteArrayOutputStream()
+    val escapedCipherText = encryptedValue.replace("'", "''")
+    exec {
+        commandLine(
+            resolveWindowsPowerShellExecutable(),
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            "\$secure = ConvertTo-SecureString '$escapedCipherText'; " +
+                "\$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR(\$secure); " +
+                "try { [Runtime.InteropServices.Marshal]::PtrToStringBSTR(\$ptr) } " +
+                "finally { if (\$ptr -ne [IntPtr]::Zero) { " +
+                "[Runtime.InteropServices.Marshal]::ZeroFreeBSTR(\$ptr) } }"
+        )
+        standardOutput = stdout
+        errorOutput = stdout
+        isIgnoreExitValue = false
+    }
+
+    return stdout.toString(Charsets.UTF_8.name()).trim()
+}
+
+fun resolveWindowsPowerShellExecutable(): String {
+    val candidates = buildList {
+        System.getenv("POWERSHELL_EXE")?.takeIf { it.isNotBlank() }?.let(::add)
+        listOf(System.getenv("SystemRoot"), System.getenv("WINDIR"))
+            .filterNotNull()
+            .distinct()
+            .forEach { root ->
+                add("$root\\System32\\WindowsPowerShell\\v1.0\\powershell.exe")
+            }
+        add("powershell")
+    }
+    return candidates.firstOrNull { candidate ->
+        candidate == "powershell" || File(candidate).exists()
+    } ?: "powershell"
+}
+
+val localOcrServiceUrl: String = (
+    localProperties.getProperty("local.ocr.service.url")
+        ?: System.getenv("LOCAL_OCR_SERVICE_URL")
+        ?: ""
+).replace("\"", "\\\"")
+val encryptedDefaultLongcatApiKey: String =
+    localProperties.getProperty("default.longcat.api.key.encrypted")?.trim().orEmpty()
+val defaultLongcatApiKey: String = (
+    when {
+        encryptedDefaultLongcatApiKey.isNotBlank() ->
+            decryptWindowsLocalSecret(encryptedDefaultLongcatApiKey)
+
+        else -> localProperties.getProperty("default.longcat.api.key")
+            ?: System.getenv("DEFAULT_LONGCAT_API_KEY")
+            ?: ""
+    }
+).replace("\"", "\\\"")
+val bundledPaddleOcrRoot: String = (
+    localProperties.getProperty("bundled.paddle.ocr.root")
+        ?: System.getenv("BUNDLED_PADDLE_OCR_ROOT")
+        ?: "${System.getProperty("user.home")}\\.paddlex\\official_models"
+).replace("\"", "\\\"")
 
 android {
     namespace = "com.calorieai.app"
@@ -27,6 +107,8 @@ android {
         // 非 Play 版本更新检查接口（返回JSON）
         // 示例: {"latestVersionCode":2,"latestVersionName":"1.0.1","downloadUrl":"https://example.com/CalorieAI-v1.0.1.apk","changelog":"修复若干问题","forceUpdate":false}
         buildConfigField("String", "UPDATE_CHECK_URL", "\"\"")
+        buildConfigField("String", "LOCAL_OCR_SERVICE_URL", "\"$localOcrServiceUrl\"")
+        buildConfigField("String", "DEFAULT_LONGCAT_API_KEY", "\"$defaultLongcatApiKey\"")
     }
 
     signingConfigs {
@@ -53,9 +135,6 @@ android {
         }
     }
     
-    dexOptions {
-        javaMaxHeapSize = "2g"
-    }
     
     // 打包选项
     android.applicationVariants.all {
@@ -76,8 +155,14 @@ android {
         compose = true
         buildConfig = true
     }
+    sourceSets {
+        getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/assets/bundledOcr"))
+    }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.8"
+    }
+    androidResources {
+        noCompress += setOf("pdiparams", "json", "yml", "txt")
     }
     packaging {
         resources {
@@ -86,7 +171,74 @@ android {
     }
 }
 
+val bundledOcrGeneratedDir = layout.buildDirectory.dir("generated/assets/bundledOcr/ocr/paddle_nutrition")
+val bundledOcrSourceRoot = file(bundledPaddleOcrRoot)
+val bundledOcrModelSpecs = listOf(
+    Triple("det", "PP-OCRv5_mobile_det", "PP-OCRv5 mobile detection"),
+    Triple("rec", "PP-OCRv5_server_rec", "PP-OCRv5 server recognition"),
+    Triple("cls", "PP-LCNet_x1_0_textline_ori", "PP-LCNet textline orientation")
+)
+
+val syncBundledOcrAssets by tasks.registering(Copy::class) {
+    val outputRoot = bundledOcrGeneratedDir.get().asFile
+
+    doFirst {
+        delete(outputRoot)
+        outputRoot.mkdirs()
+
+        val manifestEntries = bundledOcrModelSpecs.map { (folder, modelDirName, displayName) ->
+            val sourceDir = bundledOcrSourceRoot.resolve(modelDirName)
+            if (!sourceDir.exists()) {
+                throw GradleException(
+                    "Missing bundled OCR model directory: ${sourceDir.absolutePath}. " +
+                        "Set bundled.paddle.ocr.root in local.properties if needed."
+                )
+            }
+            mapOf(
+                "id" to folder,
+                "name" to displayName,
+                "sourceDir" to sourceDir.absolutePath.replace("\\", "\\\\"),
+                "assetDir" to "ocr/paddle_nutrition/$folder"
+            )
+        }
+
+        val manifestFile = outputRoot.resolve("manifest.json")
+        val modelsJson = manifestEntries.joinToString(",\n") { entry ->
+            """
+            {
+              "id": "${entry["id"]}",
+              "name": "${entry["name"]}",
+              "sourceDir": "${entry["sourceDir"]}",
+              "assetDir": "${entry["assetDir"]}"
+            }
+            """.trimIndent()
+        }
+        manifestFile.writeText(
+            """
+            {
+              "createdAtEpochMs": ${System.currentTimeMillis()},
+              "bundledFrom": "${bundledOcrSourceRoot.absolutePath.replace("\\", "\\\\")}",
+              "models": [
+            $modelsJson
+              ]
+            }
+            """.trimIndent(),
+            Charsets.UTF_8
+        )
+    }
+
+    bundledOcrModelSpecs.forEach { (folder, modelDirName, _) ->
+        from(bundledOcrSourceRoot.resolve(modelDirName)) {
+            include("**/*")
+            into(folder)
+        }
+    }
+    into(bundledOcrGeneratedDir)
+    includeEmptyDirs = false
+}
+
 tasks.named("preBuild") {
+    dependsOn(syncBundledOcrAssets)
     doFirst {
         val legacyAssets = listOf(
             file("src/main/assets/vosk-model-small-cn-0.22.zip"),
@@ -187,6 +339,7 @@ dependencies {
 
     // Testing
     testImplementation("junit:junit:4.13.2")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")

@@ -1,9 +1,11 @@
 package com.calorieai.app.ui.components.markdown
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -218,6 +220,10 @@ fun MarkdownText(
                     NumberedListElement(element, actualConfig, onLinkClick)
                     Spacer(modifier = Modifier.height(actualConfig.paragraphSpacing.dp))
                 }
+                is MarkdownElement.Table -> {
+                    TableElement(element, actualConfig, isDark)
+                    Spacer(modifier = Modifier.height(actualConfig.paragraphSpacing.dp))
+                }
                 is MarkdownElement.Divider -> {
                     DividerElement(actualConfig)
                     Spacer(modifier = Modifier.height(actualConfig.paragraphSpacing.dp))
@@ -237,6 +243,7 @@ private sealed class MarkdownElement {
     data class Quote(val content: List<MarkdownElement>) : MarkdownElement()
     data class BulletList(val items: List<String>) : MarkdownElement()
     data class NumberedList(val items: List<String>) : MarkdownElement()
+    data class Table(val headers: List<String>, val rows: List<List<String>>) : MarkdownElement()
     object Divider : MarkdownElement()
 }
 
@@ -245,13 +252,23 @@ private sealed class MarkdownElement {
  */
 private fun parseMarkdown(text: String, config: MarkdownConfig): List<MarkdownElement> {
     val elements = mutableListOf<MarkdownElement>()
-    val lines = text.lines()
+    val lines = normalizeMarkdownSource(text).lines()
     var i = 0
     
     while (i < lines.size) {
         val line = lines[i]
         
         when {
+            isTableHeader(lines, i) -> {
+                val headers = parseTableCells(lines[i])
+                val rows = mutableListOf<List<String>>()
+                i += 2
+                while (i < lines.size && isTableRow(lines[i])) {
+                    rows.add(parseTableCells(lines[i]))
+                    i++
+                }
+                elements.add(MarkdownElement.Table(headers, rows))
+            }
             line.matches(Regex("^ {0,3}(-{3,}|\\*{3,}|_{3,})\\s*$")) -> {
                 elements.add(MarkdownElement.Divider)
                 i++
@@ -318,6 +335,42 @@ private fun parseMarkdown(text: String, config: MarkdownConfig): List<MarkdownEl
     }
     
     return elements
+}
+
+private fun normalizeMarkdownSource(text: String): String {
+    return text
+        .replace("\r\n", "\n")
+        .replace("\\r\\n", "\n")
+        .replace("\\n", "\n")
+        .replace("\\r", "\n")
+        .replace("\\t", "\t")
+        .replace(Regex("([^\\n])\\s+(#{1,6}\\s+)"), "$1\n\n$2")
+        .replace(Regex("\\n{3,}"), "\n\n")
+        .trim()
+}
+
+private fun isTableHeader(lines: List<String>, index: Int): Boolean {
+    if (index + 1 >= lines.size) return false
+    return isTableRow(lines[index]) && isTableSeparator(lines[index + 1])
+}
+
+private fun isTableRow(line: String): Boolean {
+    val trimmed = line.trim()
+    return trimmed.startsWith("|") && trimmed.endsWith("|") && trimmed.count { it == '|' } >= 2
+}
+
+private fun isTableSeparator(line: String): Boolean {
+    return line.trim().matches(
+        Regex("^\\|?\\s*:?-{3,}:?(\\s*\\|\\s*:?-{3,}:?)*\\s*\\|?$")
+    )
+}
+
+private fun parseTableCells(line: String): List<String> {
+    return line
+        .trim()
+        .trim('|')
+        .split('|')
+        .map { it.trim() }
 }
 
 /**
@@ -564,6 +617,80 @@ private fun NumberedListElement(
                         modifier = Modifier.weight(1f)
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TableElement(
+    element: MarkdownElement.Table,
+    config: MarkdownConfig,
+    isDark: Boolean
+) {
+    val headerBackground = if (isDark) {
+        GlassDarkColors.SurfaceContainerHigh.copy(alpha = 0.86f)
+    } else {
+        GlassLightColors.SurfaceContainerHigh.copy(alpha = 0.9f)
+    }
+    val rowBackground = if (isDark) {
+        GlassDarkColors.SurfaceContainerLow.copy(alpha = 0.45f)
+    } else {
+        GlassLightColors.SurfaceContainerLow.copy(alpha = 0.5f)
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = rowBackground
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+        ) {
+            MarkdownTableRow(
+                cells = element.headers,
+                textStyle = config.textStyle.copy(fontWeight = FontWeight.SemiBold),
+                backgroundColor = headerBackground
+            )
+            element.rows.forEachIndexed { index, row ->
+                Divider(color = config.dividerColor, thickness = config.dividerThickness.dp)
+                MarkdownTableRow(
+                    cells = row,
+                    textStyle = config.textStyle,
+                    backgroundColor = if (index % 2 == 0) {
+                        rowBackground
+                    } else {
+                        rowBackground.copy(alpha = rowBackground.alpha * 0.8f)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MarkdownTableRow(
+    cells: List<String>,
+    textStyle: TextStyle,
+    backgroundColor: Color
+) {
+    Row(
+        modifier = Modifier
+            .background(backgroundColor)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        cells.forEach { cell ->
+            Box(
+                modifier = Modifier
+                    .widthIn(min = 88.dp)
+                    .padding(end = 12.dp)
+            ) {
+                Text(
+                    text = cell,
+                    style = textStyle
+                )
             }
         }
     }

@@ -80,11 +80,11 @@ fun FavoriteRecipesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("鑿滆氨涓績") },
+                title = { Text("菜谱中心") },
                 navigationIcon = {
                     if (showBackButton) {
                         IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "杩斿洖")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                         }
                     }
                 }
@@ -195,7 +195,7 @@ fun FavoriteRecipesScreen(
                         ) {
                             Icon(Icons.Default.Inventory2, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("椋熸潗绠＄悊")
+                            Text("食材管理")
                         }
                         Button(
                             onClick = onNavigateToMealPlanManager,
@@ -207,7 +207,7 @@ fun FavoriteRecipesScreen(
                         ) {
                             Icon(Icons.Default.RestaurantMenu, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("鑿滃崟璁″垝")
+                            Text("菜单计划")
                         }
                     }
                 }
@@ -223,13 +223,13 @@ private fun HomeOverviewSection(
     planCount: Int
 ) {
     RecipePanel(
-        title = "鏀惰棌澶嶇敤涓绘帶鍙",
-        subtitle = "鏀惰棌 -> 涓€閿姞鍏ヤ粖鏃?-> 搴撳瓨涓嶢I鍗忓悓"
+        title = "收藏资源概览",
+        subtitle = "收藏 -> 食材 -> 菜单，形成可执行协同"
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RecipeMetricBadge("鏀惰棌", favoriteCount.toString(), Modifier.weight(1f))
-            RecipeMetricBadge("椋熸潗", pantryCount.toString(), Modifier.weight(1f))
-            RecipeMetricBadge("鑿滃崟", planCount.toString(), Modifier.weight(1f))
+            RecipeMetricBadge("收藏", favoriteCount.toString(), Modifier.weight(1f))
+            RecipeMetricBadge("食材", pantryCount.toString(), Modifier.weight(1f))
+            RecipeMetricBadge("菜单", planCount.toString(), Modifier.weight(1f))
         }
     }
 }
@@ -244,9 +244,9 @@ private fun QuickFavoriteSection(
 ) {
     val mealTypes = listOf(MealType.BREAKFAST, MealType.LUNCH, MealType.DINNER, MealType.SNACK)
     RecipePanel(
-        title = "蹇嵎澶嶇敤",
-        subtitle = "閫夋嫨椁愭鍚庝竴閿姞鍏ヤ粖鏃ヨ褰",
-        actionText = "绠＄悊鏀惰棌",
+        title = "快捷复用",
+        subtitle = "按餐次筛选收藏，支持快速复用到今日记录",
+        actionText = "管理收藏",
         onAction = onManageFavorites
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -261,7 +261,7 @@ private fun QuickFavoriteSection(
 
         if (favorites.isEmpty()) {
             Text(
-                "鏆傛棤鏀惰棌鑿滆氨锛屽厛鍦ㄧ粨鏋滈〉鎴栨敹钘忓簱娣诲姞銆",
+                "暂无可复用收藏，请先在管理收藏中添加菜谱。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -269,7 +269,7 @@ private fun QuickFavoriteSection(
             favorites.take(4).forEach { recipe ->
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.62f)
+                        containerColor = recipeInsetCardColor()
                     ),
                     shape = CardDefaults.shape
                 ) {
@@ -282,12 +282,12 @@ private fun QuickFavoriteSection(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(recipe.foodName, fontWeight = FontWeight.SemiBold)
                             Text(
-                                "${recipe.totalCalories} kcal 路 浣跨敤 ${recipe.useCount} 娆",
+                                "${recipe.totalCalories} kcal · 复用 ${recipe.useCount} 次",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        TextButton(onClick = { onAdd(recipe) }) { Text("鍔犲叆浠婃棩") }
+                        TextButton(onClick = { onAdd(recipe) }) { Text("加入今日") }
                     }
                 }
             }
@@ -305,8 +305,8 @@ private fun AiSection(
     onClear: () -> Unit
 ) {
     RecipePanel(
-        title = "AI 鑿滆氨鍗忓悓",
-        subtitle = "鐢熸垚鎺ㄨ崘鎴栫洿鎺ョ敓鎴?澶╄彍鍗"
+        title = "AI 菜谱协同",
+        subtitle = "生成推荐与计划，减少重复决策成本"
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(
@@ -314,7 +314,7 @@ private fun AiSection(
                 enabled = !isLoading,
                 modifier = Modifier.weight(1f)
             ) {
-                Text("鐢熸垚鎺ㄨ崘")
+                Text("生成推荐")
             }
             Button(
                 onClick = onGeneratePlan,
@@ -327,16 +327,24 @@ private fun AiSection(
             ) {
                 Icon(Icons.Default.SmartToy, contentDescription = null)
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("鐢熸垚3澶")
+                Text("生成计划")
             }
         }
 
         if (isLoading) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = recipeInsetCardColor()
+                )
             ) {
-                CircularProgressIndicator()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 18.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
         }
 
@@ -351,13 +359,13 @@ private fun AiSection(
         if (!result.isNullOrBlank()) {
             Card(
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    containerColor = recipeInsetCardColor()
                 )
             ) {
                 Column(modifier = Modifier.padding(10.dp)) {
                     MarkdownText(text = result, config = MarkdownConfig.ChatReadable)
                     TextButton(onClick = onClear, modifier = Modifier.align(Alignment.End)) {
-                        Text("娓呯┖缁撴灉")
+                        Text("清空结果")
                     }
                 }
             }
@@ -504,7 +512,7 @@ private fun PersonalizationSection(
 
         Card(
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                containerColor = recipeInsetCardColor()
             )
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
@@ -630,14 +638,14 @@ private fun MealPlanAssistSection(
     val formatter = remember { DateTimeFormatter.ofPattern("MM-dd") }
 
     RecipePanel(
-        title = "鑿滃崟杈呭姪",
-        subtitle = "鑿滃崟鍙洖鏄句笌澶嶇敤",
-        actionText = "绠＄悊鑿滃崟",
+        title = "菜单辅助",
+        subtitle = "菜单可回显与复用",
+        actionText = "管理菜单",
         onAction = onManagePlans
     ) {
         if (latestPlan == null) {
             Text(
-                "鏆傛棤鑿滃崟璁″垝锛屽彲鍦ㄦ椤电洿鎺ョ敓鎴愩€",
+                "暂无菜单计划，建议先生成计划后再复用。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -645,12 +653,12 @@ private fun MealPlanAssistSection(
             val start = LocalDate.ofEpochDay(latestPlan.startDateEpochDay).format(formatter)
             val end = LocalDate.ofEpochDay(latestPlan.endDateEpochDay).format(formatter)
             Text(
-                "鏈€杩戣鍒掞細${latestPlan.title}",
+                "当前方案：${latestPlan.title}",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium
             )
             Text(
-                "瑕嗙洊鏃ユ湡锛?start - $end",
+                "覆盖周期：$start - $end",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

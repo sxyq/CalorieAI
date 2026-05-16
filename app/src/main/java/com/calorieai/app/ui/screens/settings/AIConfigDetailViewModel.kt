@@ -29,36 +29,74 @@ class AIConfigDetailViewModel @Inject constructor(
     private var recordsJob: Job? = null
 
     fun loadConfig(id: String?) {
+        if (configId == id && (_uiState.value.isEditing || _uiState.value.isPreset || id == null)) {
+            return
+        }
         configId = id
+        recordsJob?.cancel()
         if (id != null) {
+            _uiState.value = AIConfigDetailUiState(isLoading = true)
             viewModelScope.launch {
-                aiConfigRepository.getConfigById(id)?.let { config ->
-                    _uiState.value = AIConfigDetailUiState(
-                        name = config.name,
-                        selectedIcon = config.icon,
-                        protocol = config.protocol,
-                        apiUrl = config.apiUrl,
-                        apiKey = config.apiKey,
-                        modelId = config.modelId,
-                        isImageUnderstanding = config.isImageUnderstanding,
-                        isEditing = true,
-                        isPreset = config.isPreset
-                    )
-                    observeCallRecords(id)
-                }
+                runCatching { aiConfigRepository.getConfigById(id) }
+                    .onSuccess { config ->
+                        config?.let {
+                            _uiState.value = AIConfigDetailUiState(
+                                isLoading = false,
+                                name = it.name,
+                                selectedIcon = it.icon,
+                                protocol = it.protocol,
+                                apiUrl = it.apiUrl,
+                                apiKey = it.apiKey,
+                                modelId = it.modelId,
+                                isImageUnderstanding = it.isImageUnderstanding,
+                                isEditing = true,
+                                isPreset = it.isPreset
+                            )
+                            observeCallRecords(id)
+                        } ?: run {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isEditing = false,
+                                    recentCallRecords = emptyList(),
+                                    errorMessage = "未找到该 AI 配置，已进入新增模式"
+                                )
+                            }
+                        }
+                    }
+                    .onFailure { throwable ->
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                isEditing = false,
+                                recentCallRecords = emptyList(),
+                                errorMessage = throwable.message?.takeIf(String::isNotBlank)
+                                    ?: "配置加载失败"
+                            )
+                        }
+                    }
             }
         } else {
-            recordsJob?.cancel()
-            _uiState.value = AIConfigDetailUiState()
+            _uiState.value = AIConfigDetailUiState(isLoading = false)
         }
     }
 
     private fun observeCallRecords(id: String) {
         recordsJob?.cancel()
         recordsJob = viewModelScope.launch {
-            apiCallRecordRepository.getRecordsByConfig(id).collect { records ->
-                _uiState.update { it.copy(recentCallRecords = records.take(20)) }
-            }
+            apiCallRecordRepository.getRecordsByConfig(id)
+                .catch { throwable ->
+                    _uiState.update {
+                        it.copy(
+                            recentCallRecords = emptyList(),
+                            errorMessage = throwable.message?.takeIf(String::isNotBlank)
+                                ?: "调用日志加载失败"
+                        )
+                    }
+                }
+                .collect { records ->
+                    _uiState.update { it.copy(recentCallRecords = records.take(20)) }
+                }
         }
     }
 
@@ -120,7 +158,7 @@ class AIConfigDetailViewModel @Inject constructor(
 
             val result = aiApiClient.testConnection(
                 config = tempConfig,
-                timeoutSeconds = 5
+                timeoutSeconds = 20
             )
 
             _uiState.value = _uiState.value.copy(
@@ -192,6 +230,7 @@ class AIConfigDetailViewModel @Inject constructor(
 }
 
 data class AIConfigDetailUiState(
+    val isLoading: Boolean = false,
     val name: String = "",
     val selectedIcon: String = "🤖",
     val protocol: AIProtocol = AIProtocol.OPENAI,

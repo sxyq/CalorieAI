@@ -28,7 +28,7 @@ fun RecipeScreenContainer(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(recipeBackgroundBrush())
+            .background(recipeScreenBackgroundColor())
     ) {
         content()
     }
@@ -48,7 +48,7 @@ fun RecipePanel(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+            containerColor = recipePanelContainerColor()
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -90,7 +90,7 @@ fun RecipeMetricBadge(
         modifier = modifier,
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.95f)
+            containerColor = recipeInsetCardColor()
         )
     ) {
         Column(
@@ -111,13 +111,20 @@ fun RecipeMetricBadge(
 }
 
 @Composable
+fun recipePanelContainerColor() = MaterialTheme.colorScheme.surface
+
+@Composable
+fun recipeInsetCardColor() = MaterialTheme.colorScheme.surfaceContainerLow
+
+@Composable
+fun recipeScreenBackgroundColor() = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.14f)
+
+@Composable
 fun recipeBackgroundBrush(): Brush {
-    val colorScheme = MaterialTheme.colorScheme
     return Brush.verticalGradient(
         colors = listOf(
-            colorScheme.secondaryContainer.copy(alpha = 0.28f),
-            colorScheme.tertiaryContainer.copy(alpha = 0.18f),
-            colorScheme.surface
+            recipeScreenBackgroundColor(),
+            recipeScreenBackgroundColor()
         )
     )
 }

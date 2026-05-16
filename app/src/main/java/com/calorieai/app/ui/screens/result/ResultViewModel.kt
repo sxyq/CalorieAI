@@ -6,10 +6,15 @@ import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.repository.FoodRecordRepository
 import com.calorieai.app.domain.recipe.FavoriteUseCase
 import com.calorieai.app.service.ai.FoodTextAnalysisService
+import com.calorieai.app.service.ai.common.AIErrorCategory
+import com.calorieai.app.service.ai.common.AIErrorClassifier
+import com.calorieai.app.service.ai.common.AIErrorInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import java.util.UUID
@@ -54,62 +59,76 @@ class ResultViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isRegenerating = true, regenerateMessage = null)
             try {
-                val result = foodTextAnalysisService.analyzeFoodText(
-                    foodDescription = currentRecord.userInput,
-                    maxRetries = 2,
-                    requestTag = "result-regenerate-${UUID.randomUUID()}"
-                )
-                if (result.isFailure) {
-                    _uiState.value = _uiState.value.copy(
-                        isRegenerating = false,
-                        regenerateMessage = result.exceptionOrNull()?.message ?: "重新生成失败"
+                var continuousAttempt = 0
+                while (isActive) {
+                    continuousAttempt += 1
+                    val result = foodTextAnalysisService.analyzeFoodText(
+                        foodDescription = currentRecord.userInput,
+                        maxRetries = 0,
+                        requestTag = "result-regenerate-${UUID.randomUUID()}"
                     )
-                    return@launch
-                }
-
-                val items = result.getOrNull()?.items.orEmpty()
-                if (items.isEmpty()) {
-                    _uiState.value = _uiState.value.copy(
-                        isRegenerating = false,
-                        regenerateMessage = "重新生成失败：AI未返回有效数据"
-                    )
-                    return@launch
-                }
-                val bestItem = selectBestMatchItem(
-                    currentRecord = currentRecord,
-                    items = items
-                )
-
-                val updatedRecord = currentRecord.copy(
-                    foodName = bestItem.foodName.takeIf { it.isNotBlank() } ?: currentRecord.foodName,
-                    totalCalories = bestItem.calories.toInt().coerceAtLeast(0),
-                    protein = bestItem.protein,
-                    carbs = bestItem.carbs,
-                    fat = bestItem.fat,
-                    fiber = bestItem.fiber,
-                    sugar = bestItem.sugar,
-                    sodium = bestItem.sodium,
-                    cholesterol = bestItem.cholesterol,
-                    saturatedFat = bestItem.saturatedFat,
-                    calcium = bestItem.calcium,
-                    iron = bestItem.iron,
-                    vitaminC = bestItem.vitaminC,
-                    vitaminA = bestItem.vitaminA,
-                    potassium = bestItem.potassium
-                )
-
-                foodRecordRepository.updateRecord(updatedRecord)
-                val latestRecord = foodRecordRepository.getRecordById(currentRecord.id) ?: updatedRecord
-                val changed = hasNutritionChanged(currentRecord, latestRecord)
-                _uiState.value = _uiState.value.copy(
-                    record = latestRecord,
-                    isRegenerating = false,
-                    regenerateMessage = if (changed) {
-                        "已重新生成并更新数据"
-                    } else {
-                        "已完成重新生成，数值与当前结果一致"
+                    if (result.isFailure) {
+                        val errorInfo = AIErrorClassifier.classify(result.exceptionOrNull())
+                        if (isTerminalRegenerateError(errorInfo)) {
+                            _uiState.value = _uiState.value.copy(
+                                isRegenerating = false,
+                                regenerateMessage = errorInfo.userMessage
+                            )
+                            return@launch
+                        }
+                        _uiState.value = _uiState.value.copy(
+                            regenerateMessage = "重新生成失败，持续重试中（第${continuousAttempt}轮）..."
+                        )
+                        delay(computeRetryDelayMillis(continuousAttempt))
+                        continue
                     }
-                )
+
+                    val items = result.getOrNull()?.items.orEmpty()
+                    if (items.isEmpty()) {
+                        _uiState.value = _uiState.value.copy(
+                            regenerateMessage = "AI未返回有效数据，持续重试中（第${continuousAttempt}轮）..."
+                        )
+                        delay(computeRetryDelayMillis(continuousAttempt))
+                        continue
+                    }
+
+                    val bestItem = selectBestMatchItem(
+                        currentRecord = currentRecord,
+                        items = items
+                    )
+
+                    val updatedRecord = currentRecord.copy(
+                        foodName = bestItem.foodName.takeIf { it.isNotBlank() } ?: currentRecord.foodName,
+                        totalCalories = bestItem.calories.toInt().coerceAtLeast(0),
+                        protein = bestItem.protein,
+                        carbs = bestItem.carbs,
+                        fat = bestItem.fat,
+                        fiber = bestItem.fiber,
+                        sugar = bestItem.sugar,
+                        sodium = bestItem.sodium,
+                        cholesterol = bestItem.cholesterol,
+                        saturatedFat = bestItem.saturatedFat,
+                        calcium = bestItem.calcium,
+                        iron = bestItem.iron,
+                        vitaminC = bestItem.vitaminC,
+                        vitaminA = bestItem.vitaminA,
+                        potassium = bestItem.potassium
+                    )
+
+                    foodRecordRepository.updateRecord(updatedRecord)
+                    val latestRecord = foodRecordRepository.getRecordById(currentRecord.id) ?: updatedRecord
+                    val changed = hasNutritionChanged(currentRecord, latestRecord)
+                    _uiState.value = _uiState.value.copy(
+                        record = latestRecord,
+                        isRegenerating = false,
+                        regenerateMessage = if (changed) {
+                            "已重新生成并更新数据"
+                        } else {
+                            "已完成重新生成，数值与当前结果一致"
+                        }
+                    )
+                    return@launch
+                }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isRegenerating = false,
@@ -117,6 +136,20 @@ class ResultViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    private fun isTerminalRegenerateError(errorInfo: AIErrorInfo): Boolean {
+        return when (errorInfo.category) {
+            AIErrorCategory.HTTP -> !errorInfo.retryEligible
+            AIErrorCategory.VALIDATION -> !errorInfo.retryEligible
+            else -> false
+        }
+    }
+
+    private fun computeRetryDelayMillis(attempt: Int): Long {
+        val exponent = (attempt - 1).coerceIn(0, 5)
+        val delayMillis = 1_000L * (1L shl exponent)
+        return delayMillis.coerceAtMost(15_000L)
     }
 
     fun toggleFavoriteRecipe() {
