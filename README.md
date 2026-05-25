@@ -126,55 +126,6 @@ java -classpath gradle/wrapper/gradle-wrapper.jar \
   org.gradle.wrapper.GradleWrapperMain :app:assembleRelease --console=plain
 ```
 
-## 本地配置说明
-
-### OCR 资源目录
-
-构建脚本会在 `preBuild` 阶段同步打包 OCR 资源。默认从下面目录查找：
-
-```text
-~/.paddlex/official_models
-```
-
-也可以通过 `local.properties` 或环境变量覆盖：
-
-```properties
-bundled.paddle.ocr.root=/absolute/path/to/official_models
-local.ocr.service.url=http://127.0.0.1:8000
-```
-
-对应环境变量：
-
-- `BUNDLED_PADDLE_OCR_ROOT`
-- `LOCAL_OCR_SERVICE_URL`
-
-需要包含以下模型目录：
-
-- `PP-OCRv5_mobile_det`
-- `PP-OCRv5_server_rec`
-- `PP-LCNet_x1_0_textline_ori`
-
-### Release 签名
-
-正式签名信息不再硬编码在仓库中，需要通过 `local.properties` 或环境变量提供：
-
-```properties
-release.keystore.path=/absolute/path/to/your.keystore
-release.store.password=***
-release.key.alias=***
-release.key.password=***
-```
-
-对应环境变量：
-
-- `RELEASE_KEYSTORE_PATH`
-- `RELEASE_STORE_PASSWORD`
-- `RELEASE_KEY_ALIAS`
-- `RELEASE_KEY_PASSWORD`
-
-### AI 服务配置
-
-AI API Key 不随仓库分发。首次运行后请在应用设置页中自行配置模型提供商、接口地址与密钥。
 
 ## 数据与通知说明
 
