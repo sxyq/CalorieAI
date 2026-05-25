@@ -1,17 +1,11 @@
 package com.calorieai.app.service.notification
 
-import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import com.calorieai.app.MainActivity
 import com.calorieai.app.R
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -20,7 +14,8 @@ import javax.inject.Singleton
 
 @Singleton
 class NotificationHelper @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val notificationCapabilityManager: NotificationCapabilityManager
 ) {
 
     init {
@@ -28,43 +23,12 @@ class NotificationHelper @Inject constructor(
     }
 
     fun ensureChannels() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-
-        val mealChannel = NotificationChannel(
-            CHANNEL_ID_MEAL,
-            "餐次提醒",
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = "每日早餐、午餐、晚餐提醒"
-            enableVibration(true)
-            vibrationPattern = longArrayOf(0, 300, 150, 300)
-        }
-
-        val generalChannel = NotificationChannel(
-            CHANNEL_ID_GENERAL,
-            "通用通知",
-            NotificationManager.IMPORTANCE_DEFAULT
-        ).apply {
-            description = "应用通用通知"
-        }
-
-        val waterChannel = NotificationChannel(
-            CHANNEL_ID_WATER,
-            "饮水提醒",
-            NotificationManager.IMPORTANCE_DEFAULT
-        ).apply {
-            description = "按时段或间隔提醒饮水"
-            enableVibration(true)
-            vibrationPattern = longArrayOf(0, 200, 120, 200)
-        }
-
-        context.getSystemService(NotificationManager::class.java)
-            .createNotificationChannels(listOf(mealChannel, generalChannel, waterChannel))
+        AppNotificationChannels.ensure(context)
     }
 
     fun showMealReminderNotification(reminderType: MealReminderType) {
         val manager = NotificationManagerCompat.from(context)
-        if (!canPostNotifications(manager)) {
+        if (!notificationCapabilityManager.canPostNotifications()) {
             Log.w(TAG, "skip meal notification: permission denied, type=$reminderType")
             return
         }
@@ -74,7 +38,7 @@ class NotificationHelper @Inject constructor(
             mealType = reminderType.name
         )
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID_MEAL)
+        val notification = NotificationCompat.Builder(context, AppNotificationChannels.CHANNEL_ID_MEAL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(reminderType.title)
             .setContentText(reminderType.message)
@@ -103,12 +67,12 @@ class NotificationHelper @Inject constructor(
 
     fun showGeneralNotification(title: String, message: String) {
         val manager = NotificationManagerCompat.from(context)
-        if (!canPostNotifications(manager)) {
+        if (!notificationCapabilityManager.canPostNotifications()) {
             Log.w(TAG, "skip general notification: permission denied, title=$title")
             return
         }
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID_GENERAL)
+        val notification = NotificationCompat.Builder(context, AppNotificationChannels.CHANNEL_ID_GENERAL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(message)
@@ -127,7 +91,7 @@ class NotificationHelper @Inject constructor(
 
     fun showWaterReminderNotification(reminderLabel: String? = null) {
         val manager = NotificationManagerCompat.from(context)
-        if (!canPostNotifications(manager)) {
+        if (!notificationCapabilityManager.canPostNotifications()) {
             Log.w(TAG, "skip water notification: permission denied")
             return
         }
@@ -138,7 +102,7 @@ class NotificationHelper @Inject constructor(
             "[$reminderLabel] 该补充水分了，保持今天饮水目标进度！"
         }
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID_WATER)
+        val notification = NotificationCompat.Builder(context, AppNotificationChannels.CHANNEL_ID_WATER)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("饮水提醒")
             .setContentText(contentText)
@@ -178,19 +142,7 @@ class NotificationHelper @Inject constructor(
         )
     }
 
-    private fun canPostNotifications(manager: NotificationManagerCompat): Boolean {
-        val permissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-        return permissionGranted && manager.areNotificationsEnabled()
-    }
-
     companion object {
-        const val CHANNEL_ID_MEAL = "meal_reminder_channel"
-        const val CHANNEL_ID_GENERAL = "general_channel"
-        const val CHANNEL_ID_WATER = "water_reminder_channel"
         private const val TAG = "NotificationHelper"
     }
 }

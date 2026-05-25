@@ -1,6 +1,9 @@
 package com.calorieai.app.data.local
 
+import android.content.Context
 import androidx.room.Database
+import androidx.room.Room
+import androidx.room.RoomDatabase.Builder
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
@@ -55,6 +58,28 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun recipePlanDao(): RecipePlanDao
     
     companion object {
+        private const val DATABASE_NAME = "calorieai_database"
+
+        fun createBuilder(context: Context): Builder<AppDatabase> {
+            return Room.databaseBuilder(
+                context.applicationContext,
+                AppDatabase::class.java,
+                DATABASE_NAME
+            ).addMigrations(
+                MIGRATION_12_13,
+                MIGRATION_13_14,
+                MIGRATION_14_15,
+                MIGRATION_15_16,
+                MIGRATION_16_17,
+                MIGRATION_17_18,
+                MIGRATION_18_19,
+                MIGRATION_19_20,
+                MIGRATION_20_21,
+                MIGRATION_21_22,
+                MIGRATION_22_23
+            )
+        }
+
         /**
          * 从版本12迁移到版本13
          * 添加引导流程和用户目标相关字段

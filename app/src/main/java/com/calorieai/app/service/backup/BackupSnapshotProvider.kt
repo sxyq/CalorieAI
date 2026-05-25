@@ -21,7 +21,10 @@ import com.calorieai.app.data.repository.PantryIngredientRepository
 import com.calorieai.app.data.repository.RecipePlanRepository
 import com.calorieai.app.data.repository.UserSettingsRepository
 import com.calorieai.app.data.repository.WaterRecordRepository
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -57,18 +60,36 @@ class BackupSnapshotProvider @Inject constructor(
     private val recipePlanRepository: RecipePlanRepository
 ) {
     internal suspend fun collect(includeAiConfigs: Boolean): BackupCurrentSnapshot {
-        return BackupCurrentSnapshot(
-            foodRecords = foodRecordRepository.getAllRecordsOnce(),
-            exerciseRecords = exerciseRecordRepository.getRecordsBetweenSync(0, Long.MAX_VALUE),
-            userSettings = userSettingsRepository.getSettings().first(),
-            aiConfigs = if (includeAiConfigs) aiConfigRepository.getAllConfigsOnce() else emptyList(),
-            weightRecords = weightRecordRepository.getRecordsBetweenSync(0, Long.MAX_VALUE),
-            waterRecords = waterRecordRepository.getRecordsBetweenSync(0, Long.MAX_VALUE),
-            favoriteRecipes = favoriteRecipeRepository.getAllFavoritesOnce(),
-            pantryIngredients = pantryIngredientRepository.getAllOnce(),
-            recipePlans = recipePlanRepository.getAllOnce(),
-            aiChatHistory = aiChatHistoryDao.getAllHistoryOnce(),
-            apiCallLogs = apiCallRecordDao.getAllRecordsOnce()
-        )
+        return withContext(Dispatchers.IO) {
+            coroutineScope {
+                val foodRecords = async { foodRecordRepository.getAllRecordsOnce() }
+                val exerciseRecords = async { exerciseRecordRepository.getRecordsBetweenSync(0, Long.MAX_VALUE) }
+                val userSettings = async { userSettingsRepository.getSettingsOnce() }
+                val aiConfigs = async {
+                    if (includeAiConfigs) aiConfigRepository.getAllConfigsOnce() else emptyList()
+                }
+                val weightRecords = async { weightRecordRepository.getRecordsBetweenSync(0, Long.MAX_VALUE) }
+                val waterRecords = async { waterRecordRepository.getRecordsBetweenSync(0, Long.MAX_VALUE) }
+                val favoriteRecipes = async { favoriteRecipeRepository.getAllFavoritesOnce() }
+                val pantryIngredients = async { pantryIngredientRepository.getAllOnce() }
+                val recipePlans = async { recipePlanRepository.getAllOnce() }
+                val aiChatHistory = async { aiChatHistoryDao.getAllHistoryOnce() }
+                val apiCallLogs = async { apiCallRecordDao.getAllRecordsOnce() }
+
+                BackupCurrentSnapshot(
+                    foodRecords = foodRecords.await(),
+                    exerciseRecords = exerciseRecords.await(),
+                    userSettings = userSettings.await(),
+                    aiConfigs = aiConfigs.await(),
+                    weightRecords = weightRecords.await(),
+                    waterRecords = waterRecords.await(),
+                    favoriteRecipes = favoriteRecipes.await(),
+                    pantryIngredients = pantryIngredients.await(),
+                    recipePlans = recipePlans.await(),
+                    aiChatHistory = aiChatHistory.await(),
+                    apiCallLogs = apiCallLogs.await()
+                )
+            }
+        }
     }
 }

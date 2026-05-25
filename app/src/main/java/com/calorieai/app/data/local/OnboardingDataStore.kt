@@ -140,6 +140,12 @@ class OnboardingDataStore @Inject constructor(
             }
         }
     }
+
+    suspend fun clearOnboardingState() {
+        context.onboardingDataStore.edit { preferences ->
+            preferences.clear()
+        }
+    }
     
     /**
      * 重置引导流程（用于重新引导）

@@ -28,6 +28,9 @@ class OnboardingViewModel @Inject constructor(
     private val onboardingDataStore: OnboardingDataStore,
     private val userSettingsRepository: UserSettingsRepository
 ) : ViewModel() {
+    companion object {
+        private const val TOTAL_STEPS = 4
+    }
 
     // 当前步骤 (1-6)
     private val _currentStep = MutableStateFlow(1)
@@ -74,7 +77,7 @@ class OnboardingViewModel @Inject constructor(
      * 跳转到指定步骤
      */
     fun navigateToStep(step: Int) {
-        if (step in 1..6) {
+        if (step in 1..TOTAL_STEPS) {
             _currentStep.value = step
             viewModelScope.launch {
                 onboardingDataStore.setCurrentStep(step)
@@ -86,7 +89,7 @@ class OnboardingViewModel @Inject constructor(
      * 下一步
      */
     fun nextStep() {
-        if (_currentStep.value < 6) {
+        if (_currentStep.value < TOTAL_STEPS) {
             navigateToStep(_currentStep.value + 1)
         }
     }
@@ -182,7 +185,7 @@ class OnboardingViewModel @Inject constructor(
                     activityLevel = data.activityLevel?.name ?: "SEDENTARY",
                     // 引导相关
                     onboardingCompleted = true,
-                    onboardingCurrentStep = 6,
+                    onboardingCurrentStep = TOTAL_STEPS,
                     // 目标相关
                     goalType = data.goalType?.name,
                     targetWeight = data.targetWeight,
@@ -199,9 +202,8 @@ class OnboardingViewModel @Inject constructor(
                 // 保存到数据库
                 userSettingsRepository.saveSettings(userSettings)
                 
-                // 标记引导完成
-                onboardingDataStore.setOnboardingCompleted(true)
-                onboardingDataStore.clearOnboardingData()
+                // 清理旧的引导草稿状态，避免和数据库中的完成状态分叉
+                onboardingDataStore.clearOnboardingState()
                 
                 _isCompleted.value = true
             } catch (e: Exception) {

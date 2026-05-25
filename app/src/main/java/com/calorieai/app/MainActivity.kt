@@ -1,6 +1,5 @@
 ﻿package com.calorieai.app
 
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,20 +20,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
-import com.calorieai.app.data.local.OnboardingDataStore
 import com.calorieai.app.data.repository.UserSettingsRepository
-import com.calorieai.app.service.notification.ReminderResyncCoordinator
+import com.calorieai.app.service.startup.MainActivityStartupCoordinator
 import com.calorieai.app.service.update.AppUpdateInfo
-import com.calorieai.app.service.update.AppUpdateManager
 import com.calorieai.app.ui.navigation.NavGraph
 import com.calorieai.app.ui.screens.onboarding.OnboardingFlow
 import com.calorieai.app.ui.screens.settings.ThemeMode
 import com.calorieai.app.ui.theme.CalorieAITheme
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -44,13 +37,7 @@ class MainActivity : ComponentActivity() {
     lateinit var userSettingsRepository: UserSettingsRepository
 
     @Inject
-    lateinit var onboardingDataStore: OnboardingDataStore
-
-    @Inject
-    lateinit var reminderResyncCoordinator: ReminderResyncCoordinator
-
-    @Inject
-    lateinit var appUpdateManager: AppUpdateManager
+    lateinit var startupCoordinator: MainActivityStartupCoordinator
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -111,10 +98,8 @@ class MainActivity : ComponentActivity() {
             var isLoading by remember { mutableStateOf(true) }
             var pendingUpdateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
 
-            LaunchedEffect(Unit) {
-                val completed = withContext(Dispatchers.IO) {
-                    onboardingDataStore.isOnboardingCompleted.first()
-                }
+            LaunchedEffect(settings?.onboardingCompleted) {
+                val completed = startupCoordinator.resolveShouldSkipOnboarding(settings)
                 shouldSkipOnboarding = completed
                 isLoading = false
             }
@@ -136,20 +121,12 @@ class MainActivity : ComponentActivity() {
                 val currentSettings = settings ?: return@LaunchedEffect
                 if (isLoading || !shouldSkipOnboarding) return@LaunchedEffect
 
-                // 閬垮厤鍦ㄩ灞忔覆鏌撳叧閿矾寰勮Е鍙?WorkManager 鍒濆鍖栵紝闄嶄綆鍐峰惎鍔ㄥ崱椤裤€?
-                delay(900)
-                withContext(Dispatchers.IO) {
-                    reminderResyncCoordinator.sync(
-                        settings = currentSettings,
-                        source = "MainActivity.launch"
-                    )
-                }
+                startupCoordinator.syncReminderStateAfterLaunch(currentSettings)
             }
 
             LaunchedEffect(isLoading, shouldSkipOnboarding) {
                 if (isLoading || !shouldSkipOnboarding) return@LaunchedEffect
-                delay(1300)
-                pendingUpdateInfo = appUpdateManager.checkForUpdate()
+                pendingUpdateInfo = startupCoordinator.checkForUpdatesAfterLaunch()
             }
 
             CalorieAITheme(
@@ -192,10 +169,10 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 pendingUpdateInfo?.let { updateInfo ->
-                    AppUpdateDialog(
+                        AppUpdateDialog(
                         updateInfo = updateInfo,
                         onDownload = {
-                            val opened = appUpdateManager.openDownloadPage(updateInfo)
+                            val opened = startupCoordinator.openDownloadPage(updateInfo)
                             if (opened) {
                                 pendingUpdateInfo = null
                             }

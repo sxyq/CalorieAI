@@ -2,6 +2,7 @@ package com.calorieai.app.service.notification
 
 import android.Manifest
 import android.app.AlarmManager
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -21,6 +22,9 @@ class NotificationCapabilityManager @Inject constructor(
     private val alarmManager: AlarmManager by lazy {
         context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     }
+    private val notificationManager: NotificationManager by lazy {
+        context.getSystemService(NotificationManager::class.java)
+    }
 
     fun hasNotificationPermission(): Boolean {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
@@ -38,6 +42,26 @@ class NotificationCapabilityManager @Inject constructor(
         return hasNotificationPermission() && areNotificationsEnabledInSystem()
     }
 
+    fun supportsPromotedNotifications(): Boolean {
+        return Build.VERSION.SDK_INT >= ANDROID_16_API
+    }
+
+    fun hasPromotedNotificationPermission(): Boolean {
+        if (!supportsPromotedNotifications()) return false
+        return ContextCompat.checkSelfPermission(
+            context,
+            PROMOTED_NOTIFICATIONS_PERMISSION
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    fun canPostPromotedNotifications(): Boolean {
+        if (!supportsPromotedNotifications()) return false
+        if (!canPostNotifications() || !hasPromotedNotificationPermission()) return false
+        return runCatching {
+            notificationManager.canPostPromotedNotifications()
+        }.getOrDefault(false)
+    }
+
     fun supportsExactAlarmPermission(): Boolean {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     }
@@ -48,6 +72,10 @@ class NotificationCapabilityManager @Inject constructor(
     }
 
     companion object {
+        private const val ANDROID_16_API = 36
+        private const val PROMOTED_NOTIFICATIONS_PERMISSION =
+            "android.permission.POST_PROMOTED_NOTIFICATIONS"
+
         fun createAppNotificationSettingsIntent(context: Context): Intent {
             return Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
                 putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)

@@ -1,7 +1,6 @@
 package com.calorieai.app.service.widget
 
 import android.content.Context
-import androidx.room.Room
 import com.calorieai.app.data.local.AppDatabase
 import com.calorieai.app.utils.SecureLogger
 import java.text.SimpleDateFormat
@@ -37,25 +36,7 @@ object WidgetDataProvider {
     private fun db(context: Context): AppDatabase {
         database?.let { return it }
         return synchronized(lock) {
-            database ?: Room.databaseBuilder(
-                context.applicationContext,
-                AppDatabase::class.java,
-                "calorieai_database"
-            )
-                .addMigrations(
-                    AppDatabase.MIGRATION_12_13,
-                    AppDatabase.MIGRATION_13_14,
-                    AppDatabase.MIGRATION_14_15,
-                    AppDatabase.MIGRATION_15_16,
-                    AppDatabase.MIGRATION_16_17,
-                    AppDatabase.MIGRATION_17_18,
-                    AppDatabase.MIGRATION_18_19,
-                    AppDatabase.MIGRATION_19_20,
-                    AppDatabase.MIGRATION_20_21,
-                    AppDatabase.MIGRATION_21_22,
-                    AppDatabase.MIGRATION_22_23
-                )
-                .fallbackToDestructiveMigration()
+            database ?: AppDatabase.createBuilder(context)
                 .build()
                 .also { database = it }
         }
@@ -120,4 +101,3 @@ object WidgetDataProvider {
         }
     }
 }
-

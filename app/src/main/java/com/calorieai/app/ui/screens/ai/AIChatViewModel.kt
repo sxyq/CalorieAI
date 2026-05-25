@@ -6,11 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.calorieai.app.service.ai.AIChatService
 import com.calorieai.app.utils.SecureLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.*
 import javax.inject.Inject
 
@@ -216,10 +215,10 @@ class AIChatViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            var aiMessageId: String? = null
             try {
-                withContext(NonCancellable) {
                 // 创建AI消息占位符
-                val aiMessageId = UUID.randomUUID().toString()
+                aiMessageId = UUID.randomUUID().toString()
                 SecureLogger.event(
                     TAG,
                     "stream_placeholder_created",
@@ -280,7 +279,13 @@ class AIChatViewModel @Inject constructor(
 
                 // 自动保存会话
                 saveCurrentSession()
-                }
+            } catch (e: CancellationException) {
+                SecureLogger.w(
+                    TAG,
+                    "send_cancelled | sessionId=$activeSessionId | inputLength=${message.length}"
+                )
+                restoreCancelledStreamingState(aiMessageId)
+                throw e
             } catch (e: Exception) {
                 val elapsed = SystemClock.elapsedRealtime() - startAt
                 SecureLogger.e(
@@ -427,6 +432,21 @@ class AIChatViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(messages = updatedMessages)
     }
 
+    private fun restoreCancelledStreamingState(messageId: String?) {
+        val clearedMessages = if (messageId == null) {
+            _uiState.value.messages
+        } else {
+            _uiState.value.messages.filterNot { it.id == messageId && !it.isFromUser && it.content.isBlank() }
+        }
+
+        _uiState.value = _uiState.value.copy(
+            messages = clearedMessages,
+            isLoading = false,
+            isTyping = false,
+            isSending = false
+        )
+    }
+
 }
 
 data class AIChatUiState(
@@ -441,4 +461,3 @@ data class AIChatUiState(
     val remainingCalls: Int = 10,
     val dailyLimit: Int = 10
 )
-

@@ -1,6 +1,5 @@
 package com.calorieai.app.service.ai
 
-import com.calorieai.app.BuildConfig
 import com.calorieai.app.data.model.AIConfig
 import com.calorieai.app.data.model.AIProtocol
 import com.calorieai.app.data.model.IconType
@@ -32,7 +31,7 @@ class AIDefaultConfigInitializer @Inject constructor(
                 iconType = IconType.EMOJI,
                 protocol = AIProtocol.OPENAI,
                 apiUrl = DEFAULT_API_URL,
-                apiKey = BuildConfig.DEFAULT_LONGCAT_API_KEY.trim(),
+                apiKey = "",
                 modelId = DEFAULT_MODEL_ID,
                 isImageUnderstanding = true,
                 isDefault = true

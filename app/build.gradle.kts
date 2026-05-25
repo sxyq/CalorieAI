@@ -1,5 +1,5 @@
-import java.io.File
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.util.Properties
 
 plugins {
@@ -63,37 +63,43 @@ fun resolveWindowsPowerShellExecutable(): String {
     } ?: "powershell"
 }
 
+fun readSecretProperty(propertyName: String, envName: String): String {
+    return localProperties.getProperty(propertyName)
+        ?.trim()
+        ?.takeIf { it.isNotBlank() }
+        ?: System.getenv(envName)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+        ?: ""
+}
+
 val localOcrServiceUrl: String = (
     localProperties.getProperty("local.ocr.service.url")
         ?: System.getenv("LOCAL_OCR_SERVICE_URL")
         ?: ""
 ).replace("\"", "\\\"")
-val encryptedDefaultLongcatApiKey: String =
-    localProperties.getProperty("default.longcat.api.key.encrypted")?.trim().orEmpty()
-val defaultLongcatApiKey: String = (
-    when {
-        encryptedDefaultLongcatApiKey.isNotBlank() ->
-            decryptWindowsLocalSecret(encryptedDefaultLongcatApiKey)
-
-        else -> localProperties.getProperty("default.longcat.api.key")
-            ?: System.getenv("DEFAULT_LONGCAT_API_KEY")
-            ?: ""
-    }
-).replace("\"", "\\\"")
 val bundledPaddleOcrRoot: String = (
     localProperties.getProperty("bundled.paddle.ocr.root")
         ?: System.getenv("BUNDLED_PADDLE_OCR_ROOT")
-        ?: "${System.getProperty("user.home")}\\.paddlex\\official_models"
+        ?: File(System.getProperty("user.home"), ".paddlex/official_models").absolutePath
 ).replace("\"", "\\\"")
+val releaseKeystorePath = readSecretProperty("release.keystore.path", "RELEASE_KEYSTORE_PATH")
+val releaseStorePassword = readSecretProperty("release.store.password", "RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = readSecretProperty("release.key.alias", "RELEASE_KEY_ALIAS")
+val releaseKeyPassword = readSecretProperty("release.key.password", "RELEASE_KEY_PASSWORD")
+val hasReleaseSigning = releaseKeystorePath.isNotBlank() &&
+    releaseStorePassword.isNotBlank() &&
+    releaseKeyAlias.isNotBlank() &&
+    releaseKeyPassword.isNotBlank()
 
 android {
     namespace = "com.calorieai.app"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.calorieai.app"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 2
         versionName = "1.1.0"
 
@@ -108,15 +114,16 @@ android {
         // 示例: {"latestVersionCode":2,"latestVersionName":"1.0.1","downloadUrl":"https://example.com/CalorieAI-v1.0.1.apk","changelog":"修复若干问题","forceUpdate":false}
         buildConfigField("String", "UPDATE_CHECK_URL", "\"\"")
         buildConfigField("String", "LOCAL_OCR_SERVICE_URL", "\"$localOcrServiceUrl\"")
-        buildConfigField("String", "DEFAULT_LONGCAT_API_KEY", "\"$defaultLongcatApiKey\"")
     }
 
     signingConfigs {
         create("release") {
-            storeFile = file("calorieai-release.keystore")
-            storePassword = "calorieai2024"
-            keyAlias = "calorieai"
-            keyPassword = "calorieai2024"
+            if (hasReleaseSigning) {
+                storeFile = file(releaseKeystorePath)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
         }
     }
     
@@ -127,7 +134,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
         debug {
             isMinifyEnabled = false
@@ -255,7 +264,7 @@ tasks.named("preBuild") {
 
 dependencies {
     // AndroidX Core
-    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
 

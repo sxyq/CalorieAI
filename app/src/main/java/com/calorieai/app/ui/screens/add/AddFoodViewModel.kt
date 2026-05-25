@@ -17,13 +17,12 @@ import com.calorieai.app.utils.buildRecordTimeForDateAndMeal
 import com.calorieai.app.utils.inferMainMealType
 import com.calorieai.app.utils.isSameLocalDate
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.Calendar
 import javax.inject.Inject
 
@@ -224,126 +223,130 @@ class AddFoodViewModel @Inject constructor(
                     return@launch
                 }
 
-                withContext(NonCancellable) {
-                    val analysisResult = foodTextAnalysisService.analyzeFoodText(
-                        foodDescription = description,
-                        maxRetries = maxRetries,
-                        onRetry = { attempt, maxAttempts ->
-                            val totalRetries = (maxAttempts - 1).coerceAtLeast(0)
-                            _uiState.value = _uiState.value.copy(
-                                retryMessage = "结果不稳定，正在补救重试（${attempt}/${totalRetries}）...",
-                                retryAttempt = attempt
+                val analysisResult = foodTextAnalysisService.analyzeFoodText(
+                    foodDescription = description,
+                    maxRetries = maxRetries,
+                    onRetry = { attempt, maxAttempts ->
+                        val totalRetries = (maxAttempts - 1).coerceAtLeast(0)
+                        _uiState.value = _uiState.value.copy(
+                            retryMessage = "结果不稳定，正在补救重试（${attempt}/${totalRetries}）...",
+                            retryAttempt = attempt
+                        )
+                    }
+                )
+
+                if (analysisResult.isFailure) {
+                    val error = analysisResult.exceptionOrNull()
+                    val errorInfo = AIErrorClassifier.classify(error)
+                    val uiMessage = when (errorInfo.category) {
+                        AIErrorCategory.PARSE,
+                        AIErrorCategory.VALIDATION -> "AI返回结果不稳定，请重试或调整描述后再试。"
+                        else -> errorInfo.userMessage
+                    }
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = uiMessage,
+                        retryMessage = null
+                    )
+                    onError(uiMessage)
+                    return@launch
+                }
+
+                val batchResult = analysisResult.getOrNull()
+                val parsedItems = batchResult?.items ?: emptyList()
+                if (parsedItems.isEmpty()) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "AI返回数据为空",
+                        retryMessage = null
+                    )
+                    onError("AI返回数据为空")
+                    return@launch
+                }
+
+                val validItems = parsedItems.filter { item ->
+                    item.foodName.isNotBlank() && (
+                        item.calories > 0 ||
+                            item.protein > 0 ||
+                            item.carbs > 0 ||
+                            item.fat > 0
+                        )
+                }
+                if (validItems.isEmpty()) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "无法识别食物，请尝试更详细的描述",
+                        retryMessage = null
+                    )
+                    onError("无法识别食物")
+                    return@launch
+                }
+
+                val promptTokens = batchResult?.promptTokens ?: 0
+                val completionTokens = batchResult?.completionTokens ?: 0
+
+                if (promptTokens > 0 || completionTokens > 0) {
+                    viewModelScope.launch {
+                        try {
+                            aiConfigRepository.getDefaultConfig().firstOrNull()?.let { config ->
+                                val cost = (promptTokens + completionTokens) * 0.000002
+                                aiTokenUsageRepository.recordTokenUsage(
+                                    configId = config.id,
+                                    configName = config.name,
+                                    promptTokens = promptTokens,
+                                    completionTokens = completionTokens,
+                                    cost = cost
+                                )
+                            }
+                        } catch (_: Exception) {
+                        }
+                    }
+                }
+
+                val records = validItems.mapIndexed { index, item ->
+                    FoodRecord(
+                        foodName = item.foodName.takeIf { it.isNotBlank() }
+                            ?: extractFoodName(description, index),
+                        userInput = description,
+                        totalCalories = item.calories.toInt().coerceAtLeast(0),
+                        protein = item.protein,
+                        carbs = item.carbs,
+                        fat = item.fat,
+                        fiber = item.fiber,
+                        sugar = item.sugar,
+                        sodium = item.sodium,
+                        cholesterol = item.cholesterol,
+                        saturatedFat = item.saturatedFat,
+                        calcium = item.calcium,
+                        iron = item.iron,
+                        vitaminC = item.vitaminC,
+                        vitaminA = item.vitaminA,
+                        potassium = item.potassium,
+                        mealType = effectiveMealType,
+                        recordTime = if (isHistoricalDateMode) {
+                            buildRecordTimeForDateAndMeal(
+                                dateMillis = currentState.selectedDate,
+                                mealType = effectiveMealType,
+                                sequenceOffsetSeconds = index
                             )
+                        } else {
+                            baseRecordTime + index
                         }
                     )
-
-                    if (analysisResult.isFailure) {
-                        val error = analysisResult.exceptionOrNull()
-                        val errorInfo = AIErrorClassifier.classify(error)
-                        val uiMessage = when (errorInfo.category) {
-                            AIErrorCategory.PARSE,
-                            AIErrorCategory.VALIDATION -> "AI返回结果不稳定，请重试或调整描述后再试。"
-                            else -> errorInfo.userMessage
-                        }
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            errorMessage = uiMessage,
-                            retryMessage = null
-                        )
-                        onError(uiMessage)
-                        return@withContext
-                    }
-
-                    val batchResult = analysisResult.getOrNull()
-                    val parsedItems = batchResult?.items ?: emptyList()
-                    if (parsedItems.isEmpty()) {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            errorMessage = "AI返回数据为空",
-                            retryMessage = null
-                        )
-                        onError("AI返回数据为空")
-                        return@withContext
-                    }
-
-                    val validItems = parsedItems.filter { item ->
-                        item.foodName.isNotBlank() && (
-                            item.calories > 0 ||
-                                item.protein > 0 ||
-                                item.carbs > 0 ||
-                                item.fat > 0
-                            )
-                    }
-                    if (validItems.isEmpty()) {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            errorMessage = "无法识别食物，请尝试更详细的描述",
-                            retryMessage = null
-                        )
-                        onError("无法识别食物")
-                        return@withContext
-                    }
-
-                    val promptTokens = batchResult?.promptTokens ?: 0
-                    val completionTokens = batchResult?.completionTokens ?: 0
-
-                    if (promptTokens > 0 || completionTokens > 0) {
-                        viewModelScope.launch {
-                            try {
-                                aiConfigRepository.getDefaultConfig().firstOrNull()?.let { config ->
-                                    val cost = (promptTokens + completionTokens) * 0.000002
-                                    aiTokenUsageRepository.recordTokenUsage(
-                                        configId = config.id,
-                                        configName = config.name,
-                                        promptTokens = promptTokens,
-                                        completionTokens = completionTokens,
-                                        cost = cost
-                                    )
-                                }
-                            } catch (_: Exception) {
-                            }
-                        }
-                    }
-
-                    val records = validItems.mapIndexed { index, item ->
-                        FoodRecord(
-                            foodName = item.foodName.takeIf { it.isNotBlank() }
-                                ?: extractFoodName(description, index),
-                            userInput = description,
-                            totalCalories = item.calories.toInt().coerceAtLeast(0),
-                            protein = item.protein,
-                            carbs = item.carbs,
-                            fat = item.fat,
-                            fiber = item.fiber,
-                            sugar = item.sugar,
-                            sodium = item.sodium,
-                            cholesterol = item.cholesterol,
-                            saturatedFat = item.saturatedFat,
-                            calcium = item.calcium,
-                            iron = item.iron,
-                            vitaminC = item.vitaminC,
-                            vitaminA = item.vitaminA,
-                            potassium = item.potassium,
-                            mealType = effectiveMealType,
-                            recordTime = if (isHistoricalDateMode) {
-                                buildRecordTimeForDateAndMeal(
-                                    dateMillis = currentState.selectedDate,
-                                    mealType = effectiveMealType,
-                                    sequenceOffsetSeconds = index
-                                )
-                            } else {
-                                baseRecordTime + index
-                            }
-                        )
-                    }
-
-                    records.forEach { record ->
-                        foodRecordRepository.addRecord(record)
-                    }
-
-                    _uiState.value = _uiState.value.copy(isLoading = false)
-                    onSuccess(records.first().id)
                 }
+
+                records.forEach { record ->
+                    foodRecordRepository.addRecord(record)
+                }
+
+                _uiState.value = _uiState.value.copy(isLoading = false)
+                onSuccess(records.first().id)
+            } catch (e: CancellationException) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    retryMessage = null
+                )
+                throw e
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,

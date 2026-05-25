@@ -1,6 +1,5 @@
 package com.calorieai.app.service.ai
 
-import com.calorieai.app.BuildConfig
 import com.calorieai.app.data.model.AIConfig
 import com.calorieai.app.data.model.AIConfigPresets
 import com.calorieai.app.data.model.AIProtocol
@@ -104,8 +103,6 @@ class AIImportConfigResolver @Inject constructor(
     }
 
     private fun AIConfig.hasUserProvidedApiKey(): Boolean {
-        val trimmedKey = apiKey.trim()
-        return trimmedKey.isNotBlank() &&
-            trimmedKey != BuildConfig.DEFAULT_LONGCAT_API_KEY.trim()
+        return apiKey.trim().isNotBlank()
     }
 }
