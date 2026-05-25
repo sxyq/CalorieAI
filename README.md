@@ -1,501 +1,231 @@
-# CalorieAI v1.0 - 智能食物热量记录应用
+# CalorieAI
 
-<br />
+CalorieAI 是一个基于 Kotlin、Jetpack Compose 与 Hilt 的 Android 热量记录应用，聚焦于「食物记录 + 营养分析 + AI 助手 + 本地数据管理」。
 
-## 📱 应用简介
+当前仓库文档以 `main` 分支现状为准；我已核对本地代码与 `origin/main`，两者当前一致。
 
-CalorieAI 是一款基于 Material3 + Liquid Glass 设计语言的智能食物热量记录应用，融合现代化AI技术与流畅的用户体验，帮助用户轻松管理每日饮食热量摄入和整体健康。
+## 当前状态
 
-**版本**: v1.0
+- 版本：`1.1.0`
+- `applicationId`：`com.calorieai.app`
+- `compileSdk` / `targetSdk`：`36`
+- `minSdk`：`26`
+- 默认输出 APK 名称：`CalorieAI-v1.1.apk`
+- 当前分支已包含最近一轮启动流程、通知系统、备份链路和 AI 相关稳定性修复
 
-**包名**: com.calorieai.app
+## 线上版本演进
 
-***
+下面三个节点是目前 GitHub 仓库里最清晰、最可比的线上版本里程碑：
 
-## ✨ 核心功能
+| 节点 | 线上标识 | 说明 |
+| --- | --- | --- |
+| 版本节点 A | `97ce712` | `CalorieAI v1.0 Release`，初始公开发布版本 |
+| 版本节点 B | `07b8f6f` / tag `V1.0.0` | 仓库历史中一次大规模功能扩展节点，提交文案写为 `v2.0 重大更新` |
+| 版本节点 C | `2f24a8f` | 当前 `main` 分支线上代码，对应现在这份 README 所描述的能力 |
 
-### 🤖 AI智能食物识别
+从线上代码演进看：
 
-- **文本输入识别**: 简单描述食物，AI自动分析13种营养素
-- **拍照识别**: 多模态AI识别食物照片的营养成分
-- **语音输入**: 支持语音转文字记录
-- **AI重试机制**: 解析失败自动重试，带进度提示
-- **13种营养素分析**: 蛋白质、碳水、脂肪、纤维、糖、钠、胆固醇、饱和脂肪、钙、铁、维生素A/C、钾
+- 节点 A 建立了基础产品形态：AI 食物识别、营养追踪、运动/统计、备份恢复、AI 助手与主题系统
+- 节点 B 明显扩展了产品范围：收藏菜谱、Pantry 库存、WebDAV、饮水增强、小组件扩展、更多 AI/UI 能力
+- 节点 C 主要收敛稳定性与工程化：启动流程、数据库迁移、通知能力、AI 配置安全、持续活动通知结构、Android 16 路径准备
 
-### 📊 营养素追踪
+## 核心能力
 
-- **个性化参考值**: 基于体重、性别、年龄、活动水平动态计算
-- **摄入进度可视化**: 13种营养素进度条展示
-- **营养素状态**: 低/中/高摄入状态提示
+### 食物与营养记录
 
-### 🍽️ 菜谱与食谱
+- 文本描述食物并调用 AI 生成热量与营养分析
+- 拍照识别与图片理解输入
+- 手动录入食物记录
+- 支持 13 种营养指标追踪
+- 收藏菜谱与历史记录复用
 
-- **收藏菜谱**: 保存喜爱的菜谱，支持营养成分存储
-- **智能菜谱推荐**: 根据库存食材和饮食偏好推荐菜谱
-- **烹饪指南**: 标准化菜谱步骤指导
-- **餐食计划**: 多日餐食规划与营养平衡
+### AI 助手与模型配置
 
-### 🏃 运动消耗记录
+- 内置 AI 对话界面与历史会话管理
+- 支持流式响应
+- 支持的协议/提供商类型：`OpenAI`、`Claude`、`Kimi`、`GLM`、`Qwen`、`DeepSeek`、`Gemini`、`LongCat`
+- AI 配置、模型调用记录、Token 用量都保存在本地数据库
+- 当前仓库不再内置默认生产 API Key，需由用户自行配置
 
-- **27种运动类型**: 跑步、游泳、瑜伽、HIIT、力量训练等
-- **热量消耗计算**: 根据运动时长自动计算
-- **运动记录管理**: 独立页面管理历史记录
+### 健康追踪
 
-### 💧 饮水追踪
+- 饮食记录
+- 运动记录
+- 体重记录
+- 饮水记录与目标管理
+- BMR / TDEE 相关个人设置
 
-- **饮水记录**: 快捷添加不同容量饮水记录
-- **饮水目标**: 个性化每日饮水目标
-- **饮水提醒**: 定时提醒保持水分摄入
-- **饮水历史**: 日历视图查看饮水记录
+### 提醒与通知
 
-### 📈 数据统计与可视化
+- 餐次提醒
+- 饮水提醒
+- 精确闹钟与 WorkManager 协同调度
+- 已抽象出持续活动通知能力，预留 Android 16 `Live Updates / promoted ongoing notifications` 升级路径
 
-- **今日概览**: 饼状图展示营养素分布
-- **趋势分析**: 三个独立折线图（摄入/运动/体重）
-- **上月总结**: 详细统计报告（瀑布流卡片）
-- **BMR/TDEE**: 基础代谢率和每日总消耗展示
+### 数据管理
 
-### 🎨 UI/UX特性
+- Room 本地持久化
+- 本地 JSON 备份与恢复
+- WebDAV 云备份与恢复
+- 恢复预览、覆盖/合并两种恢复模式
 
-- **自定义主题**: 支持壁纸、颜色、字体设置
-- **流畅动画**: 页面切换、列表入场、卡片交互动画
-- **桌面小组件**: 6种尺寸支持（2x1/3x2/4x3/2x2/3x1/4x1）
-- **快捷手势**: 长按底栏快速操作
+### 桌面与交互
 
-### 💾 数据管理
+- Compose + Material 3 UI
+- 主题、字体、壁纸等个性化设置
+- 多种桌面小组件
+- 新手引导与设置迁移逻辑
 
-- **本地存储**: Room数据库持久化
-- **WebDAV云备份**: 支持坚果云、Nextcloud等WebDAV服务
-- **智能恢复**: 全量覆盖/合并导入双模式
-- **恢复预览**: 恢复前查看数据影响范围
-- **体重追踪**: 独立体重记录与趋势
+## 技术栈
 
-### 🤖 AI助手
+- Kotlin `1.9.22`
+- Android Gradle Plugin `8.2.2`
+- Jetpack Compose
+- Material 3
+- Hilt
+- Room
+- DataStore
+- WorkManager
+- Retrofit + OkHttp SSE
+- Coil
+- MPAndroidChart
+- Kotlin Serialization
 
-- **悬浮窗设计**: 迷你窗口快速对话
-- **营养咨询**: 热量评估、菜谱规划、健康建议
-- **对话历史**: 保存和管理历史对话
-- **Token统计**: 调用次数和成本追踪
-- **模型支持**: OpenAI/Claude/Kimi/GLM/Qwen/DeepSeek/Gemini
+## 项目结构
 
-### ⚙️ 设置与配置
-
-- **AI服务配置**: 支持多种AI服务商配置
-- **外观设置**: 主题、字体、壁纸、动画、液态玻璃效果开关
-- **通知设置**: 餐次提醒、饮水提醒、目标提醒
-- **交互设置**: 手势开关、快速添加、动画效果
-- **个人信息**: BMR/TDEE计算、热量目标
-
-***
-
-## 🏗️ 架构设计
-
-### 技术架构
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Presentation Layer                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │    Screens   │  │  Components  │  │    Theme     │      │
-│  │  (Compose)   │  │  (Compose)   │  │ (Material3)  │      │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
-├─────────┼─────────────────┼─────────────────┼──────────────┤
-│         │                 │                 │              │
-│         ▼                 ▼                 ▼              │
-│  ┌──────────────────────────────────────────────────┐     │
-│  │                ViewModel Layer                    │     │
-│  │  (StateFlow + Flow + Coroutines)                  │     │
-│  └──────────────────────┬───────────────────────────┘     │
-├─────────────────────────┼──────────────────────────────────┤
-│                         │                                  │
-│                         ▼                                  │
-│  ┌──────────────────────────────────────────────────┐     │
-│  │              Repository Layer                     │     │
-│  │  (Repository Pattern + DataSource abstraction)    │     │
-│  └──────────────────────┬───────────────────────────┘     │
-├─────────────────────────┼──────────────────────────────────┤
-│                         │                                  │
-│                         ▼                                  │
-│  ┌──────────────────────────────────────────────────┐     │
-│  │                Data Layer                         │     │
-│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐         │     │
-│  │  │   Room   │ │  Retrofit│ │  DataStore│         │     │
-│  │  │ (Local)  │ │ (Remote) │ │ (Prefs)   │         │     │
-│  │  └──────────┘ └──────────┘ └──────────┘         │     │
-│  └──────────────────────────────────────────────────┘     │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 模块职责
-
-| 模块          | 职责                  | 关键文件                                                                         |
-| ----------- | ------------------- | ---------------------------------------------------------------------------- |
-| **Data**    | 数据模型、DAO、Repository | `data/model/`, `data/local/`, `data/repository/`                             |
-| **DI**      | 依赖注入配置              | `di/AppModule.kt`, `di/DatabaseModule.kt`                                    |
-| **Service** | 业务服务                | `service/ai/`, `service/backup/`, `service/notification/`, `service/widget/` |
-| **UI**      | 界面实现                | `ui/screens/`, `ui/components/`, `ui/theme/`, `ui/animation/`                |
-| **Utils**   | 工具类                 | `utils/DateUtils.kt`, `utils/StatsUtils.kt`                                  |
-
-***
-
-## 🛠️ 技术栈
-
-- **语言**: Kotlin 1.9+
-- **UI框架**: Jetpack Compose + Material3
-- **架构**: MVVM + Repository模式
-- **依赖注入**: Hilt
-- **数据库**: Room (版本 20)
-- **异步处理**: Kotlin Coroutines + Flow
-- **图表库**: MPAndroidChart
-- **网络请求**: Retrofit + OkHttp
-- **图片加载**: Coil
-- **后台任务**: WorkManager
-
-***
-
-## 📁 项目结构
-
-```
+```text
 app/src/main/java/com/calorieai/app/
-├── data/
-│   ├── local/              # Room数据库 DAOs
-│   │   ├── AppDatabase.kt
-│   │   ├── UserSettingsDao.kt
-│   │   ├── FoodRecordDao.kt
-│   │   ├── ExerciseRecordDao.kt
-│   │   ├── WaterRecordDao.kt
-│   │   ├── WeightRecordDao.kt (dao/)
-│   │   ├── AIChatHistoryDao.kt
-│   │   ├── AIConfigDao.kt
-│   │   ├── FavoriteRecipeDao.kt
-│   │   ├── PantryIngredientDao.kt
-│   │   ├── RecipeGuideDao.kt
-│   │   ├── RecipePlanDao.kt
-│   │   ├── APICallRecordDao.kt
-│   │   └── OnboardingDataStore.kt
-│   ├── model/              # 数据实体模型
-│   │   ├── UserSettings.kt
-│   │   ├── FoodRecord.kt
-│   │   ├── ExerciseRecord.kt
-│   │   ├── WaterRecord.kt
-│   │   ├── WeightRecord.kt
-│   │   ├── AIChatHistory.kt
-│   │   ├── AIConfig.kt
-│   │   ├── AIFunctionConfig.kt
-│   │   ├── AITokenUsage.kt
-│   │   ├── APICallRecord.kt
-│   │   ├── FavoriteRecipe.kt
-│   │   ├── PantryIngredient.kt
-│   │   ├── RecipeGuide.kt
-│   │   ├── RecipePlan.kt
-│   │   ├── MealPlanCache.kt
-│   │   └── FoodAnalysisResult.kt
-│   └── repository/         # 仓库层
-│       ├── UserSettingsRepository.kt
-│       ├── FoodRecordRepository.kt
-│       ├── ExerciseRecordRepository.kt
-│       ├── WaterRecordRepository.kt
-│       ├── WeightRecordRepository.kt
-│       ├── AIChatHistoryRepository.kt
-│       ├── AIConfigRepository.kt
-│       ├── FavoriteRecipeRepository.kt
-│       ├── PantryIngredientRepository.kt
-│       ├── RecipeGuideRepository.kt
-│       ├── RecipePlanRepository.kt
-│       └── APICallRecordRepository.kt
-├── di/                     # 依赖注入
-│   ├── AppModule.kt
-│   └── DatabaseModule.kt
+├── data/                   # Room、DataStore、Repository、数据模型
+├── di/                     # Hilt 注入配置
+├── domain/                 # 部分领域逻辑
 ├── service/
-│   ├── ai/                 # AI服务
-│   │   ├── AIChatService.kt
-│   │   ├── AIContextService.kt
-│   │   ├── AIRateLimiter.kt
-│   │   ├── AIDefaultConfigInitializer.kt
-│   │   ├── FoodImageAnalysisService.kt
-│   │   ├── FoodTextAnalysisService.kt
-│   │   ├── MealPlanService.kt
-│   │   ├── NutritionRecognitionService.kt
-│   │   └── common/AIApiClient.kt
-│   ├── backup/             # 备份服务
-│   │   ├── BackupService.kt
-│   │   └── WebDavBackupService.kt
-│   ├── notification/       # 通知服务
-│   │   ├── NotificationHelper.kt
-│   │   ├── NotificationScheduler.kt
-│   │   ├── MealReminderWorker.kt
-│   │   ├── PantryExpiryReminderScheduler.kt
-│   │   └── PantryExpiryReminderWorker.kt
-│   ├── widget/             # 桌面小组件
-│   │   ├── BaseCalorieWidget.kt
-│   │   ├── CalorieWidget.kt
-│   │   ├── CalorieWidgetSizes.kt
-│   │   └── WidgetDataProvider.kt
-│   ├── tutorial/           # 新手引导
-│   │   └── TutorialManager.kt
-│   └── voice/              # 语音输入
-│       └── VoiceInputHelper.kt
-├── ui/
-│   ├── animation/          # 动画定义
-│   │   └── AnimationEasing.kt
-│   ├── animations/         # 交互动画
-│   │   ├── CardAnimations.kt
-│   │   ├── ListAnimations.kt
-│   │   └── NavigationAnimations.kt
-│   ├── components/         # 可复用组件
-│   │   ├── AIChatWidget.kt
-│   │   ├── BottomNavBar.kt
-│   │   ├── CalendarView.kt
-│   │   ├── DateSelector.kt
-│   │   ├── ExerciseDialog.kt
-│   │   ├── HeatmapCalendar.kt
-│   │   ├── LiquidGlassComponents.kt
-│   │   ├── LoadingComponents.kt
-│   │   ├── MonthlySummaryCard.kt
-│   │   ├── TokenUsageCard.kt
-│   │   ├── TutorialOverlay.kt
-│   │   ├── VoiceInputDialog.kt
-│   │   ├── WaterProgressCard.kt
-│   │   ├── charts/         # 图表组件
-│   │   ├── ai/             # AI相关组件
-│   │   ├── chat/           # 聊天组件
-│   │   └── markdown/       # Markdown渲染
-│   ├── navigation/         # 导航
-│   │   ├── NavGraph.kt
-│   │   └── BottomNavBehaviorViewModel.kt
-│   ├── screens/            # 页面
-│   │   ├── add/            # 添加记录
-│   │   ├── ai/             # AI助手
-│   │   ├── camera/         # 相机
-│   │   ├── exercise/       # 运动记录
-│   │   ├── functions/      # 功能页
-│   │   ├── home/           # 首页
-│   │   ├── onboarding/     # 引导页
-│   │   ├── overview/       # 概览
-│   │   ├── profile/        # 个人资料
-│   │   ├── result/         # 结果页
-│   │   ├── settings/       # 设置
-│   │   ├── stats/          # 统计
-│   │   ├── water/          # 饮水
-│   │   └── weight/         # 体重
-│   └── theme/              # 主题
-│       ├── Theme.kt
-│       ├── Color.kt
-│       ├── AppColors.kt
-│       ├── GlassColor.kt
-│       ├── GlassModifiers.kt
-│       ├── GlassUtils.kt
-│       └── Type.kt
-├── utils/                  # 工具类
-│   ├── DateUtils.kt
-│   ├── StatsUtils.kt
-│   ├── MetabolicConstants.kt
-│   ├── EncouragementMessages.kt
-│   └── SecureLogger.kt
-├── CalorieAIApplication.kt
-└── MainActivity.kt
+│   ├── ai/                 # AI 请求、图像/文本分析、上下文与流式调用
+│   ├── backup/             # 本地/WebDAV 备份恢复
+│   ├── notification/       # 提醒、通知、持续活动通知能力
+│   ├── startup/            # 首屏启动编排
+│   ├── update/             # 应用更新检查
+│   ├── voice/              # 语音输入
+│   └── widget/             # 桌面小组件
+├── ui/                     # Compose 页面、组件、导航、主题
+├── utils/                  # 时间、统计等工具类
+└── viewmodel/              # 部分旧目录下的 ViewModel
 ```
 
-***
+## 构建环境
 
-## 📋 系统要求
+建议环境：
 
-- **最低Android版本**: Android 12 (API 31)
-- **目标Android版本**: Android 14 (API 34)
-- **存储空间**: 约80MB
+- JDK `17`
+- Android SDK Platform `36`
+- Build Tools `36.0.0`
+- 可用的 `adb` / `sdkmanager`
 
-***
-
-## 🚀 快速开始
-
-### 环境要求
-
-- Android Studio Hedgehog (2023.1.1) 或更高版本
-- JDK 17
-- Android SDK 34
-
-### 构建步骤
-
-1. 克隆项目
+仓库当前没有 Unix 版 `./gradlew`，可直接通过 wrapper jar 运行 Gradle：
 
 ```bash
-git clone https://github.com/yourusername/CalorieAI.git
-cd CalorieAI/CalorieAI
+java -classpath gradle/wrapper/gradle-wrapper.jar \
+  org.gradle.wrapper.GradleWrapperMain :app:assembleDebug --console=plain
 ```
 
-1. 使用Android Studio打开项目
-2. 同步Gradle依赖
+单元测试：
 
 ```bash
-./gradlew sync
+java -classpath gradle/wrapper/gradle-wrapper.jar \
+  org.gradle.wrapper.GradleWrapperMain :app:testDebugUnitTest --console=plain
 ```
 
-1. 构建Release版本
+Release 构建：
 
 ```bash
-./gradlew assembleRelease
+java -classpath gradle/wrapper/gradle-wrapper.jar \
+  org.gradle.wrapper.GradleWrapperMain :app:assembleRelease --console=plain
 ```
 
-***
+## 本地配置说明
 
-## 🔐 权限说明
+### 1. OCR 资源目录
 
-- **相机权限**: 拍照识别食物
-- **录音权限**: 语音输入功能
-- **通知权限**: 餐次提醒、饮水提醒
-- **存储权限**: 数据备份导入导出
-- **网络权限**: AI服务、云备份
+构建脚本会在 `preBuild` 阶段同步打包 OCR 资源。默认从下面目录查找：
 
-***
-
-## 📝 更新
-
-#### 新增功能
-
-- ✅ 液态玻璃UI设计系统 (Liquid Glass)
-- ✅ 设备自适应模糊效果
-- ✅ AI助手三形态（悬浮/全屏/独立页）
-- ✅ WebDAV云备份支持
-- ✅ 智能数据恢复（全量覆盖/合并导入）
-- ✅ 恢复预览功能
-- ✅ 饮水追踪与提醒
-- ✅ 收藏菜谱功能
-- ✅  pantry库存食材管理
-- ✅ 6种桌面小组件尺寸
-- ✅ 底栏长按快捷操作
-- ✅ AI回复分段阅读与卡片展示
-- ✅ Markdown复制支持
-
-#### 优化改进
-
-- ✅ 动画性能优化
-- ✅ 低配置设备适配
-- ✅ 小组件数据同步
-- ✅ 通知系统重构
-- ✅ 数据库性能优化
-
-### v1.0 (2026-03-15) - 正式版本发布
-
-**CalorieAI v1.0 正式发布**
-
-#### 新增功能
-
-- ✅ AI智能食物识别（文本/拍照/语音）
-- ✅ 13种完整营养素追踪
-- ✅ 个性化营养素参考值计算
-- ✅ 运动消耗记录（27种运动）
-- ✅ 数据统计与可视化
-- ✅ 数据备份与恢复
-- ✅ AI营养助手
-- ✅ 桌面小组件
-- ✅ 自定义主题与壁纸
-- ✅ 流畅动画与交互
-
-***
-
-欢迎提交Issue和Pull Request！
-
-***
-
-## 📄 许可证
-
-[MIT License](LICENSE)
-
-***
-
-
-## 2026-04 核心更新（分阶段交付）
-
-### 功能正确性
-- 首页 AI 助手快捷方式改为显式 QuickAction 分发，统一走专用分析入口（热量评估/餐次规划/健康咨询），不再走普通 sendMessage 直发链路。
-- 菜谱快捷复用栏（早餐/午餐/晚餐/加餐）已修复为真实驱动 `selectedMealType -> quickFavorites` 过滤刷新。
-- “我的”页面版本号改为动态读取 `BuildConfig.VERSION_NAME`。
-- 触觉反馈已接入统一执行层，关键交互受“交互与行为”开关控制。
-- FAB 底部避让策略统一到列表场景，修复底部 `+` 被内容遮挡。
-
-### 饮水开关与提醒
-- 新增饮水总开关：关闭后概览/统计/首页入口/功能页/加号入口与饮水路由统一隐藏并守卫。
-- 新增饮水提醒配置：支持多时段（1-8）、可选间隔提醒、提醒时间窗。
-- 通知权限策略：不首开强弹，仅在用户主动开启提醒时请求权限。
-
-### 动效与界面
-- 页面切换动画统一为短时、连贯、可打断，降低拖沓感。
-- “管理收藏”页面完成重构，视觉层级与全局风格对齐。
-- 菜谱页“个性化偏好 + 食材管理”重做为结构化输入与状态闭环交互。
-
-### 离线语音模型
-- 下载/安装/删除链路增加阶段状态与进度反馈。
-- 设置页已支持可视化进度条、状态文案和重试/删除操作。
-
-### 构建与测试（2026-04-11）
-- `:app:assembleDebug -x lint` 通过（JDK 17）。
-- `:app:testDebugUnitTest` 通过。
-
-## 构建前置要求
-- JDK: 17（建议 `17.0.11+9` 或兼容 17.x）
-- Android Gradle 插件/Gradle Wrapper 使用仓库内版本
-
-示例（Windows PowerShell）：
-
-```powershell
-$env:JAVA_HOME='D:\Environment\Java\JDK17\jdk-17.0.11+9'
-$env:PATH="$env:JAVA_HOME\bin;$env:PATH"
-.\gradlew.bat :app:assembleDebug -x lint
-.\gradlew.bat :app:testDebugUnitTest
+```text
+~/.paddlex/official_models
 ```
 
-## 功能开关与提醒说明
-- 饮水功能总开关位于：`设置 -> 外观`。
-- 饮水提醒位于：`设置 -> 通知`，支持固定时段 + 间隔提醒 + 生效时间窗。
-- 若系统未授予通知权限，开启提醒时会触发权限请求；拒绝后可在系统设置中手动授权。
+也可以通过 `local.properties` 或环境变量覆盖：
 
-
-## 2026-04-12 Incremental Update (Supersedes Prior 2026-04 Validation Notes)
-
-### Multi-module governance delivery
-- Added audit model v2 in `audit/tools/run_audit.py` with `--emit-v2`.
-- New v2 outputs:
-  - `audit/out/symbol_nodes_v2.json|csv`
-  - `audit/out/symbol_edges_v2.json|csv`
-  - `audit/out/audit_consistency_v2.json`
-- New v2 node coverage includes:
-  - `property_member`
-  - `property_top_level`
-  - `parameter_function`
-  - `parameter_constructor`
-- New v2 edge coverage includes:
-  - `DECLARES`, `HAS_PARAMETER`, `CALLS`, `READS`, `WRITES`
-  - `HAS_TYPE`, `RETURNS_TYPE`
-  - `INHERITS`, `IMPLEMENTS`, `OVERRIDES`
-
-### Behavior-equivalent structural consolidation
-- Added and integrated `ReminderResyncCoordinator` as unified notification resync entry.
-- Unified AI quick actions through `QuickActionRouter`.
-- Unified haptic dispatch through `HapticActionDispatcher`.
-- Unified FAB-aware list shell through `FabAwareListScaffold`.
-- Added `FeatureGate` abstraction and routed feature visibility via gate-driven flow.
-
-### Performance and stability
-- Added throttled voice model progress propagation via `VoiceModelStateMachine`.
-- Added/kept quick-action local-context caching path in AI context service.
-- Added list-key/contentType hygiene in AI chat hot paths to reduce invalid recomposition.
-- Added debounce + signature de-duplication in reminder resync coordinator.
-
-### Validation status (2026-04-12)
-- Audit (v1): executed successfully.
-- Audit (v2): executed successfully with all consistency checks passing.
-- Build commands attempted with JDK 17:
-  - `:app:assembleDebug -x lint`
-  - `:app:testDebugUnitTest`
-- Current blocker:
-  - Android SDK access/license issue in sandboxed environment (`platforms;android-34`, `build-tools;34.0.0`, SDK path permissions), not a Kotlin compile error from this change-set.
-
-### Build prerequisites (Windows PowerShell)
-```powershell
-$env:JAVA_HOME='D:\Environment\Java\JDK17\jdk-17.0.11+9'
-$env:PATH="$env:JAVA_HOME\bin;$env:PATH"
-$env:GRADLE_USER_HOME='D:\Project\CalorieAI\CalorieAI\.gradle-user'
-$env:ANDROID_USER_HOME='D:\Project\CalorieAI\CalorieAI\.android'
-.\gradlew.bat :app:assembleDebug -x lint
-.\gradlew.bat :app:testDebugUnitTest
+```properties
+bundled.paddle.ocr.root=/absolute/path/to/official_models
+local.ocr.service.url=http://127.0.0.1:8000
 ```
+
+对应的环境变量：
+
+- `BUNDLED_PADDLE_OCR_ROOT`
+- `LOCAL_OCR_SERVICE_URL`
+
+需要包含以下模型目录：
+
+- `PP-OCRv5_mobile_det`
+- `PP-OCRv5_server_rec`
+- `PP-LCNet_x1_0_textline_ori`
+
+### 2. Release 签名
+
+正式签名信息不再硬编码在仓库中，需要通过 `local.properties` 或环境变量提供：
+
+```properties
+release.keystore.path=/absolute/path/to/your.keystore
+release.store.password=***
+release.key.alias=***
+release.key.password=***
+```
+
+对应环境变量：
+
+- `RELEASE_KEYSTORE_PATH`
+- `RELEASE_STORE_PASSWORD`
+- `RELEASE_KEY_ALIAS`
+- `RELEASE_KEY_PASSWORD`
+
+如果未提供这些值，`release` 构建仍可执行，但不会自动携带你自己的正式签名配置。
+
+### 3. AI 服务配置
+
+AI API Key 不随仓库分发。首次运行后请在应用设置页中自行配置模型提供商、接口地址与密钥。
+
+## 通知与 Android 16 路线
+
+当前通知系统已经完成以下重构：
+
+- 通知能力检查集中在 `NotificationCapabilityManager`
+- 通知通道集中在 `AppNotificationChannels`
+- 首页启动后的提醒重同步集中在 `MainActivityStartupCoordinator`
+- 已引入 `OngoingActivityNotifier`，用于承接持续活动通知
+- 当设备能力满足时，会尝试请求 `POST_PROMOTED_NOTIFICATIONS` 对应的 promoted ongoing 能力
+
+这意味着项目已经具备向 Android 16 `Live Updates` 继续演进的代码结构，但是否进入 OEM 系统的特殊展示层，仍需要真实设备验证。
+
+## 数据库与迁移
+
+- 主应用与 Widget 已统一复用同一套 Room builder
+- 不再使用 destructive migration 兜底清库
+- onboarding 完成态已收敛，旧 DataStore 状态会迁移到 `UserSettings`
+
+## 备份与恢复
+
+- 支持本地导出 JSON
+- 支持 WebDAV 上传、下载、恢复
+- 支持恢复预览
+- 支持 `MERGE` 和 `OVERWRITE` 两种模式
+
+## 当前文档边界
+
+本 README 只描述当前仓库中已经存在且能从代码确认的能力，不包含以下假设性内容：
+
+- 任何默认可用的商业 API Key
+- 已经验证通过的 OPPO/ColorOS 流体云最终展示效果
+- 自动可用的正式 release keystore
+
+## 更新日志
+
+请查看 [CHANGELOG.md](./CHANGELOG.md)。
