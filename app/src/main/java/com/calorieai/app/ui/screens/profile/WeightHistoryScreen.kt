@@ -32,7 +32,6 @@ import androidx.compose.foundation.Canvas
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.viewmodel.WeightHistoryViewModel
 import com.calorieai.app.data.model.WeightRecord
-import com.calorieai.app.ui.components.FabAwareListScaffold
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,9 +42,7 @@ fun WeightHistoryScreen(
     val isDark = isSystemInDarkTheme()
     val weightRecords by viewModel.weightRecords.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
-    FabAwareListScaffold(
-        fabVisible = true,
-        listExtraBottomPadding = 8.dp,
+    Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
@@ -68,7 +65,8 @@ fun WeightHistoryScreen(
                 Icon(Icons.Default.Add, contentDescription = "添加记录")
             }
         }
-    ) { paddingValues, listBottomSafePadding ->
+    ) { paddingValues ->
+        val listBottomSafePadding = 8.dp
         Column(
             modifier = Modifier
                 .fillMaxSize()

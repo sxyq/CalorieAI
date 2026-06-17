@@ -23,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.data.model.WaterRecord
-import com.calorieai.app.ui.components.FabAwareListScaffold
 import com.calorieai.app.ui.components.WaterProgressCard
 import com.calorieai.app.ui.theme.*
 import com.calorieai.app.viewmodel.WaterHistoryViewModel
@@ -51,13 +50,11 @@ fun WaterHistoryScreen(
 
     val progress = (todayAmount.toFloat() / targetAmount).coerceIn(0f, 1f)
 
-    FabAwareListScaffold(
-        fabVisible = true,
-        listExtraBottomPadding = 8.dp,
+    Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("饮水历史") },
+                title = { Text("饮水记录") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
@@ -76,7 +73,8 @@ fun WaterHistoryScreen(
                 Icon(Icons.Default.Add, contentDescription = "添加记录", tint = Color.White)
             }
         }
-    ) { paddingValues, listBottomSafePadding ->
+    ) { paddingValues ->
+        val listBottomSafePadding = 8.dp
         Column(
             modifier = Modifier
                 .fillMaxSize()

@@ -5,19 +5,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.currentBackStackEntryAsState
 import com.calorieai.app.ui.animations.PageTransitions
-import com.calorieai.app.ui.components.BottomNavBar
 import com.calorieai.app.ui.components.NavItem
 
 sealed class Screen(val route: String) {
+    object Main : Screen("main")
     object Home : Screen("home")
     object Overview : Screen("overview")
     object Functions : Screen("functions")
@@ -146,73 +143,18 @@ val bottomNavScreens = listOf(
 
 @Composable
 fun NavGraph(navController: NavHostController) {
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val bottomNavBehaviorViewModel: BottomNavBehaviorViewModel = hiltViewModel()
-    val bottomNavBehavior by bottomNavBehaviorViewModel.uiState.collectAsState()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
-
-    val showBottomBar = currentRoute in bottomNavScreens
-
-    Scaffold(
-        bottomBar = {
-            if (showBottomBar) {
-                BottomNavBar(
-                    items = bottomNavItems,
-                    selectedRoute = currentRoute ?: Screen.Home.route,
-                    onItemSelected = { route ->
-                        navController.navigate(route) {
-                            popUpTo(Screen.Home.route) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    onItemLongPressed = { route ->
-                        when (route) {
-                            Screen.Home.route -> {
-                                if (bottomNavBehavior.enableLongPressHomeToAdd) {
-                                    navController.navigate(Screen.AddMethodSelector.createRoute()) {
-                                        launchSingleTop = true
-                                    }
-                                }
-                            }
-                            Screen.Overview.route -> {
-                                if (bottomNavBehavior.enableLongPressOverviewToStats) {
-                                    navController.navigate(Screen.Stats.route) {
-                                        launchSingleTop = true
-                                    }
-                                }
-                            }
-                            Screen.My.route -> {
-                                if (bottomNavBehavior.enableLongPressMyToProfileEdit) {
-                                    navController.navigate(Screen.Profile.route) {
-                                        launchSingleTop = true
-                                    }
-                                }
-                            }
-                            else -> Unit // 菜谱长按功能暂未定义
-                        }
-                    },
-                    isDark = isDark
-                )
-            }
-        }
-    ) { paddingValues ->
-        NavHost(
+    NavHost(
+        navController = navController,
+        startDestination = Screen.Main.route,
+        modifier = Modifier.fillMaxSize(),
+        enterTransition = PageTransitions.enterFromRight,
+        exitTransition = PageTransitions.exitToLeft,
+        popEnterTransition = PageTransitions.popEnter,
+        popExitTransition = PageTransitions.popExit
+    ) {
+        registerAppRoutes(
             navController = navController,
-            startDestination = Screen.Home.route,
-            modifier = Modifier.padding(paddingValues),
-            enterTransition = PageTransitions.enterFromRight,
-            exitTransition = PageTransitions.exitToLeft,
-            popEnterTransition = PageTransitions.popEnter,
-            popExitTransition = PageTransitions.popExit
-        ) {
-            registerAppRoutes(
-                navController = navController,
-                bottomNavScreens = bottomNavScreens
-            )
-        }
+            bottomNavScreens = bottomNavScreens
+        )
     }
 }

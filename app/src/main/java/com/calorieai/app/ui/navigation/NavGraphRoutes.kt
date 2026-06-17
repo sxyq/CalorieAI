@@ -1,4 +1,4 @@
-﻿package com.calorieai.app.ui.navigation
+package com.calorieai.app.ui.navigation
 
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue

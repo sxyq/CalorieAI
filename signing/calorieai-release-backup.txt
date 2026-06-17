@@ -1,0 +1,6 @@
+CalorieAI release signing backup
+created_at=2026-05-26
+keystore.path=/Users/sunyiyang/Desktop/Project/CalorieAI/signing/calorieai-release.jks
+store.password=JS8vLBY4AZmDzcOK0XV3A04u
+key.alias=calorieai-release
+key.password=AYCOCnOsXRageBxCMw5Ckbra

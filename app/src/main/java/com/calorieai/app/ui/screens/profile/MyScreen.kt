@@ -1,4 +1,4 @@
-﻿package com.calorieai.app.ui.screens.profile
+package com.calorieai.app.ui.screens.profile
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background

@@ -28,7 +28,6 @@ import com.calorieai.app.ui.components.AIChatWidget
 import com.calorieai.app.ui.components.AIWidgetMode
 import com.calorieai.app.ui.components.ExerciseDialog
 import com.calorieai.app.ui.components.ExpandableCalendarView
-import com.calorieai.app.ui.components.FabAwareListScaffold
 import com.calorieai.app.ui.feedback.rememberAppHapticController
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -78,13 +77,15 @@ fun HomeScreen(
     
     // AI灏忓姪鎵嬬姸鎬?
     var aiWidgetState by remember { mutableStateOf(com.calorieai.app.ui.components.AIWidgetState.FLOATING) }
-    FabAwareListScaffold(
-        containerColor = MaterialTheme.colorScheme.surface,
-        fabVisible = true,
-        listExtraBottomPadding = if (uiState.showAIWidget) 104.dp else 36.dp,
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("CalorieAI") }
+                title = { Text("CalorieAI") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
+                )
             )
         },
         floatingActionButton = {
@@ -107,8 +108,10 @@ fun HomeScreen(
             ) {
                 Icon(Icons.Default.Add, contentDescription = "添加")
             }
-        }
-        ) { paddingValues, listBottomSafePadding ->
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0) // We handle insets manually or let Haze do it
+    ) { paddingValues ->
+        val listBottomSafePadding = if (uiState.showAIWidget) 104.dp else 36.dp
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier
@@ -270,15 +273,11 @@ fun TodayOverviewCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp)
-            .liquidGlass(
-                shape = MaterialTheme.shapes.extraLarge,
-                tint = if (isDark) {
-                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f)
-                } else {
-                    MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)
-                },
-                blurRadius = 40f
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                shape = MaterialTheme.shapes.extraLarge
             )
+            .clip(MaterialTheme.shapes.extraLarge)
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
@@ -580,14 +579,11 @@ fun FoodRecordItem(
                     )
                 }
                 .interactiveScale(interactionSource)
-                .liquidGlass(
-                    shape = MaterialTheme.shapes.large,
-                    tint = if (isDark) {
-                        MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.86f)
-                    } else {
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)
-                    }
+                .background(
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    shape = MaterialTheme.shapes.large
                 )
+                .clip(MaterialTheme.shapes.large)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -729,14 +725,11 @@ fun ExerciseRecordItem(
             .fillMaxWidth()
             .padding(vertical = 4.dp, horizontal = 4.dp)
             .interactiveScale(interactionSource)
-            .liquidGlass(
-                shape = MaterialTheme.shapes.large,
-                tint = if (isDark) {
-                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.86f)
-                } else {
-                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
-                }
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                shape = MaterialTheme.shapes.large
             )
+            .clip(MaterialTheme.shapes.large)
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = androidx.compose.foundation.LocalIndication.current,

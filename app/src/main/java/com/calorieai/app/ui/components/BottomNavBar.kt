@@ -1,24 +1,31 @@
 package com.calorieai.app.ui.components
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import dev.chrisbanes.haze.hazeChild
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.ripple.rememberRipple
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Badge
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -29,6 +36,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -36,18 +44,16 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.calorieai.app.ui.animation.AnimationEasing
-import com.calorieai.app.ui.animation.AnimationSpecs
 import com.calorieai.app.ui.feedback.AppHapticController
 import com.calorieai.app.ui.feedback.rememberAppHapticController
-import com.calorieai.app.ui.theme.*
+import com.calorieai.app.ui.theme.AppColors
+import com.calorieai.app.ui.theme.GlassDarkColors
+import com.calorieai.app.ui.theme.GlassLightColors
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.math.abs
 
 private const val BOTTOM_NAV_LONG_PRESS_MS = 220L
 
-/**
- * 底部导航栏数据类
- */
 data class NavItem(
     val route: String,
     val title: String,
@@ -56,33 +62,24 @@ data class NavItem(
     val hasBadge: Boolean = false
 )
 
-/**
- * 底部导航栏组件 - Glass 毛玻璃风格
- * - 高度 80dp，宽度 100%
- * - 圆角 0dp（直角）
- * - 水平等分布局
- */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BottomNavBar(
     items: List<NavItem>,
-    selectedRoute: String,
-    onItemSelected: (String) -> Unit,
-    onItemLongPressed: ((String) -> Unit)? = null,
+    pagerState: PagerState,
+    onItemSelected: (Int) -> Unit,
+    onItemLongPressed: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier,
-    isDark: Boolean = false
+    isDark: Boolean = false,
+    hazeState: dev.chrisbanes.haze.HazeState? = null
 ) {
-    val context = LocalContext.current
-    val isLowEnd = remember { GlassDeviceUtils.isLowEndDevice(context) }
-    val supportsBlur = false
     val haptics = rememberAppHapticController()
     val navigationBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val containerHeight = remember(navigationBarInset) { 80.dp + navigationBarInset }
-
-    // 背景颜色 #F3EDF7（浅色）/#211F26（深色），透明度 95%
-    val backgroundColor = Color.White
-
-    // 边框颜色
-    val borderColor = Color(0xFFE5E7EB)
+    val containerHeight = remember(navigationBarInset) { 72.dp + navigationBarInset }
+    
+    val backgroundColor = if (isDark) Color(0xFF1E1E22).copy(alpha = 0.85f) else Color.White.copy(alpha = 0.90f)
+    val hazeTint = if (isDark) Color(0xFF1E1E22).copy(alpha = 0.35f) else Color.White.copy(alpha = 0.40f)
+    val borderColor = if (isDark) Color(0x33FFFFFF) else Color(0xFFE5E7EB)
 
     val density = LocalDensity.current
     val highlightHeight = with(density) { 1.dp.toPx() }
@@ -91,147 +88,128 @@ fun BottomNavBar(
         modifier = modifier
             .fillMaxWidth()
             .height(containerHeight)
+            .then(
+                if (hazeState != null) {
+                    Modifier.hazeChild(
+                        state = hazeState,
+                        style = dev.chrisbanes.haze.HazeStyle(
+                            tint = hazeTint,
+                            blurRadius = 24.dp
+                        )
+                    )
+                } else {
+                    Modifier.background(backgroundColor)
+                }
+            )
             .drawBehind {
-                // 背景
-                drawRect(backgroundColor)
-
-                // 顶部高光 1px 渐变（rgba(255,255,255,0.2) → transparent）
+                // Top border line
                 drawRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0f),
-                            Color.Transparent
-                        ),
-                        startY = 0f,
-                        endY = highlightHeight
-                    ),
+                    color = borderColor,
                     topLeft = Offset(0f, 0f),
                     size = Size(size.width, highlightHeight)
                 )
-
-                // 底部内阴影 1px rgba(0,0,0,0.1)
-                drawRect(
-                    color = Color.Black.copy(alpha = 0f),
-                    topLeft = Offset(0f, size.height - highlightHeight),
-                    size = Size(size.width, highlightHeight)
-                )
             }
-            .then(
-                if (supportsBlur && !isLowEnd) {
-                    Modifier.glassBlur(GlassUtils.BlurRadius.MEDIUM)
-                } else {
-                    Modifier
-                }
-            )
-            .border(width = 1.dp, color = borderColor)
     ) {
-        Row(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(80.dp)
+                .height(72.dp)
                 .align(Alignment.TopCenter)
-                .padding(horizontal = 4.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
         ) {
-            items.forEach { item ->
-                NavBarItem(
-                    item = item,
-                    isSelected = item.route == selectedRoute,
-                    onClick = { onItemSelected(item.route) },
-                    onLongClick = onItemLongPressed?.let { handler ->
-                        { handler(item.route) }
-                    },
-                    haptics = haptics,
-                    isDark = isDark
+            val totalWidthPx = constraints.maxWidth.toFloat()
+            val itemCount = items.size
+            val itemWidthPx = totalWidthPx / itemCount
+
+            // Moving Indicator Layer
+            // It calculates translationX purely based on the Pager's current page + offset.
+            val indicatorWidthPx = with(density) { 64.dp.toPx() }
+            val centerOffsetPx = (itemWidthPx - indicatorWidthPx) / 2f
+            val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
+            
+            // Deformation effect based on velocity/distance
+            val velocity = abs(pagerState.currentPageOffsetFraction)
+            val scaleX = 1f + (velocity * 0.4f)
+            
+            val indicatorColor = if (isDark) GlassDarkColors.IndicatorBackground else GlassLightColors.IndicatorBackground
+
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .graphicsLayer {
+                        translationX = (position * itemWidthPx) + centerOffsetPx
+                        this.scaleX = scaleX
+                    }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(64.dp)
+                        .height(32.dp)
+                        .align(Alignment.CenterStart) // aligned correctly with translationX
+                        .offset(y = (-4).dp)
+                        .clip(CircleShape)
+                        .background(indicatorColor)
                 )
+            }
+
+            // Icons and Texts Layer
+            Row(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items.forEachIndexed { index, item ->
+                    // Calculate visual selection state for colors and scale
+                    val distance = abs(position - index)
+                    val isSelectedFraction = (1f - distance).coerceIn(0f, 1f)
+                    val isSelected = index == pagerState.currentPage
+
+                    NavBarItemContent(
+                        item = item,
+                        isSelected = isSelected,
+                        selectionFraction = isSelectedFraction,
+                        onClick = { onItemSelected(index) },
+                        onLongClick = onItemLongPressed?.let { handler -> { handler(index) } },
+                        haptics = haptics,
+                        isDark = isDark,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
     }
 }
 
-/**
- * 导航项组件 - 胶囊指示器 + 动效
- */
 @Composable
-private fun NavBarItem(
+private fun NavBarItemContent(
     item: NavItem,
     isSelected: Boolean,
+    selectionFraction: Float,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     haptics: AppHapticController,
-    isDark: Boolean
+    isDark: Boolean,
+    modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
-    val context = LocalContext.current
-    val isLowEnd = remember { GlassDeviceUtils.isLowEndDevice(context) }
-    val supportsBlur = GlassDeviceUtils.supportsBlur()
-
-    val colors = AppColors.getColors(isDark)
-
-    // 图标颜色
     val selectedIconColor = if (isDark) GlassDarkColors.SelectedIcon else GlassLightColors.SelectedIcon
     val unselectedIconColor = if (isDark) GlassDarkColors.UnselectedIcon else GlassLightColors.UnselectedIcon
     val selectedTextColor = if (isDark) GlassDarkColors.SelectedText else GlassLightColors.SelectedText
     val unselectedTextColor = if (isDark) GlassDarkColors.UnselectedText else GlassLightColors.UnselectedText
 
-    // 指示器背景色
-    val indicatorColor = if (isDark) GlassDarkColors.IndicatorBackground else GlassLightColors.IndicatorBackground
-
-    val density = LocalDensity.current
-    val shadowHeight = with(density) { 1.dp.toPx() }
-
-    // 指示器动画 - 缩放 0.8→1 + 淡入，时长 300ms
-    val indicatorScale by animateFloatAsState(
-        targetValue = if (isSelected) 1f else 0.8f,
-        animationSpec = AnimationSpecs.Normal,
-        label = "indicatorScale"
-    )
-
-    val indicatorAlpha by animateFloatAsState(
-        targetValue = if (isSelected) 1f else 0f,
-        animationSpec = AnimationSpecs.Normal,
-        label = "indicatorAlpha"
-    )
-
-    // 指示器位置动画 - 时长 250ms，弹跳缓动
-    val indicatorOffset by animateFloatAsState(
-        targetValue = if (isSelected) -2f else 0f, // 选中时上浮 2dp
-        animationSpec = tween(250, easing = AnimationEasing.EaseOutBack),
-        label = "indicatorOffset"
-    )
-
-    // 图标微动效 - 选中时放大 1.1 倍，弹性回弹
     val iconScale by animateFloatAsState(
-        targetValue = if (isSelected) 1.1f else 1f,
-        animationSpec = AnimationSpecs.SpringBouncy,
+        targetValue = if (isSelected) 1.15f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "iconScale"
     )
 
-    // 颜色动画 - 时长 200ms
-    val iconColor by animateColorAsState(
-        targetValue = if (isSelected) selectedIconColor else unselectedIconColor,
-        animationSpec = tween(durationMillis = 200),
-        label = "iconColor"
-    )
+    // Blend color based on selectionFraction driven by swipe
+    val iconColor = androidx.compose.ui.graphics.lerp(unselectedIconColor, selectedIconColor, selectionFraction)
+    val textColor = androidx.compose.ui.graphics.lerp(unselectedTextColor, selectedTextColor, selectionFraction)
 
-    val textColor by animateColorAsState(
-        targetValue = if (isSelected) selectedTextColor else unselectedTextColor,
-        animationSpec = tween(durationMillis = 200),
-        label = "textColor"
-    )
-
-    val ripple = rememberRipple(
-        bounded = true,
-        radius = 24.dp,
-        color = Color.Black.copy(alpha = 0.12f)
-    )
+    val ripple = rememberRipple(bounded = false, radius = 32.dp, color = Color.Black.copy(alpha = 0.08f))
 
     Box(
-        modifier = Modifier
-            .widthIn(min = 48.dp)
-            .heightIn(min = 48.dp)
+        modifier = modifier
+            .fillMaxHeight()
             .then(
                 if (onLongClick != null) {
                     Modifier
@@ -271,57 +249,19 @@ private fun NavBarItem(
         contentAlignment = Alignment.Center
     ) {
         Column(
-            modifier = Modifier
-                .padding(horizontal = 4.dp, vertical = 12.dp)
-                .padding(bottom = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.Center
         ) {
-            // 图标容器
             Box(
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(28.dp).offset(y = (-2).dp),
                 contentAlignment = Alignment.Center
             ) {
-                // 胶囊指示器 - 尺寸 64dp × 32dp，圆角 50%
-                if (indicatorAlpha > 0.01f) {
-                    Box(
-                        modifier = Modifier
-                            .width(64.dp)
-                            .height(32.dp)
-                            .offset(y = indicatorOffset.dp)
-                            .scale(indicatorScale)
-                            .alpha(indicatorAlpha)
-                            .clip(CircleShape)
-                            .drawBehind {
-                                // 指示器背景
-                                drawRect(color = indicatorColor)
-
-                                // 底部内阴影 1px rgba(0,0,0,0.1)
-                                drawRect(
-                                    color = Color.Black.copy(alpha = 0.1f),
-                                    topLeft = Offset(0f, size.height - shadowHeight),
-                                    size = Size(size.width, shadowHeight)
-                                )
-                            }
-                            .then(
-                                if (supportsBlur && !isLowEnd) {
-                                    Modifier.glassBlur(GlassUtils.BlurRadius.SMALL)
-                                } else {
-                                    Modifier
-                                }
-                            )
-                    )
-                }
-
-                // 图标 - 24dp × 24dp
                 Icon(
                     imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
                     contentDescription = item.title,
                     modifier = Modifier.scale(iconScale),
                     tint = iconColor
                 )
-
-                // 徽章
                 if (item.hasBadge) {
                     Badge(
                         modifier = Modifier
@@ -331,201 +271,11 @@ private fun NavBarItem(
                 }
             }
 
-            // 标签 - 12sp，Medium 字重
             Text(
                 text = item.title,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = textColor,
-                lineHeight = 16.sp
-            )
-        }
-    }
-}
-
-
-
-/**
- * 标准底部导航项配置
- */
-object StandardNavItems {
-    val Overview = NavItem(
-        route = "overview",
-        title = "概览",
-        selectedIcon = Icons.Filled.Dashboard,
-        unselectedIcon = Icons.Outlined.Dashboard
-    )
-
-    val Functions = NavItem(
-        route = "functions",
-        title = "功能",
-        selectedIcon = Icons.Filled.Apps,
-        unselectedIcon = Icons.Outlined.Apps
-    )
-
-    val Add = NavItem(
-        route = "add",
-        title = "记录",
-        selectedIcon = Icons.Filled.AddCircle,
-        unselectedIcon = Icons.Outlined.AddCircleOutline
-    )
-
-    val Profile = NavItem(
-        route = "profile",
-        title = "我的",
-        selectedIcon = Icons.Filled.Person,
-        unselectedIcon = Icons.Outlined.Person
-    )
-
-    val BodyProfile = NavItem(
-        route = "body_profile",
-        title = "身体",
-        selectedIcon = Icons.Filled.Favorite,
-        unselectedIcon = Icons.Outlined.FavoriteBorder
-    )
-
-    val defaultItems = listOf(Overview, Functions, Add, BodyProfile, Profile)
-}
-
-/**
- * 底部导航栏 - 标准配置
- */
-@Composable
-fun StandardBottomNavBar(
-    selectedRoute: String,
-    onItemSelected: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    isDark: Boolean = false
-) {
-    BottomNavBar(
-        items = StandardNavItems.defaultItems,
-        selectedRoute = selectedRoute,
-        onItemSelected = onItemSelected,
-        modifier = modifier,
-        isDark = isDark
-    )
-}
-
-/**
- * 带FAB的底部导航栏 - Glass 风格
- */
-@Composable
-fun BottomNavBarWithFab(
-    items: List<NavItem>,
-    selectedRoute: String,
-    onItemSelected: (String) -> Unit,
-    onFabClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    fabIcon: ImageVector = Icons.Default.Add,
-    isDark: Boolean = false
-) {
-    val context = LocalContext.current
-    val isLowEnd = remember { GlassDeviceUtils.isLowEndDevice(context) }
-    val supportsBlur = false
-    val haptics = rememberAppHapticController()
-    val navigationBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val containerHeight = remember(navigationBarInset) { 96.dp + navigationBarInset }
-
-    val backgroundColor = Color.White
-    val borderColor = Color(0xFFE5E7EB)
-
-    val density = LocalDensity.current
-    val highlightHeight = with(density) { 1.dp.toPx() }
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(containerHeight)
-    ) {
-        // 底部导航栏（为FAB留出空间）
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 24.dp)
-                .height(72.dp)
-                .align(Alignment.TopCenter)
-                .drawBehind {
-                    drawRect(backgroundColor)
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0f),
-                                Color.Transparent
-                            ),
-                            startY = 0f,
-                            endY = highlightHeight
-                        ),
-                        topLeft = Offset(0f, 0f),
-                        size = Size(size.width, highlightHeight)
-                    )
-                    drawRect(
-                        color = Color.Black.copy(alpha = 0f),
-                        topLeft = Offset(0f, size.height - highlightHeight),
-                        size = Size(size.width, highlightHeight)
-                    )
-                }
-                .then(
-                    if (supportsBlur && !isLowEnd) {
-                        Modifier.glassBlur(GlassUtils.BlurRadius.MEDIUM)
-                    } else {
-                        Modifier
-                    }
-                )
-                .border(width = 1.dp, color = borderColor)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                items.take(2).forEach { item ->
-                    NavBarItem(
-                        item = item,
-                        isSelected = item.route == selectedRoute,
-                        onClick = { onItemSelected(item.route) },
-                        haptics = haptics,
-                        isDark = isDark
-                    )
-                }
-
-                // FAB占位
-                Spacer(modifier = Modifier.width(64.dp))
-
-                items.takeLast(2).forEach { item ->
-                    NavBarItem(
-                        item = item,
-                        isSelected = item.route == selectedRoute,
-                        onClick = { onItemSelected(item.route) },
-                        haptics = haptics,
-                        isDark = isDark
-                    )
-                }
-            }
-        }
-
-        // 中央FAB - Glass 风格
-        val fabBackgroundColor = AppColors.primary(isDark)
-        val fabContentColor = AppColors.onPrimary(isDark)
-
-        FloatingActionButton(
-            onClick = {
-                haptics.confirm()
-                onFabClick()
-            },
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .size(64.dp),
-            shape = CircleShape,
-            containerColor = fabBackgroundColor,
-            contentColor = fabContentColor,
-            elevation = FloatingActionButtonDefaults.elevation(8.dp)
-        ) {
-            Icon(
-                imageVector = fabIcon,
-                contentDescription = "添加",
-                modifier = Modifier.size(28.dp)
+                fontSize = 11.sp,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                color = textColor
             )
         }
     }
