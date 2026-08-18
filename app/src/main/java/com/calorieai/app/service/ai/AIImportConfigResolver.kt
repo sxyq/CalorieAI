@@ -78,7 +78,7 @@ class AIImportConfigResolver @Inject constructor(
         return preset.copy(
             apiUrl = apiUrl,
             apiKey = apiKey,
-            protocol = AIProtocol.LONGCAT
+            protocol = preset.protocol
         )
     }
 

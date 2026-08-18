@@ -1,5 +1,6 @@
 package com.calorieai.app.service.ai
 
+import com.calorieai.app.BuildConfig
 import com.calorieai.app.data.model.AIConfig
 import com.calorieai.app.data.model.AIProtocol
 import com.calorieai.app.data.model.IconType
@@ -13,9 +14,10 @@ class AIDefaultConfigInitializer @Inject constructor(
 ) {
     companion object {
         const val DEFAULT_AI_ID = "default_longcat_ai"
-        const val DEFAULT_AI_NAME = "LongCat AI (默认)"
-        const val DEFAULT_API_URL = "https://api.longcat.chat/openai/v1/chat/completions"
-        const val DEFAULT_MODEL_ID = "LongCat-Flash-Omni-2603"
+        const val DEFAULT_AI_NAME = "GPT-5.6 Luna (默认)"
+        val DEFAULT_API_URL: String get() = BuildConfig.DEFAULT_AI_API_URL
+        val DEFAULT_API_KEY: String get() = BuildConfig.DEFAULT_AI_API_KEY
+        val DEFAULT_MODEL_ID: String get() = BuildConfig.DEFAULT_AI_MODEL_ID
         const val DEFAULT_DAILY_LIMIT = 50
     }
 
@@ -31,7 +33,7 @@ class AIDefaultConfigInitializer @Inject constructor(
                 iconType = IconType.EMOJI,
                 protocol = AIProtocol.OPENAI,
                 apiUrl = DEFAULT_API_URL,
-                apiKey = "",
+                apiKey = DEFAULT_API_KEY,
                 modelId = DEFAULT_MODEL_ID,
                 isImageUnderstanding = true,
                 isDefault = true
@@ -41,6 +43,17 @@ class AIDefaultConfigInitializer @Inject constructor(
         }
 
         configs.forEach { config ->
+            if (config.id == DEFAULT_AI_ID && isLegacyDefaultConfig(config)) {
+                val migratedConfig = config.copy(
+                    apiUrl = DEFAULT_API_URL,
+                    apiKey = DEFAULT_API_KEY.ifBlank { config.apiKey },
+                    modelId = DEFAULT_MODEL_ID,
+                    protocol = AIProtocol.OPENAI
+                )
+                aiConfigRepository.updateConfig(migratedConfig)
+                return@forEach
+            }
+
             val needsFix = !config.apiUrl.contains("/chat/completions")
             if (!needsFix) return@forEach
 
@@ -51,5 +64,10 @@ class AIDefaultConfigInitializer @Inject constructor(
             }
             aiConfigRepository.updateConfig(config.copy(apiUrl = fixedUrl))
         }
+    }
+
+    private fun isLegacyDefaultConfig(config: AIConfig): Boolean {
+        return config.apiUrl.contains("api.longcat.chat", ignoreCase = true) ||
+            config.modelId.startsWith("LongCat-", ignoreCase = true)
     }
 }

@@ -1,9 +1,15 @@
 package com.calorieai.app.service.voice
 
 import android.content.Context
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
 import android.util.Log
-import androidx.core.content.ContextCompat
-import com.google.gson.JsonParser
+import com.k2fsa.sherpa.onnx.FeatureConfig
+import com.k2fsa.sherpa.onnx.OfflineModelConfig
+import com.k2fsa.sherpa.onnx.OfflineRecognizer
+import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
+import com.k2fsa.sherpa.onnx.OfflineSenseVoiceModelConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -16,11 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import org.vosk.Model
-import org.vosk.Recognizer
-import org.vosk.android.RecognitionListener
-import org.vosk.android.SpeechService
-import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -28,20 +30,17 @@ import javax.inject.Singleton
 class VoiceInputHelper @Inject constructor(
     private val voiceModelManager: VoiceModelManager
 ) {
-
     private val _voiceState = MutableStateFlow<VoiceState>(VoiceState.Idle)
     val voiceState: StateFlow<VoiceState> = _voiceState.asStateFlow()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val modelMutex = Mutex()
+    private val stopRequested = AtomicBoolean(false)
 
-    private var model: Model? = null
-    private var speechService: SpeechService? = null
-    private var recognizer: Recognizer? = null
+    private var recognizer: OfflineRecognizer? = null
+    private var audioRecord: AudioRecord? = null
     private var currentSessionJob: Job? = null
-    private var isListening = false
-    private var accumulatedText = StringBuilder()
-    private var lastPartialText: String = ""
+    @Volatile private var isListening = false
 
     fun startListening(
         context: Context,
@@ -51,219 +50,197 @@ class VoiceInputHelper @Inject constructor(
         enableContinuous: Boolean = false
     ) {
         stopListening()
-        _voiceState.value = VoiceState.Processing
-        accumulatedText.clear()
-        lastPartialText = ""
+        if (!voiceModelManager.isModelInstalled()) {
+            val message = "内置语音模型不可用，请重新安装应用"
+            _voiceState.value = VoiceState.Error(message)
+            onError(message)
+            return
+        }
 
+        stopRequested.set(false)
+        isListening = true
+        _voiceState.value = VoiceState.Processing
         currentSessionJob = scope.launch {
             try {
-                val localModel = prepareModel(context.applicationContext)
-                startVoskListening(
-                    model = localModel,
-                    onResult = onResult,
-                    onError = onError,
-                    onPartialResult = onPartialResult,
-                    enableContinuous = enableContinuous
-                )
+                val localRecognizer = prepareRecognizer(context.applicationContext)
+                if (!isListening || stopRequested.get()) return@launch
+
+                val samples = withContext(Dispatchers.IO) { recordAudio() }
+                if (samples.isEmpty()) {
+                    finishError("说话时间太短", onError)
+                    return@launch
+                }
+
+                _voiceState.value = VoiceState.Processing
+                val result = withContext(Dispatchers.Default) {
+                    decode(localRecognizer, samples)
+                }
+                val text = result.text.trim()
+                if (!containsSpeechCharacters(text)) {
+                    finishError("未能识别语音，请再试一次", onError)
+                } else {
+                    _voiceState.value = VoiceState.Success(text)
+                    onResult(text)
+                }
             } catch (t: Throwable) {
-                Log.e(TAG, "startListening failed", t)
-                _voiceState.value = VoiceState.Error("内置语音模型初始化失败: ${t.message ?: "未知错误"}")
-                onError("内置语音模型初始化失败")
+                Log.e(TAG, "SenseVoice recognition failed", t)
+                finishError("离线语音识别异常：${t.message ?: "未知错误"}", onError)
+            } finally {
+                releaseAudioRecord()
                 isListening = false
+                stopRequested.set(false)
+                currentSessionJob = null
             }
         }
     }
 
     fun stopListening() {
+        if (!isListening && currentSessionJob?.isActive != true) {
+            _voiceState.value = VoiceState.Idle
+            return
+        }
+
         isListening = false
+        stopRequested.set(true)
         try {
-            speechService?.stop()
+            audioRecord?.stop()
         } catch (_: Throwable) {
         }
-        releaseRecognizer()
-        _voiceState.value = VoiceState.Idle
     }
 
-    fun cancel() {
-        stopListening()
-    }
+    fun cancel() = stopListening()
 
     fun destroy() {
-        isListening = false
+        stopListening()
         currentSessionJob?.cancel()
         currentSessionJob = null
-
+        releaseAudioRecord()
         try {
-            speechService?.stop()
+            recognizer?.release()
         } catch (_: Throwable) {
         }
-        releaseRecognizer()
-
-        try {
-            model?.close()
-        } catch (_: Throwable) {
-        }
-        model = null
-
+        recognizer = null
         scope.cancel()
         _voiceState.value = VoiceState.Idle
     }
 
     fun isRecognitionAvailable(context: Context): Boolean {
-        return ContextCompat.checkSelfPermission(
+        return androidx.core.content.ContextCompat.checkSelfPermission(
             context,
             android.Manifest.permission.RECORD_AUDIO
         ) == android.content.pm.PackageManager.PERMISSION_GRANTED
     }
 
-    private suspend fun prepareModel(context: Context): Model = modelMutex.withLock {
-        model?.let { return it }
+    private suspend fun prepareRecognizer(context: Context): OfflineRecognizer = modelMutex.withLock {
+        recognizer?.let { return it }
 
-        val modelDir = voiceModelManager.getInstalledModelDir()
-        if (modelDir == null || !isModelReady(modelDir)) {
-            throw IllegalStateException("语音模型未安装，请前往 设置 > AI配置 下载语音模型")
-        }
-
-        return withContext(Dispatchers.IO) {
-            Log.i(TAG, "loading downloaded voice model from ${modelDir.absolutePath}")
-            Model(modelDir.absolutePath).also { loaded ->
-                model = loaded
+        withContext(Dispatchers.Default) {
+            val modelConfig = OfflineModelConfig().apply {
+                senseVoice = OfflineSenseVoiceModelConfig(
+                    model = VoiceModelManager.MODEL_ASSET_PATH,
+                    language = "",
+                    useInverseTextNormalization = true
+                )
+                tokens = VoiceModelManager.TOKENS_ASSET_PATH
+                numThreads = 2
+                provider = "cpu"
+                modelType = "sense_voice"
             }
-        }
-    }
-
-    private fun isModelReady(modelDir: File): Boolean {
-        if (!modelDir.exists() || !modelDir.isDirectory) return false
-        val required = listOf("am", "conf", "graph")
-        return required.all { File(modelDir, it).exists() }
-    }
-
-    private fun startVoskListening(
-        model: Model,
-        onResult: (String) -> Unit,
-        onError: (String) -> Unit,
-        onPartialResult: ((String) -> Unit)?,
-        enableContinuous: Boolean
-    ) {
-        releaseRecognizer()
-        recognizer = Recognizer(model, SAMPLE_RATE)
-        speechService = SpeechService(recognizer, SAMPLE_RATE)
-        isListening = true
-        _voiceState.value = VoiceState.Listening
-
-        speechService?.startListening(object : RecognitionListener {
-            override fun onPartialResult(hypothesis: String?) {
-                if (!isListening) return
-                val text = parseHypothesisText(hypothesis, partial = true)
-                if (text.isNotBlank() && text != lastPartialText) {
-                    lastPartialText = text
-                    _voiceState.value = VoiceState.Partial(text)
-                    onPartialResult?.invoke(text)
-                }
+            val config = OfflineRecognizerConfig().apply {
+                featConfig = FeatureConfig(SAMPLE_RATE, FEATURE_DIM, 0f)
+                this.modelConfig = modelConfig
+                decodingMethod = "greedy_search"
             }
-
-            override fun onResult(hypothesis: String?) {
-                if (!isListening) return
-                appendRecognizedText(parseHypothesisText(hypothesis, partial = false))
-            }
-
-            override fun onFinalResult(hypothesis: String?) {
-                if (!isListening) return
-                appendRecognizedText(parseHypothesisText(hypothesis, partial = false))
-                lastPartialText = ""
-
-                val finalText = accumulatedText.toString().trim()
-                if (finalText.isBlank()) {
-                    _voiceState.value = VoiceState.Error("未能识别语音，请再试一次")
-                    onError("未能识别语音，请再试一次")
-                } else {
-                    _voiceState.value = VoiceState.Success(finalText)
-                    onResult(finalText)
-                }
-
-                if (!enableContinuous) {
-                    stopListening()
-                } else {
-                    accumulatedText.clear()
-                    lastPartialText = ""
-                    _voiceState.value = VoiceState.Listening
-                }
-            }
-
-            override fun onError(exception: Exception?) {
-                if (!isListening) return
-                val msg = exception?.message ?: "离线语音识别异常"
-                Log.e(TAG, "vosk error: $msg", exception)
-                _voiceState.value = VoiceState.Error(msg)
-                onError(msg)
-                stopListening()
-            }
-
-            override fun onTimeout() {
-                if (!isListening) return
-                val finalText = accumulatedText.toString().trim()
-                if (finalText.isNotBlank()) {
-                    _voiceState.value = VoiceState.Success(finalText)
-                    onResult(finalText)
-                } else {
-                    _voiceState.value = VoiceState.Error("说话时间太短")
-                    onError("说话时间太短")
-                }
-                stopListening()
-            }
-        })
-    }
-
-    private fun appendRecognizedText(text: String) {
-        if (text.isBlank()) return
-        val normalized = text.trim()
-        if (accumulatedText.toString().endsWith(normalized)) {
-            return
-        }
-        if (accumulatedText.isNotEmpty()) {
-            accumulatedText.append(" ")
-        }
-        accumulatedText.append(normalized)
-    }
-
-    private fun parseHypothesisText(raw: String?, partial: Boolean): String {
-        if (raw.isNullOrBlank()) return ""
-        return try {
-            val json = JsonParser.parseString(raw).asJsonObject
-            when {
-                partial -> json.get("partial")?.asString.orEmpty()
-                else -> json.get("text")?.asString.orEmpty()
-            }.trim()
-        } catch (t: Throwable) {
-            Log.w(TAG, "failed to parse hypothesis: $raw", t)
-            ""
+            OfflineRecognizer(context.assets, config).also { recognizer = it }
         }
     }
 
-    private fun releaseRecognizer() {
-        try {
-            speechService?.stop()
-        } catch (_: Throwable) {
-        }
-        speechService = null
+    private fun recordAudio(): FloatArray {
+        val minBufferSize = AudioRecord.getMinBufferSize(
+            SAMPLE_RATE,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT
+        )
+        if (minBufferSize <= 0) throw IllegalStateException("设备不支持录音")
+
+        val record = AudioRecord(
+            MediaRecorder.AudioSource.MIC,
+            SAMPLE_RATE,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT,
+            (minBufferSize * 2).coerceAtLeast(SAMPLE_RATE / 2)
+        )
+        audioRecord = record
+        val samples = FloatArray(MAX_RECORDING_SECONDS * SAMPLE_RATE)
+        var sampleCount = 0
+        val buffer = ShortArray(minBufferSize.coerceAtLeast(1024) / 2)
 
         try {
-            recognizer?.close()
+            record.startRecording()
+            _voiceState.value = VoiceState.Listening
+            while (isListening && !stopRequested.get() && sampleCount < samples.size) {
+                val read = record.read(buffer, 0, buffer.size)
+                if (read < 0) throw IllegalStateException("录音读取失败($read)")
+                for (index in 0 until read) {
+                    samples[sampleCount++] = buffer[index] / 32768.0f
+                }
+            }
+        } finally {
+            try {
+                record.stop()
+            } catch (_: Throwable) {
+            }
+            record.release()
+            audioRecord = null
+        }
+
+        return samples.copyOf(sampleCount)
+    }
+
+    private fun decode(recognizer: OfflineRecognizer, samples: FloatArray) =
+        recognizer.createStream().let { stream ->
+            try {
+                stream.acceptWaveform(samples, SAMPLE_RATE)
+                recognizer.decode(stream)
+                recognizer.getResult(stream)
+            } finally {
+                stream.release()
+            }
+        }
+
+    private fun finishError(message: String, onError: (String) -> Unit) {
+        _voiceState.value = VoiceState.Error(message)
+        onError(message)
+    }
+
+    private fun containsSpeechCharacters(text: String): Boolean {
+        return text.any { it.isLetterOrDigit() || it in '\u4E00'..'\u9FFF' }
+    }
+
+    private fun releaseAudioRecord() {
+        try {
+            audioRecord?.stop()
         } catch (_: Throwable) {
         }
-        recognizer = null
+        try {
+            audioRecord?.release()
+        } catch (_: Throwable) {
+        }
+        audioRecord = null
     }
 
     companion object {
         private const val TAG = "VoiceInputHelper"
-        private const val SAMPLE_RATE = 16000f
+        private const val SAMPLE_RATE = 16000
+        private const val FEATURE_DIM = 80
+        private const val MAX_RECORDING_SECONDS = 90
     }
 }
 
 sealed class VoiceState {
-    object Idle : VoiceState()
-    object Listening : VoiceState()
-    object Processing : VoiceState()
+    data object Idle : VoiceState()
+    data object Listening : VoiceState()
+    data object Processing : VoiceState()
     data class Partial(val text: String) : VoiceState()
     data class Success(val text: String) : VoiceState()
     data class Error(val message: String) : VoiceState()

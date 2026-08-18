@@ -1,5 +1,7 @@
 package com.calorieai.app.data.model
 
+import com.calorieai.app.BuildConfig
+
 data class AIConfig(
     val id: String = java.util.UUID.randomUUID().toString(),
     val name: String,
@@ -52,10 +54,10 @@ object AIConfigPresets {
     const val ID_LONGCAT_FLASH_LITE = "longcat_flash_lite"
 
     private val templates = listOf(
-        PresetTemplate(ID_LONGCAT_FLASH_OMNI, "LongCat-Flash-Omni-2603", AIProviderIcons.LONGCAT, IconType.EMOJI, AIProtocol.LONGCAT, "https://api.longcat.chat/openai/v1/chat/completions", "LongCat-Flash-Omni-2603", true),
-        PresetTemplate(ID_LONGCAT_FLASH_CHAT, "LongCat-Flash-Chat", AIProviderIcons.LONGCAT, IconType.EMOJI, AIProtocol.LONGCAT, "https://api.longcat.chat/openai/v1/chat/completions", "LongCat-Flash-Chat", false),
-        PresetTemplate(ID_LONGCAT_FLASH_THINKING, "LongCat-Flash-Thinking-2601", AIProviderIcons.LONGCAT, IconType.EMOJI, AIProtocol.LONGCAT, "https://api.longcat.chat/openai/v1/chat/completions", "LongCat-Flash-Thinking-2601", false),
-        PresetTemplate(ID_LONGCAT_FLASH_LITE, "LongCat-Flash-Lite", AIProviderIcons.LONGCAT, IconType.EMOJI, AIProtocol.LONGCAT, "https://api.longcat.chat/openai/v1/chat/completions", "LongCat-Flash-Lite", false)
+        PresetTemplate(ID_LONGCAT_FLASH_OMNI, "GPT-5.6 Luna（拍照）", AIProviderIcons.OPENAI, IconType.RESOURCE, AIProtocol.OPENAI, BuildConfig.DEFAULT_AI_API_URL, BuildConfig.DEFAULT_AI_MODEL_ID, true),
+        PresetTemplate(ID_LONGCAT_FLASH_CHAT, "GPT-5.6 Luna（对话）", AIProviderIcons.OPENAI, IconType.RESOURCE, AIProtocol.OPENAI, BuildConfig.DEFAULT_AI_API_URL, BuildConfig.DEFAULT_AI_MODEL_ID, false),
+        PresetTemplate(ID_LONGCAT_FLASH_THINKING, "GPT-5.6 Luna（思考）", AIProviderIcons.OPENAI, IconType.RESOURCE, AIProtocol.OPENAI, BuildConfig.DEFAULT_AI_API_URL, BuildConfig.DEFAULT_AI_MODEL_ID, false),
+        PresetTemplate(ID_LONGCAT_FLASH_LITE, "GPT-5.6 Luna（文本）", AIProviderIcons.OPENAI, IconType.RESOURCE, AIProtocol.OPENAI, BuildConfig.DEFAULT_AI_API_URL, BuildConfig.DEFAULT_AI_MODEL_ID, false)
     )
 
     private fun createPreset(template: PresetTemplate): AIConfig = AIConfig(

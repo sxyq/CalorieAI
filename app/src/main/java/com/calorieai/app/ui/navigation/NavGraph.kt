@@ -145,7 +145,7 @@ val bottomNavScreens = listOf(
 fun NavGraph(navController: NavHostController) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Main.route,
+        startDestination = Screen.Home.route,
         modifier = Modifier.fillMaxSize(),
         enterTransition = PageTransitions.enterFromRight,
         exitTransition = PageTransitions.exitToLeft,

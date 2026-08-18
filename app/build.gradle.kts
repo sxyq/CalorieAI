@@ -1,5 +1,6 @@
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.security.KeyStore
 import java.util.Properties
 
 plugins {
@@ -73,11 +74,24 @@ fun readSecretProperty(propertyName: String, envName: String): String {
         ?: ""
 }
 
+fun escapeBuildConfigString(value: String): String {
+    return value
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\r", "\\r")
+        .replace("\n", "\\n")
+}
+
 val localOcrServiceUrl: String = (
     localProperties.getProperty("local.ocr.service.url")
         ?: System.getenv("LOCAL_OCR_SERVICE_URL")
         ?: ""
 ).replace("\"", "\\\"")
+val defaultAiApiUrl = readSecretProperty("default.ai.api.url", "DEFAULT_AI_API_URL")
+    .ifBlank { "https://oneapi.sxyq27.online/v1/chat/completions" }
+val defaultAiApiKey = readSecretProperty("default.ai.api.key", "DEFAULT_AI_API_KEY")
+val defaultAiModelId = readSecretProperty("default.ai.model.id", "DEFAULT_AI_MODEL_ID")
+    .ifBlank { "gpt-5.6-luna" }
 val bundledPaddleOcrRoot: String = (
     localProperties.getProperty("bundled.paddle.ocr.root")
         ?: System.getenv("BUNDLED_PADDLE_OCR_ROOT")
@@ -87,10 +101,25 @@ val releaseKeystorePath = readSecretProperty("release.keystore.path", "RELEASE_K
 val releaseStorePassword = readSecretProperty("release.store.password", "RELEASE_STORE_PASSWORD")
 val releaseKeyAlias = readSecretProperty("release.key.alias", "RELEASE_KEY_ALIAS")
 val releaseKeyPassword = readSecretProperty("release.key.password", "RELEASE_KEY_PASSWORD")
+val releaseKeyPasswordForSigning = run {
+    if (releaseKeystorePath.isBlank() || releaseStorePassword.isBlank()) {
+        releaseKeyPassword
+    } else {
+        runCatching {
+            File(releaseKeystorePath).inputStream().use { input ->
+                KeyStore.getInstance("PKCS12").apply {
+                    load(input, releaseStorePassword.toCharArray())
+                }
+            }
+            // PKCS12 stores use the store password for private-key entries.
+            releaseStorePassword
+        }.getOrDefault(releaseKeyPassword)
+    }
+}
 val hasReleaseSigning = releaseKeystorePath.isNotBlank() &&
     releaseStorePassword.isNotBlank() &&
     releaseKeyAlias.isNotBlank() &&
-    releaseKeyPassword.isNotBlank()
+    releaseKeyPasswordForSigning.isNotBlank()
 
 android {
     namespace = "com.calorieai.app"
@@ -114,6 +143,9 @@ android {
         // 示例: {"latestVersionCode":2,"latestVersionName":"1.0.1","downloadUrl":"https://example.com/CalorieAI-v1.0.1.apk","changelog":"修复若干问题","forceUpdate":false}
         buildConfigField("String", "UPDATE_CHECK_URL", "\"\"")
         buildConfigField("String", "LOCAL_OCR_SERVICE_URL", "\"$localOcrServiceUrl\"")
+        buildConfigField("String", "DEFAULT_AI_API_URL", "\"${escapeBuildConfigString(defaultAiApiUrl)}\"")
+        buildConfigField("String", "DEFAULT_AI_API_KEY", "\"${escapeBuildConfigString(defaultAiApiKey)}\"")
+        buildConfigField("String", "DEFAULT_AI_MODEL_ID", "\"${escapeBuildConfigString(defaultAiModelId)}\"")
     }
 
     signingConfigs {
@@ -122,7 +154,7 @@ android {
                 storeFile = file(releaseKeystorePath)
                 storePassword = releaseStorePassword
                 keyAlias = releaseKeyAlias
-                keyPassword = releaseKeyPassword
+                keyPassword = releaseKeyPasswordForSigning
             }
         }
     }
@@ -171,7 +203,7 @@ android {
         kotlinCompilerExtensionVersion = "1.5.8"
     }
     androidResources {
-        noCompress += setOf("pdiparams", "json", "yml", "txt")
+        noCompress += setOf("pdiparams", "json", "yml", "txt", "onnx")
     }
     packaging {
         resources {
@@ -248,18 +280,6 @@ val syncBundledOcrAssets by tasks.registering(Copy::class) {
 
 tasks.named("preBuild") {
     dependsOn(syncBundledOcrAssets)
-    doFirst {
-        val legacyAssets = listOf(
-            file("src/main/assets/vosk-model-small-cn-0.22.zip"),
-            file("src/main/assets/vosk-model-cn-0.22.zip")
-        )
-        legacyAssets.forEach { asset ->
-            if (asset.exists()) {
-                logger.lifecycle("Removing bundled voice model asset: ${asset.absolutePath}")
-                asset.delete()
-            }
-        }
-    }
 }
 
 dependencies {
@@ -337,8 +357,8 @@ dependencies {
     // Gson
     implementation("com.google.code.gson:gson:2.10.1")
     
-    // Offline Speech Recognition (Vosk)
-    implementation("com.alphacephei:vosk-android:0.3.47")
+    // Offline Speech Recognition (SenseVoiceSmall via sherpa-onnx)
+    implementation("com.bihe0832.android:lib-sherpa-onnx:6.25.21")
 
     // Kotlin Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")

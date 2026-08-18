@@ -1,6 +1,5 @@
 ﻿package com.calorieai.app.ui.screens.settings
 
-import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.AIConfig
@@ -8,7 +7,6 @@ import com.calorieai.app.data.model.TokenUsageStats
 import com.calorieai.app.data.repository.AIConfigRepository
 import com.calorieai.app.data.repository.AITokenUsageRepository
 import com.calorieai.app.data.repository.UserSettingsRepository
-import com.calorieai.app.service.voice.VoiceModelManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,18 +21,14 @@ import kotlinx.coroutines.launch
 class AISettingsViewModel @Inject constructor(
     private val aiConfigRepository: AIConfigRepository,
     private val aiTokenUsageRepository: AITokenUsageRepository,
-    private val userSettingsRepository: UserSettingsRepository,
-    private val voiceModelManager: VoiceModelManager
+    private val userSettingsRepository: UserSettingsRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AISettingsUiState())
     val uiState: StateFlow<AISettingsUiState> = _uiState.asStateFlow()
-    private val voiceStateMachine = VoiceModelStateMachine()
-
     init {
         loadConfigs()
         loadTokenUsageStats()
         loadPersonalizationSettings()
-        refreshVoiceModelState()
     }
 
     private fun loadConfigs() {
@@ -149,144 +143,6 @@ class AISettingsViewModel @Inject constructor(
         _uiState.update { it.copy(saveMessage = message) }
     }
 
-    fun refreshVoiceModelState() {
-        val installedPackage = voiceModelManager.getInstalledPackage()
-        voiceStateMachine.reset()
-        _uiState.update {
-            it.copy(
-                isVoiceModelInstalled = installedPackage != null,
-                installedVoiceModelLabel = installedPackage?.let { pkg ->
-                    "${pkg.displayName}（${pkg.sizeHint}）"
-                },
-                voiceModelStage = VoiceModelManager.OperationStage.IDLE,
-                voiceModelProgressPercent = 0,
-                voiceModelProgressMessage = null
-            )
-        }
-    }
-
-    fun downloadVoiceModel(pkg: VoiceModelManager.VoiceModelPackage) {
-        viewModelScope.launch {
-            if (_uiState.value.isVoiceModelDownloading || _uiState.value.isVoiceModelRemoving) return@launch
-            voiceStateMachine.reset()
-
-            _uiState.update {
-                it.copy(
-                    isVoiceModelDownloading = true,
-                    voiceModelStage = VoiceModelManager.OperationStage.DOWNLOADING,
-                    voiceModelProgressPercent = 0,
-                    voiceModelProgressMessage = "准备下载 ${pkg.displayName}..."
-                )
-            }
-
-            val result = voiceModelManager.downloadAndInstallModel(pkg) { progress ->
-                dispatchVoiceProgress(progress)
-            }
-
-            val installedPackage = voiceModelManager.getInstalledPackage()
-            val errorMessage = result.exceptionOrNull()?.toReadableErrorMessage()
-
-            _uiState.update {
-                it.copy(
-                    isVoiceModelDownloading = false,
-                    isVoiceModelInstalled = installedPackage != null,
-                    installedVoiceModelLabel = installedPackage?.let { target ->
-                        "${target.displayName}（${target.sizeHint}）"
-                    },
-                    voiceModelStage = if (result.isSuccess) {
-                        VoiceModelManager.OperationStage.COMPLETED
-                    } else {
-                        VoiceModelManager.OperationStage.FAILED
-                    },
-                    voiceModelProgressPercent = if (result.isSuccess) 100 else it.voiceModelProgressPercent,
-                    voiceModelProgressMessage = if (result.isSuccess) {
-                        "${pkg.displayName} 下载并安装完成"
-                    } else {
-                        "下载失败：$errorMessage"
-                    },
-                    saveMessage = if (result.isSuccess) {
-                        "语音模型已就绪，可离线语音输入"
-                    } else {
-                        "语音模型下载失败：$errorMessage"
-                    }
-                )
-            }
-        }
-    }
-
-    fun uninstallVoiceModel() {
-        viewModelScope.launch {
-            if (_uiState.value.isVoiceModelDownloading || _uiState.value.isVoiceModelRemoving) return@launch
-            voiceStateMachine.reset()
-
-            _uiState.update {
-                it.copy(
-                    isVoiceModelRemoving = true,
-                    voiceModelStage = VoiceModelManager.OperationStage.REMOVING,
-                    voiceModelProgressPercent = 0,
-                    voiceModelProgressMessage = "正在删除本地语音模型..."
-                )
-            }
-
-            val result = voiceModelManager.uninstallModel { progress ->
-                dispatchVoiceProgress(progress)
-            }
-
-            val errorMessage = result.exceptionOrNull()?.toReadableErrorMessage()
-            val installedPackage = voiceModelManager.getInstalledPackage()
-
-            _uiState.update {
-                it.copy(
-                    isVoiceModelRemoving = false,
-                    isVoiceModelInstalled = installedPackage != null,
-                    installedVoiceModelLabel = installedPackage?.let { target ->
-                        "${target.displayName}（${target.sizeHint}）"
-                    },
-                    voiceModelStage = if (result.isSuccess) {
-                        VoiceModelManager.OperationStage.COMPLETED
-                    } else {
-                        VoiceModelManager.OperationStage.FAILED
-                    },
-                    voiceModelProgressPercent = if (result.isSuccess) 100 else it.voiceModelProgressPercent,
-                    voiceModelProgressMessage = if (result.isSuccess) {
-                        "本地语音模型已删除"
-                    } else {
-                        "删除失败：$errorMessage"
-                    },
-                    saveMessage = if (result.isSuccess) {
-                        "本地语音模型已删除"
-                    } else {
-                        "删除失败：$errorMessage"
-                    }
-                )
-            }
-        }
-    }
-
-    private fun dispatchVoiceProgress(progress: VoiceModelManager.OperationProgress) {
-        val reduced = voiceStateMachine.reduce(
-            progress = progress,
-            nowElapsedMillis = SystemClock.elapsedRealtime()
-        ) ?: return
-
-        _uiState.update {
-            it.copy(
-                voiceModelStage = reduced.stage,
-                voiceModelProgressPercent = reduced.percent,
-                voiceModelProgressMessage = reduced.message
-            )
-        }
-    }
-
-    private fun Throwable.toReadableErrorMessage(): String {
-        val root = generateSequence(this) { it.cause }.last()
-        val message = root.message?.trim().orEmpty()
-        return if (message.isNotEmpty()) {
-            "${root.javaClass.simpleName}: $message"
-        } else {
-            root.javaClass.simpleName
-        }
-    }
 }
 
 data class AISettingsUiState(
@@ -300,12 +156,5 @@ data class AISettingsUiState(
     val maxCookingMinutes: String = "",
     val specialPopulationMode: String = "GENERAL",
     val weeklyRecordGoalDays: String = "5",
-    val isVoiceModelInstalled: Boolean = false,
-    val installedVoiceModelLabel: String? = null,
-    val isVoiceModelDownloading: Boolean = false,
-    val isVoiceModelRemoving: Boolean = false,
-    val voiceModelStage: VoiceModelManager.OperationStage = VoiceModelManager.OperationStage.IDLE,
-    val voiceModelProgressPercent: Int = 0,
-    val voiceModelProgressMessage: String? = null,
     val saveMessage: String? = null
 )
