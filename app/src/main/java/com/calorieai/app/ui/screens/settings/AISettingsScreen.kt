@@ -36,11 +36,8 @@ fun AISettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val visibleConfigs = remember(uiState.configs) {
-        uiState.configs.filterNot { config ->
-            config.isPreset && config.protocol != AIProtocol.LONGCAT
-        }
-    }
+    // Presets are real entries in the configuration list and must remain openable.
+    val visibleConfigs = uiState.configs
 
     LaunchedEffect(uiState.saveMessage) {
         val message = uiState.saveMessage ?: return@LaunchedEffect
@@ -485,7 +482,7 @@ fun AIConfigItem(
             }
 
             // 璁句负榛樿鎸夐挳锛堝鏋滀笉鏄粯璁わ級
-            if (!isDefault) {
+            if (!isPreset && !isDefault) {
                 Spacer(modifier = Modifier.height(8.dp))
                 TextButton(
                     onClick = onSetDefault,

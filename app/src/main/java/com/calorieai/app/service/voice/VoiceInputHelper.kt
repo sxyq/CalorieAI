@@ -163,13 +163,17 @@ class VoiceInputHelper @Inject constructor(
         )
         if (minBufferSize <= 0) throw IllegalStateException("设备不支持录音")
 
-        val record = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            SAMPLE_RATE,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT,
-            (minBufferSize * 2).coerceAtLeast(SAMPLE_RATE / 2)
-        )
+        val record = try {
+            AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                (minBufferSize * 2).coerceAtLeast(SAMPLE_RATE / 2)
+            )
+        } catch (t: SecurityException) {
+            throw IllegalStateException("录音权限被拒绝", t)
+        }
         audioRecord = record
         val samples = FloatArray(MAX_RECORDING_SECONDS * SAMPLE_RATE)
         var sampleCount = 0

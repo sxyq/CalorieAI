@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,9 +47,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieai.app.ui.feedback.AppHapticController
 import com.calorieai.app.ui.feedback.rememberAppHapticController
-import com.calorieai.app.ui.theme.AppColors
-import com.calorieai.app.ui.theme.GlassDarkColors
-import com.calorieai.app.ui.theme.GlassLightColors
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 
@@ -77,9 +75,13 @@ fun BottomNavBar(
     val navigationBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val containerHeight = remember(navigationBarInset) { 72.dp + navigationBarInset }
     
-    val backgroundColor = if (isDark) Color(0xFF1E1E22).copy(alpha = 0.85f) else Color.White.copy(alpha = 0.90f)
-    val hazeTint = if (isDark) Color(0xFF1E1E22).copy(alpha = 0.35f) else Color.White.copy(alpha = 0.40f)
-    val borderColor = if (isDark) Color(0x33FFFFFF) else Color(0xFFE5E7EB)
+    val backgroundColor = MaterialTheme.colorScheme.surface.copy(
+        alpha = if (isDark) 0.92f else 0.88f
+    )
+    val hazeTint = MaterialTheme.colorScheme.surface.copy(
+        alpha = if (isDark) 0.42f else 0.36f
+    )
+    val borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
 
     val density = LocalDensity.current
     val highlightHeight = with(density) { 1.dp.toPx() }
@@ -122,7 +124,7 @@ fun BottomNavBar(
 
             // Moving Indicator Layer
             // It calculates translationX purely based on the Pager's current page + offset.
-            val indicatorWidthPx = with(density) { 64.dp.toPx() }
+            val indicatorWidthPx = with(density) { 48.dp.toPx() }
             val centerOffsetPx = (itemWidthPx - indicatorWidthPx) / 2f
             val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
             
@@ -130,7 +132,7 @@ fun BottomNavBar(
             val velocity = abs(pagerState.currentPageOffsetFraction)
             val scaleX = 1f + (velocity * 0.4f)
             
-            val indicatorColor = if (isDark) GlassDarkColors.IndicatorBackground else GlassLightColors.IndicatorBackground
+            val indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.92f)
 
             Box(
                 modifier = Modifier
@@ -142,10 +144,10 @@ fun BottomNavBar(
             ) {
                 Box(
                     modifier = Modifier
-                        .width(64.dp)
+                        .width(48.dp)
                         .height(32.dp)
                         .align(Alignment.CenterStart) // aligned correctly with translationX
-                        .offset(y = (-4).dp)
+                        .offset(y = (-7).dp)
                         .clip(CircleShape)
                         .background(indicatorColor)
                 )
@@ -168,7 +170,6 @@ fun BottomNavBar(
                         onClick = { onItemSelected(index) },
                         onLongClick = onItemLongPressed?.let { handler -> { handler(index) } },
                         haptics = haptics,
-                        isDark = isDark,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -185,15 +186,14 @@ private fun NavBarItemContent(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     haptics: AppHapticController,
-    isDark: Boolean,
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
-    val selectedIconColor = if (isDark) GlassDarkColors.SelectedIcon else GlassLightColors.SelectedIcon
-    val unselectedIconColor = if (isDark) GlassDarkColors.UnselectedIcon else GlassLightColors.UnselectedIcon
-    val selectedTextColor = if (isDark) GlassDarkColors.SelectedText else GlassLightColors.SelectedText
-    val unselectedTextColor = if (isDark) GlassDarkColors.UnselectedText else GlassLightColors.UnselectedText
+    val selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+    val unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer
+    val unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     val iconScale by animateFloatAsState(
         targetValue = if (isSelected) 1.15f else 1f,

@@ -238,7 +238,7 @@ fun CameraPreview(
                 )
             ) {
                 Text(
-                    text = cameraInitError ?: "请将营养成分表对准框内",
+                    text = cameraInitError ?: "请将摄像头对准食物",
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (cameraInitError == null) {

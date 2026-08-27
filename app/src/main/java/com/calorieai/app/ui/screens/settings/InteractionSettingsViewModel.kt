@@ -65,11 +65,6 @@ class InteractionSettingsViewModel @Inject constructor(
         saveSettings()
     }
 
-    fun updateEnableQuickAdd(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(enableQuickAdd = enabled)
-        saveSettings()
-    }
-
     fun updateEnableLongPressHomeToAdd(enabled: Boolean) {
         _uiState.value = _uiState.value.copy(enableLongPressHomeToAdd = enabled)
         saveSettings()

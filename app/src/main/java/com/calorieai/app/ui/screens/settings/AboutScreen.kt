@@ -1,10 +1,14 @@
 package com.calorieai.app.ui.screens.settings
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.ContentValues
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -28,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import com.calorieai.app.BuildConfig
 import com.calorieai.app.R
 import com.calorieai.app.ui.components.SettingsTopAppBar
@@ -38,6 +43,8 @@ import com.calorieai.app.utils.SecureLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.os.Build
+import android.os.Environment
 import android.provider.MediaStore
 import java.io.File
 import java.text.SimpleDateFormat
@@ -59,6 +66,45 @@ fun AboutScreen(
     var showFaqDialog by remember { mutableStateOf(false) }
     var logoTapCount by remember { mutableStateOf(0) }
     var exportingLogcat by remember { mutableStateOf(false) }
+
+    fun startLogcatExport() {
+        exportingLogcat = true
+        SecureLogger.event(TAG, "export_logcat_triggered")
+        scope.launch {
+            val result = exportLogcatToDownload(context)
+            exportingLogcat = false
+            result.onSuccess { fileName ->
+                SecureLogger.event(TAG, "export_logcat_success", "fileName" to fileName)
+                Toast.makeText(
+                    context,
+                    "日志已保存到 Download/$fileName",
+                    Toast.LENGTH_LONG
+                ).show()
+            }.onFailure { error ->
+                SecureLogger.e(TAG, "export_logcat_failed | ${error.message}", error)
+                Toast.makeText(
+                    context,
+                    "日志导出失败：${error.message ?: "未知错误"}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    val writeStoragePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            startLogcatExport()
+        } else {
+            exportingLogcat = false
+            Toast.makeText(
+                context,
+                "未授予存储权限，无法导出日志",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
 
     val versionName = remember {
         try {
@@ -99,25 +145,16 @@ fun AboutScreen(
                     } else {
                         logoTapCount = 0
                         exportingLogcat = true
-                        SecureLogger.event(TAG, "export_logcat_triggered")
-                        scope.launch {
-                            val result = exportLogcatToDownload(context)
-                            exportingLogcat = false
-                            result.onSuccess { fileName ->
-                                SecureLogger.event(TAG, "export_logcat_success", "fileName" to fileName)
-                                Toast.makeText(
-                                    context,
-                                    "日志已保存到 Download/$fileName",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }.onFailure { error ->
-                                SecureLogger.e(TAG, "export_logcat_failed | ${error.message}", error)
-                                Toast.makeText(
-                                    context,
-                                    "日志导出失败：${error.message ?: "未知错误"}",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
+                        if (
+                            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                            ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.WRITE_EXTERNAL_STORAGE
+                            ) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            writeStoragePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                        } else {
+                            startLogcatExport()
                         }
                     }
                 }
@@ -319,16 +356,17 @@ private suspend fun exportLogcatToDownload(context: Context): Result<String> = w
         val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-v", "threadtime", "-b", "all"))
         val logText = process.inputStream.bufferedReader().use { it.readText() }
         val errText = process.errorStream.bufferedReader().use { it.readText() }
-        process.waitFor()
+        val exitCode = process.waitFor()
         SecureLogger.event(
             TAG,
             "export_logcat_collected",
             "logLength" to logText.length,
-            "errLength" to errText.length
+            "errLength" to errText.length,
+            "exitCode" to exitCode
         )
 
-        if (logText.isBlank() && errText.isNotBlank()) {
-            throw IllegalStateException(errText)
+        if (exitCode != 0) {
+            throw IllegalStateException(errText.ifBlank { "日志导出失败，退出码：$exitCode" })
         }
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
@@ -336,12 +374,32 @@ private suspend fun exportLogcatToDownload(context: Context): Result<String> = w
             put(MediaStore.MediaColumns.RELATIVE_PATH, "Download")
         }
         val resolver = context.contentResolver
-        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-            ?: throw IllegalStateException("无法创建下载文件")
+        val uri: Uri
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // API 29+: MediaStore.Downloads + RELATIVE_PATH
+            val downloadsUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+            uri = resolver.insert(downloadsUri, values)
+                ?: throw IllegalStateException("无法创建下载文件")
+        } else {
+            // API 26-28: 直接写入公共 Downloads 目录（需要 WRITE_EXTERNAL_STORAGE 运行时权限）
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            if (!downloadsDir.exists() && !downloadsDir.mkdirs() && !downloadsDir.isDirectory) {
+                throw IllegalStateException("无法创建下载目录")
+            }
+            val file = File(downloadsDir, fileName)
+            file.writeText(logText.ifBlank { "无可用日志输出" })
+            SecureLogger.event(TAG, "export_logcat_write_done", "fileName" to fileName)
+            return@runCatching fileName
+        }
 
-        resolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
-            writer.write(logText.ifBlank { "无可用日志输出" })
-        } ?: throw IllegalStateException("无法写入下载文件")
+        try {
+            resolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                writer.write(logText.ifBlank { "无可用日志输出" })
+            } ?: throw IllegalStateException("无法写入下载文件")
+        } catch (error: Exception) {
+            runCatching { resolver.delete(uri, null, null) }
+            throw error
+        }
         SecureLogger.event(TAG, "export_logcat_write_done", "fileName" to fileName)
 
         fileName

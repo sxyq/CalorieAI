@@ -16,7 +16,6 @@ class AIDefaultConfigInitializer @Inject constructor(
         const val DEFAULT_AI_ID = "default_longcat_ai"
         const val DEFAULT_AI_NAME = "GPT-5.6 Luna (默认)"
         val DEFAULT_API_URL: String get() = BuildConfig.DEFAULT_AI_API_URL
-        val DEFAULT_API_KEY: String get() = BuildConfig.DEFAULT_AI_API_KEY
         val DEFAULT_MODEL_ID: String get() = BuildConfig.DEFAULT_AI_MODEL_ID
         const val DEFAULT_DAILY_LIMIT = 50
     }
@@ -33,7 +32,7 @@ class AIDefaultConfigInitializer @Inject constructor(
                 iconType = IconType.EMOJI,
                 protocol = AIProtocol.OPENAI,
                 apiUrl = DEFAULT_API_URL,
-                apiKey = DEFAULT_API_KEY,
+                apiKey = "",
                 modelId = DEFAULT_MODEL_ID,
                 isImageUnderstanding = true,
                 isDefault = true
@@ -46,7 +45,7 @@ class AIDefaultConfigInitializer @Inject constructor(
             if (config.id == DEFAULT_AI_ID && isLegacyDefaultConfig(config)) {
                 val migratedConfig = config.copy(
                     apiUrl = DEFAULT_API_URL,
-                    apiKey = DEFAULT_API_KEY.ifBlank { config.apiKey },
+                    apiKey = config.apiKey,
                     modelId = DEFAULT_MODEL_ID,
                     protocol = AIProtocol.OPENAI
                 )

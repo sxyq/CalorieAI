@@ -125,10 +125,6 @@ private fun DateDisplay(
     date: LocalDate,
     modifier: Modifier = Modifier
 ) {
-    val weekDay: String = getWeekDayLabel(date)
-    val dateStr: String = date.format(DateTimeFormatter.ofPattern("MM-dd"))
-    val relativeLabel: String = getRelativeDateLabel(date)
-
     AnimatedContent(
         targetState = date,
         transitionSpec = {
@@ -136,7 +132,10 @@ private fun DateDisplay(
             fadeOut(animationSpec = tween(200))
         },
         label = "DateDisplay"
-    ) { _ ->
+    ) { displayDate ->
+        val weekDay: String = getWeekDayLabel(displayDate)
+        val dateStr: String = displayDate.format(DateTimeFormatter.ofPattern("MM-dd"))
+        val relativeLabel: String = getRelativeDateLabel(displayDate)
         Row(
             modifier = modifier
                 .clip(RoundedCornerShape(20.dp))

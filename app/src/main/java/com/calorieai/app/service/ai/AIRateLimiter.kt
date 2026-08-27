@@ -98,14 +98,4 @@ class AIRateLimiter @Inject constructor(
         return remaining
     }
     
-    /**
-     * 重置调用计数（用于测试）
-     * @param configId AI配置ID
-     */
-    fun resetCounter(configId: String) {
-        prefs.edit()
-            .remove("${KEY_CALL_COUNT}_$configId")
-            .remove("${KEY_LAST_CALL_DATE}_$configId")
-            .apply()
-    }
 }

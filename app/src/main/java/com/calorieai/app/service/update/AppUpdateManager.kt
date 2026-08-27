@@ -30,10 +30,6 @@ class AppUpdateManager @Inject constructor(
         remote
     }
 
-    fun ignoreVersion(versionCode: Int) {
-        prefs.edit().putInt(KEY_IGNORED_VERSION_CODE, versionCode).apply()
-    }
-
     fun openDownloadPage(updateInfo: AppUpdateInfo): Boolean {
         return try {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateInfo.downloadUrl)).apply {

@@ -50,6 +50,10 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
     navController: NavHostController,
     bottomNavScreens: List<String>
 ) {
+    composable(Screen.Main.route) {
+        MainTabsScreen(navController = navController)
+    }
+
     composable(Screen.Home.route) {
         HomeScreen(
             onNavigateToAdd = {
@@ -69,9 +73,6 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
             },
             onNavigateToResult = { recordId ->
                 navController.navigate(Screen.Result.createRoute(recordId))
-            },
-            onNavigateToAIChat = { sessionId ->
-                navController.navigate(Screen.AIChat.createRoute(sessionId))
             }
         )
     }
@@ -212,11 +213,6 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
             onNavigateBack = {
                 navController.popBackStack()
             },
-            onNavigateToPantryManager = {
-                navController.navigate(Screen.PantryIngredientsManager.route) {
-                    launchSingleTop = true
-                }
-            },
             onNavigateToFavoritesManager = {
                 navController.navigate(Screen.FavoriteRecipesManager.route) {
                     launchSingleTop = true
@@ -277,14 +273,6 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
             },
             onNavigateToCamera = {
                 navController.navigate(Screen.Camera.route)
-            },
-            onNavigateToOcr = { targetDate, mealType ->
-                navController.navigate(
-                    Screen.NutritionOcrImport.createRoute(
-                        date = targetDate,
-                        mealType = mealType.name
-                    )
-                )
             }
         )
     }
@@ -350,7 +338,7 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
                 navController.popBackStack()
             },
             onSaveComplete = {
-                navController.popBackStack(Screen.Home.route, false)
+                navController.popBackStack(Screen.Main.route, false)
             }
         )
     }
@@ -525,7 +513,7 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
         LaunchedEffect(featureState.showWaterFeatures) {
             if (!featureState.showWaterFeatures) {
                 if (!navController.popBackStack()) {
-                    navController.navigate(Screen.Home.route) {
+                    navController.navigate(Screen.Main.route) {
                         launchSingleTop = true
                     }
                 }
@@ -554,7 +542,7 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
         LaunchedEffect(featureState.showWaterFeatures) {
             if (!featureState.showWaterFeatures) {
                 if (!navController.popBackStack()) {
-                    navController.navigate(Screen.Home.route) {
+                    navController.navigate(Screen.Main.route) {
                         launchSingleTop = true
                     }
                 }
@@ -571,5 +559,3 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
         }
     }
 }
-
-

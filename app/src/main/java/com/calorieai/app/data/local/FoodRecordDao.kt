@@ -54,16 +54,6 @@ interface FoodRecordDao {
         WHERE recordTime BETWEEN :startTime AND :endTime
         GROUP BY date
     """)
-    fun getCalorieDataByDateRange(startTime: Long, endTime: Long): Flow<List<DailyCalorieData>>
-
-    @Query("""
-        SELECT
-            date(recordTime / 1000, 'unixepoch', 'localtime') as date,
-            SUM(totalCalories) as totalCalories
-        FROM food_records
-        WHERE recordTime BETWEEN :startTime AND :endTime
-        GROUP BY date
-    """)
     suspend fun getCalorieDataByDateRangeSync(startTime: Long, endTime: Long): List<DailyCalorieData>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

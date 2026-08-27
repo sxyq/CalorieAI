@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.WaterRecord
 import com.calorieai.app.data.repository.UserSettingsRepository
 import com.calorieai.app.data.repository.WaterRecordRepository
+import com.calorieai.app.utils.DateUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -56,7 +57,7 @@ class WaterHistoryViewModel @Inject constructor(
 
     private fun loadSelectedDateAmount() {
         viewModelScope.launch {
-            val dateStart = getStartOfDay(_selectedDateMillis.value)
+            val dateStart = DateUtils.getDayRange(_selectedDateMillis.value).first
             val amount = waterRecordRepository.getTotalAmountByDate(dateStart)
             _todayAmount.value = amount
         }
@@ -76,17 +77,6 @@ class WaterHistoryViewModel @Inject constructor(
             val days = 7
             _weeklyAverage.value = if (days > 0) totalAmount.toFloat() / days else 0f
         }
-    }
-
-    private fun getStartOfDay(timestamp: Long): Long {
-        val calendar = Calendar.getInstance().apply {
-            timeInMillis = timestamp
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        return calendar.timeInMillis
     }
 
     fun setSelectedDateFromString(dateStr: String) {
@@ -110,7 +100,7 @@ class WaterHistoryViewModel @Inject constructor(
 
     fun addWaterRecord(amount: Int, note: String?) {
         viewModelScope.launch {
-            val recordDate = getStartOfDay(_selectedDateMillis.value)
+            val recordDate = DateUtils.getDayRange(_selectedDateMillis.value).first
 
             val record = WaterRecord(
                 amount = amount,
@@ -145,9 +135,4 @@ class WaterHistoryViewModel @Inject constructor(
         }
     }
 
-    // 获取指定日期的饮水总量
-    fun getAmountForDate(date: Long): Flow<Int> = flow {
-        val amount = waterRecordRepository.getTotalAmountByDate(date)
-        emit(amount)
-    }
 }

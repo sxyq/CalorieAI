@@ -39,7 +39,6 @@ class AddFoodViewModel @Inject constructor(
         const val MAX_FOOD_DESCRIPTION_LENGTH = 2000
     }
 
-    private var lastAppliedOcrText: String? = null
     private var lastAppliedOcrPayloadJson: String? = null
 
     private val _uiState = MutableStateFlow(AddFoodUiState())
@@ -56,23 +55,6 @@ class AddFoodViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(selectedMealType = mealType)
     }
 
-    fun applyOcrText(ocrText: String) {
-        val normalized = ocrText.trim()
-        if (normalized.isBlank() || normalized == lastAppliedOcrText) return
-
-        val currentText = _uiState.value.foodDescription.trim()
-        val merged = if (currentText.isBlank()) {
-            normalized
-        } else {
-            "$currentText\n$normalized"
-        }
-
-        _uiState.value = _uiState.value.copy(
-            foodDescription = merged.take(MAX_FOOD_DESCRIPTION_LENGTH)
-        )
-        lastAppliedOcrText = normalized
-    }
-
     fun applyOcrPayload(payload: OcrNutritionPayload) {
         val payloadJson = payload.toJson()
         if (payloadJson == lastAppliedOcrPayloadJson) return
@@ -83,7 +65,6 @@ class AddFoodViewModel @Inject constructor(
             ocrPayload = payload
         )
         lastAppliedOcrPayloadJson = payloadJson
-        lastAppliedOcrText = description
     }
 
     fun startVoiceInput(context: Context) {
@@ -110,10 +91,6 @@ class AddFoodViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(errorMessage = null, retryMessage = null)
-    }
-
-    fun clearRetryMessage() {
-        _uiState.value = _uiState.value.copy(retryMessage = null)
     }
 
     fun setDateContext(dateStr: String?) {
@@ -163,10 +140,6 @@ class AddFoodViewModel @Inject constructor(
         } catch (_: Exception) {
             setDateContext(null)
         }
-    }
-
-    fun setSelectedDate(dateStr: String) {
-        setDateContext(dateStr)
     }
 
     fun saveFoodRecord(

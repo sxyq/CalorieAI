@@ -3,6 +3,7 @@
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.model.AIConfig
+import com.calorieai.app.data.model.AIConfigPresets
 import com.calorieai.app.data.model.TokenUsageStats
 import com.calorieai.app.data.repository.AIConfigRepository
 import com.calorieai.app.data.repository.AITokenUsageRepository
@@ -42,11 +43,21 @@ class AISettingsViewModel @Inject constructor(
             }.collectLatest { (configs, defaultId) ->
                 _uiState.update {
                     it.copy(
-                        configs = configs,
+                        configs = mergeWithPresets(configs),
                         defaultConfigId = defaultId,
                         isLoading = false
                     )
                 }
+            }
+        }
+    }
+
+    private fun mergeWithPresets(configs: List<AIConfig>): List<AIConfig> {
+        val ids = configs.asSequence().map(AIConfig::id).toMutableSet()
+        return buildList {
+            addAll(configs)
+            AIConfigPresets.ALL_PRESETS.forEach { preset ->
+                if (ids.add(preset.id)) add(preset)
             }
         }
     }

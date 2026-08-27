@@ -36,6 +36,7 @@ private const val OVERVIEW_HEATMAP_FIXED_WEEKS = 12
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OverviewScreen(
+    bottomContentPadding: androidx.compose.ui.unit.Dp = 0.dp,
     onNavigateToStats: () -> Unit = {},
     onNavigateToWeightHistory: () -> Unit = {},
     onNavigateToGoals: () -> Unit = {},
@@ -68,7 +69,7 @@ fun OverviewScreen(
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 24.dp)
+            contentPadding = PaddingValues(bottom = 24.dp + bottomContentPadding)
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
             item { HeatmapCard(isDark, uiState) }

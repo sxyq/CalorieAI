@@ -2,6 +2,7 @@ package com.calorieai.app.data.repository
 
 import com.calorieai.app.data.local.dao.WaterRecordDao
 import com.calorieai.app.data.model.WaterRecord
+import com.calorieai.app.utils.DateUtils
 import kotlinx.coroutines.flow.Flow
 import java.util.Calendar
 import javax.inject.Inject
@@ -41,7 +42,7 @@ class WaterRecordRepository @Inject constructor(
 
     // 获取今日饮水量
     suspend fun getTodayTotalAmount(): Int {
-        val today = getStartOfDay(System.currentTimeMillis())
+        val today = DateUtils.getDayRange(System.currentTimeMillis()).first
         return getTotalAmountByDate(today)
     }
 
@@ -50,7 +51,7 @@ class WaterRecordRepository @Inject constructor(
         val calendar = Calendar.getInstance()
         val endOfToday = calendar.timeInMillis
         calendar.add(Calendar.DAY_OF_WEEK, -Calendar.getInstance().get(Calendar.DAY_OF_WEEK) + 1)
-        val startOfWeek = getStartOfDay(calendar.timeInMillis)
+        val startOfWeek = DateUtils.getDayRange(calendar.timeInMillis).first
         
         val records = getRecordsBetweenSync(startOfWeek, endOfToday)
         return records.sumOf { it.amount }
@@ -61,19 +62,9 @@ class WaterRecordRepository @Inject constructor(
         val calendar = Calendar.getInstance()
         val endOfToday = calendar.timeInMillis
         calendar.set(Calendar.DAY_OF_MONTH, 1)
-        val startOfMonth = getStartOfDay(calendar.timeInMillis)
+        val startOfMonth = DateUtils.getDayRange(calendar.timeInMillis).first
         
         val records = getRecordsBetweenSync(startOfMonth, endOfToday)
         return records.sumOf { it.amount }
-    }
-
-    private fun getStartOfDay(timestamp: Long): Long {
-        val calendar = Calendar.getInstance()
-        calendar.timeInMillis = timestamp
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        return calendar.timeInMillis
     }
 }

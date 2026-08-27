@@ -110,10 +110,10 @@ class AIPredictionService @Inject constructor(
         }
 
         // 计算目标达成日期
-        val targetDate = calculateTargetDate(currentWeight, targetWeight, trend, strategy)
+        val targetDate = calculateTargetDate(currentWeight, targetWeight, strategy)
 
         // 生成建议
-        val recommendation = generateRecommendation(trend, strategy, currentWeight, targetWeight)
+        val recommendation = generateRecommendation(trend)
 
         return WeightPrediction(
             predictedWeights = predictedWeights,
@@ -123,100 +123,6 @@ class AIPredictionService @Inject constructor(
             recommendation = recommendation
         )
     }
-
-    /**
-     * 计算BMI预测
-     */
-    suspend fun predictBMI(): BMIPrediction {
-        val userSettings = userSettingsRepository.getSettings().first() ?: return defaultBMIPrediction()
-        val height = userSettings.userHeight ?: 170f
-        val weightPrediction = predictWeight(4)
-
-        val currentBMI = calculateBMI(weightPrediction.predictedWeights.first().weight, height)
-        val predictedBMI = weightPrediction.predictedWeights.lastOrNull()?.let { record ->
-            calculateBMI(record.weight, height)
-        } ?: currentBMI
-
-        return BMIPrediction(
-            currentBMI = currentBMI,
-            predictedBMI = predictedBMI,
-            category = getBMICategory(currentBMI),
-            targetCategory = getBMICategory(predictedBMI),
-            healthRisk = getBMIHealthRisk(currentBMI)
-        )
-    }
-
-    /**
-     * BMI预测结果
-     */
-    data class BMIPrediction(
-        val currentBMI: Float,
-        val predictedBMI: Float,
-        val category: BMICategory,
-        val targetCategory: BMICategory,
-        val healthRisk: HealthRisk
-    )
-
-    enum class BMICategory {
-        UNDERWEIGHT,    // 偏瘦 < 18.5
-        NORMAL,         // 正常 18.5 - 24
-        OVERWEIGHT,     // 偏胖 24 - 28
-        OBESE           // 肥胖 > 28
-    }
-
-    enum class HealthRisk {
-        LOW, MEDIUM, HIGH, VERY_HIGH
-    }
-
-    /**
-     * 计算每日建议热量摄入
-     */
-    suspend fun calculateRecommendedCalories(): CalorieRecommendation {
-        val userSettings = userSettingsRepository.getSettings().first() ?: return defaultCalorieRecommendation()
-
-        val bmr = calculateBMR(userSettings)
-        val tdee = calculateTDEE(bmr, userSettings.activityLevel)
-
-        val goalType = userSettings.goalType?.let { com.calorieai.app.data.model.GoalType.fromString(it) }
-        val strategy = userSettings.weightLossStrategy?.let { WeightLossStrategy.fromString(it) }
-            ?: WeightLossStrategy.MODERATE
-
-        val recommendedCalories = when (goalType) {
-            com.calorieai.app.data.model.GoalType.LOSE_WEIGHT -> {
-                (tdee * (1 - strategy.calorieDeficitPercent)).toInt()
-            }
-            com.calorieai.app.data.model.GoalType.GAIN_WEIGHT -> {
-                (tdee * 1.15).toInt()
-            }
-            com.calorieai.app.data.model.GoalType.GAIN_MUSCLE -> {
-                (tdee * 1.1).toInt()
-            }
-            else -> tdee
-        }
-
-        return CalorieRecommendation(
-            bmr = bmr,
-            tdee = tdee,
-            recommended = recommendedCalories.coerceIn(1200, 4000),
-            deficit = tdee - recommendedCalories,
-            proteinGrams = (userSettings.userWeight?.times(1.6))?.toInt() ?: 100,
-            carbGrams = (recommendedCalories * 0.45 / 4).toInt(),
-            fatGrams = (recommendedCalories * 0.3 / 9).toInt()
-        )
-    }
-
-    /**
-     * 热量建议
-     */
-    data class CalorieRecommendation(
-        val bmr: Int,           // 基础代谢率
-        val tdee: Int,          // 每日总消耗
-        val recommended: Int,   // 建议摄入
-        val deficit: Int,       // 热量缺口
-        val proteinGrams: Int,  // 建议蛋白质(g)
-        val carbGrams: Int,     // 建议碳水(g)
-        val fatGrams: Int       // 建议脂肪(g)
-    )
 
     // 私有辅助方法
 
@@ -239,7 +145,6 @@ class AIPredictionService @Inject constructor(
     private fun calculateTargetDate(
         currentWeight: Float,
         targetWeight: Float,
-        trend: WeightTrend,
         strategy: WeightLossStrategy
     ): Date? {
         if (currentWeight <= targetWeight) return null
@@ -263,12 +168,7 @@ class AIPredictionService @Inject constructor(
         return baseConfidence * trendFactor
     }
 
-    private fun generateRecommendation(
-        trend: WeightTrend,
-        strategy: WeightLossStrategy,
-        currentWeight: Float,
-        targetWeight: Float
-    ): String {
+    private fun generateRecommendation(trend: WeightTrend): String {
         return when (trend) {
             WeightTrend.RAPIDLY_LOSING -> "减重速度较快，建议适当增加热量摄入，避免肌肉流失"
             WeightTrend.STEADILY_LOSING -> "减重进度良好，继续保持当前节奏"
@@ -305,59 +205,11 @@ class AIPredictionService @Inject constructor(
 
         return WeightPrediction(
             predictedWeights = predictedWeights,
-            targetDate = calculateTargetDate(currentWeight, targetWeight, WeightTrend.STEADILY_LOSING, strategy),
+            targetDate = calculateTargetDate(currentWeight, targetWeight, strategy),
             confidence = 0.6f,
             trend = WeightTrend.STEADILY_LOSING,
             recommendation = "基于您的目标设定，建议保持${strategy.displayName}策略"
         )
-    }
-
-    private fun calculateBMR(userSettings: UserSettings): Int {
-        val weight = userSettings.userWeight ?: 70f
-        val height = userSettings.userHeight ?: 170f
-        val age = userSettings.userAge ?: 30
-
-        return if (userSettings.userGender == "MALE") {
-            (10 * weight + 6.25 * height - 5 * age + 5).toInt()
-        } else {
-            (10 * weight + 6.25 * height - 5 * age - 161).toInt()
-        }
-    }
-
-    private fun calculateTDEE(bmr: Int, activityLevel: String?): Int {
-        val multiplier = when (activityLevel) {
-            "SEDENTARY" -> 1.2f
-            "LIGHT" -> 1.375f
-            "MODERATE" -> 1.55f
-            "ACTIVE" -> 1.725f
-            "VERY_ACTIVE" -> 1.9f
-            else -> 1.2f
-        }
-        return (bmr * multiplier).toInt()
-    }
-
-    private fun calculateBMI(weight: Float, heightCm: Float): Float {
-        val heightM = heightCm / 100
-        return weight / (heightM * heightM)
-    }
-
-    private fun getBMICategory(bmi: Float): BMICategory {
-        return when {
-            bmi < 18.5f -> BMICategory.UNDERWEIGHT
-            bmi < 24f -> BMICategory.NORMAL
-            bmi < 28f -> BMICategory.OVERWEIGHT
-            else -> BMICategory.OBESE
-        }
-    }
-
-    private fun getBMIHealthRisk(bmi: Float): HealthRisk {
-        return when {
-            bmi < 18.5f -> HealthRisk.MEDIUM
-            bmi < 24f -> HealthRisk.LOW
-            bmi < 28f -> HealthRisk.MEDIUM
-            bmi < 32f -> HealthRisk.HIGH
-            else -> HealthRisk.VERY_HIGH
-        }
     }
 
     private fun defaultPrediction() = WeightPrediction(
@@ -368,21 +220,4 @@ class AIPredictionService @Inject constructor(
         recommendation = "请先设置您的身体数据以获得预测"
     )
 
-    private fun defaultBMIPrediction() = BMIPrediction(
-        currentBMI = 22f,
-        predictedBMI = 22f,
-        category = BMICategory.NORMAL,
-        targetCategory = BMICategory.NORMAL,
-        healthRisk = HealthRisk.LOW
-    )
-
-    private fun defaultCalorieRecommendation() = CalorieRecommendation(
-        bmr = 1500,
-        tdee = 2000,
-        recommended = 1800,
-        deficit = 200,
-        proteinGrams = 100,
-        carbGrams = 200,
-        fatGrams = 60
-    )
 }

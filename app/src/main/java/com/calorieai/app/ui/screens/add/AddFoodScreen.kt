@@ -46,7 +46,6 @@ fun AddFoodScreen(
     onNavigateBack: () -> Unit,
     onNavigateToResult: (String) -> Unit,
     onNavigateToCamera: () -> Unit,
-    onNavigateToOcr: (String?, MealType) -> Unit,
     viewModel: AddFoodViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -119,7 +118,6 @@ fun AddFoodScreen(
                 // 输入方式选择 - 软玻璃按钮
                 SoftInputMethodSelector(
                     onCameraClick = onNavigateToCamera,
-                    onOcrClick = { onNavigateToOcr(selectedDate, uiState.selectedMealType) },
                     onVoiceClick = {
                         when {
                             isListening -> {
@@ -295,7 +293,6 @@ private fun AutoMealTypeHintCard(
 @Composable
 private fun SoftInputMethodSelector(
     onCameraClick: () -> Unit,
-    onOcrClick: () -> Unit,
     onVoiceClick: () -> Unit,
     isVoiceListening: Boolean
 ) {
@@ -315,20 +312,6 @@ private fun SoftInputMethodSelector(
             },
             label = "拍照识别",
             tint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-        )
-
-        SoftGlassButton(
-            onClick = onOcrClick,
-            modifier = Modifier.weight(1f),
-            icon = {
-                Icon(
-                    Icons.Default.Description,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-            },
-            label = "OCR识别",
-            tint = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)
         )
 
         val voiceTint = if (isVoiceListening) {
@@ -947,4 +930,3 @@ private fun AIAnalysisAnimation(
         }
     }
 }
-

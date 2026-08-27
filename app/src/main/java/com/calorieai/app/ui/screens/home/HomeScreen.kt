@@ -24,8 +24,6 @@ import com.calorieai.app.data.model.ExerciseRecord
 import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.model.ExerciseType
-import com.calorieai.app.ui.components.AIChatWidget
-import com.calorieai.app.ui.components.AIWidgetMode
 import com.calorieai.app.ui.components.ExerciseDialog
 import com.calorieai.app.ui.components.ExpandableCalendarView
 import com.calorieai.app.ui.feedback.rememberAppHapticController
@@ -45,13 +43,13 @@ import com.calorieai.app.ui.components.interactiveScale
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
+    bottomContentPadding: androidx.compose.ui.unit.Dp = 0.dp,
     onNavigateToAdd: (String) -> Unit,
     onNavigateToAIAdd: (String) -> Unit = {},
     onNavigateToStats: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToResult: (String) -> Unit,
-    onNavigateToAIChat: (String) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val haptics = rememberAppHapticController()
@@ -75,8 +73,6 @@ fun HomeScreen(
         }
     }
     
-    // AI灏忓姪鎵嬬姸鎬?
-    var aiWidgetState by remember { mutableStateOf(com.calorieai.app.ui.components.AIWidgetState.FLOATING) }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -89,12 +85,14 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+                FloatingActionButton(
                 onClick = {
                     haptics.confirm()
                     onNavigateToAdd(selectedDate.toString())
                 },
-                modifier = Modifier.pointerInput(uiState.enableQuickAdd, selectedDate) {
+                modifier = Modifier
+                    .padding(bottom = bottomContentPadding)
+                    .pointerInput(uiState.enableQuickAdd, selectedDate) {
                     detectTapGestures(
                         onLongPress = {
                             if (uiState.enableQuickAdd) {
@@ -111,7 +109,7 @@ fun HomeScreen(
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0) // We handle insets manually or let Haze do it
     ) { paddingValues ->
-        val listBottomSafePadding = if (uiState.showAIWidget) 104.dp else 36.dp
+        val listBottomSafePadding = 36.dp + bottomContentPadding
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier
@@ -203,33 +201,24 @@ fun HomeScreen(
                 }
             }
         
-        // AI鑱婂ぉ灏忕獥鍙ｏ紙鏍规嵁璁剧疆鏄剧ず/闅愯棌锛? 鍥哄畾鍦ㄥ彸涓嬭
-        // 娉ㄦ剰锛欶AB 楂樺害绾︿负 56dp + 16dp margin = 72dp锛屾墍浠ュ簳閮?padding 璁剧疆涓?88dp 閬垮厤閲嶅彔
-        if (uiState.showAIWidget) {
-            // 閬僵灞?- 杩蜂綘绐楀彛鐘舵€佹椂鏄剧ず锛堢偣鍑诲彲鍏抽棴锛?
-            if (aiWidgetState == com.calorieai.app.ui.components.AIWidgetState.MINI) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.3f))
-                        .clickable { aiWidgetState = com.calorieai.app.ui.components.AIWidgetState.FLOATING }
-                )
-            }
-
-            // AI Widget 瀹瑰櫒 - 鍥哄畾鍦ㄥ彸涓嬭锛岄伩寮€ FAB
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.BottomEnd
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentAlignment = Alignment.BottomEnd
+        ) {
+            FloatingActionButton(
+                onClick = {
+                    haptics.confirm()
+                    onNavigateToStats()
+                },
+                modifier = Modifier.padding(end = 16.dp, bottom = 88.dp + bottomContentPadding),
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
             ) {
-                AIChatWidget(
-                    onExpandToFullScreen = onNavigateToAIChat,
-                    mode = AIWidgetMode.RECIPE_ASSISTANT,
-                    widgetState = aiWidgetState,
-                    onWidgetStateChange = { aiWidgetState = it },
-                    modifier = Modifier
-                        .padding(end = 16.dp, bottom = 88.dp) // 88dp 閬垮紑 FAB
+                Icon(
+                    imageVector = Icons.Default.BarChart,
+                    contentDescription = "概览统计"
                 )
             }
         }
@@ -800,4 +789,3 @@ fun ExerciseRecordItem(
         )
     }
 }
-

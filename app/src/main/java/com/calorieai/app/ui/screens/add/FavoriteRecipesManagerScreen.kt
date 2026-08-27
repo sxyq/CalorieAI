@@ -59,6 +59,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calorieai.app.data.model.FavoriteRecipe
 import com.calorieai.app.data.model.MealType
+import com.calorieai.app.data.model.getMealTypeName
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -181,7 +182,7 @@ fun FavoriteRecipesManagerScreen(
                                 FilterChip(
                                     selected = type == addMealType,
                                     onClick = { addMealType = type },
-                                    label = { Text(mealTypeLabel(type)) }
+                                    label = { Text(getMealTypeName(type)) }
                                 )
                             }
                         }
@@ -359,7 +360,7 @@ private fun FavoriteRecipeItem(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     RecipeInfoChip(
-                        label = sourceMealType?.let(::mealTypeLabel) ?: "未分餐次",
+                        label = sourceMealType?.let(::getMealTypeName) ?: "未分餐次",
                         color = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.weight(1f)
@@ -580,16 +581,6 @@ private fun RecipeDetailDialog(
             }
         }
     )
-}
-
-private fun mealTypeLabel(mealType: MealType): String = when (mealType) {
-    MealType.BREAKFAST -> "早餐"
-    MealType.LUNCH -> "午餐"
-    MealType.DINNER -> "晚餐"
-    MealType.SNACK -> "加餐"
-    MealType.BREAKFAST_SNACK -> "早加餐"
-    MealType.LUNCH_SNACK -> "午加餐"
-    MealType.DINNER_SNACK -> "晚加餐"
 }
 
 private fun formatFavoriteRecipeTime(recipe: FavoriteRecipe): String {

@@ -33,6 +33,7 @@ import kotlin.math.roundToInt
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyScreen(
+    bottomContentPadding: androidx.compose.ui.unit.Dp = 0.dp,
     onNavigateToBodyProfile: () -> Unit,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
@@ -95,7 +96,7 @@ fun MyScreen(
             // 搴旂敤淇℃伅
             AppInfoCard(isDark)
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp + bottomContentPadding))
         }
     }
 }

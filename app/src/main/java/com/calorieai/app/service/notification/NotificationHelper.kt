@@ -60,6 +60,8 @@ class NotificationHelper @Inject constructor(
         try {
             manager.notify(reminderType.notificationId, notification)
             Log.i(TAG, "meal notification sent: type=$reminderType")
+        } catch (t: SecurityException) {
+            Log.w(TAG, "meal notification blocked by permission: type=$reminderType", t)
         } catch (t: Throwable) {
             Log.e(TAG, "meal notification failed: type=$reminderType", t)
         }
@@ -84,6 +86,8 @@ class NotificationHelper @Inject constructor(
         try {
             manager.notify(System.currentTimeMillis().toInt(), notification)
             Log.i(TAG, "general notification sent: title=$title")
+        } catch (t: SecurityException) {
+            Log.w(TAG, "general notification blocked by permission: title=$title", t)
         } catch (t: Throwable) {
             Log.e(TAG, "general notification failed: title=$title", t)
         }
@@ -117,13 +121,11 @@ class NotificationHelper @Inject constructor(
         try {
             manager.notify(4001, notification)
             Log.i(TAG, "water notification sent")
+        } catch (t: SecurityException) {
+            Log.w(TAG, "water notification blocked by permission", t)
         } catch (t: Throwable) {
             Log.e(TAG, "water notification failed", t)
         }
-    }
-
-    fun cancelMealReminderNotification(reminderType: MealReminderType) {
-        NotificationManagerCompat.from(context).cancel(reminderType.notificationId)
     }
 
     private fun buildContentIntent(requestCode: Int, mealType: String?): PendingIntent {

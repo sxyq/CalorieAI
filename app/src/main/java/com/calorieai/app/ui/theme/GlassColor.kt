@@ -185,21 +185,3 @@ object GlassDarkColors {
 fun Color.withGlassAlpha(alpha: Float): Color {
     return this.copy(alpha = alpha)
 }
-
-// 获取带透明度的导航栏背景色
-fun glassNavigationBarBackground(isDark: Boolean): Color {
-    return if (isDark) {
-        GlassDarkColors.NavigationBarBackground.copy(alpha = GlassAlpha.NAVIGATION_BAR)
-    } else {
-        GlassLightColors.NavigationBarBackground.copy(alpha = GlassAlpha.NAVIGATION_BAR)
-    }
-}
-
-// 获取带透明度的卡片背景色
-fun glassCardBackground(isDark: Boolean): Color {
-    return if (isDark) {
-        GlassDarkColors.CardBackground.copy(alpha = GlassAlpha.CARD_BACKGROUND)
-    } else {
-        GlassLightColors.CardBackground.copy(alpha = GlassAlpha.CARD_BACKGROUND)
-    }
-}

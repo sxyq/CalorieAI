@@ -40,20 +40,6 @@ val encouragementMessages = listOf(
 )
 
 /**
- * 根据进度获取对应的鼓励标语
- */
-fun getEncouragementByProgress(progress: Float): EncouragementMessage {
-    return when {
-        progress < 0.3f -> EncouragementMessage("新的一天，新的开始", "🌅")
-        progress < 0.5f -> EncouragementMessage("继续加油，保持节奏", "🚀")
-        progress < 0.8f -> EncouragementMessage("做得不错，继续保持", "💫")
-        progress < 1.0f -> EncouragementMessage("即将达标，最后冲刺", "⚡")
-        progress == 1.0f -> EncouragementMessage("完美达标，太棒了", "🎊")
-        else -> EncouragementMessage("注意控制，不要过量", "⚠️")
-    }
-}
-
-/**
  * 随机获取一条鼓励标语
  */
 fun getRandomEncouragement(): EncouragementMessage {

@@ -1,4 +1,3 @@
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.security.KeyStore
 import java.util.Properties
@@ -16,52 +15,6 @@ val localProperties = Properties().apply {
     if (propsFile.exists()) {
         propsFile.inputStream().use { load(it) }
     }
-}
-
-fun decryptWindowsLocalSecret(encryptedValue: String): String {
-    if (encryptedValue.isBlank()) return ""
-    check(System.getProperty("os.name").contains("Windows", ignoreCase = true)) {
-        "default.longcat.api.key.encrypted is only supported on Windows hosts"
-    }
-
-    val stdout = ByteArrayOutputStream()
-    val escapedCipherText = encryptedValue.replace("'", "''")
-    exec {
-        commandLine(
-            resolveWindowsPowerShellExecutable(),
-            "-NoProfile",
-            "-NonInteractive",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-Command",
-            "\$secure = ConvertTo-SecureString '$escapedCipherText'; " +
-                "\$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR(\$secure); " +
-                "try { [Runtime.InteropServices.Marshal]::PtrToStringBSTR(\$ptr) } " +
-                "finally { if (\$ptr -ne [IntPtr]::Zero) { " +
-                "[Runtime.InteropServices.Marshal]::ZeroFreeBSTR(\$ptr) } }"
-        )
-        standardOutput = stdout
-        errorOutput = stdout
-        isIgnoreExitValue = false
-    }
-
-    return stdout.toString(Charsets.UTF_8.name()).trim()
-}
-
-fun resolveWindowsPowerShellExecutable(): String {
-    val candidates = buildList {
-        System.getenv("POWERSHELL_EXE")?.takeIf { it.isNotBlank() }?.let(::add)
-        listOf(System.getenv("SystemRoot"), System.getenv("WINDIR"))
-            .filterNotNull()
-            .distinct()
-            .forEach { root ->
-                add("$root\\System32\\WindowsPowerShell\\v1.0\\powershell.exe")
-            }
-        add("powershell")
-    }
-    return candidates.firstOrNull { candidate ->
-        candidate == "powershell" || File(candidate).exists()
-    } ?: "powershell"
 }
 
 fun readSecretProperty(propertyName: String, envName: String): String {
@@ -89,7 +42,6 @@ val localOcrServiceUrl: String = (
 ).replace("\"", "\\\"")
 val defaultAiApiUrl = readSecretProperty("default.ai.api.url", "DEFAULT_AI_API_URL")
     .ifBlank { "https://oneapi.sxyq27.online/v1/chat/completions" }
-val defaultAiApiKey = readSecretProperty("default.ai.api.key", "DEFAULT_AI_API_KEY")
 val defaultAiModelId = readSecretProperty("default.ai.model.id", "DEFAULT_AI_MODEL_ID")
     .ifBlank { "gpt-5.6-luna" }
 val bundledPaddleOcrRoot: String = (
@@ -144,7 +96,6 @@ android {
         buildConfigField("String", "UPDATE_CHECK_URL", "\"\"")
         buildConfigField("String", "LOCAL_OCR_SERVICE_URL", "\"$localOcrServiceUrl\"")
         buildConfigField("String", "DEFAULT_AI_API_URL", "\"${escapeBuildConfigString(defaultAiApiUrl)}\"")
-        buildConfigField("String", "DEFAULT_AI_API_KEY", "\"${escapeBuildConfigString(defaultAiApiKey)}\"")
         buildConfigField("String", "DEFAULT_AI_MODEL_ID", "\"${escapeBuildConfigString(defaultAiModelId)}\"")
     }
 

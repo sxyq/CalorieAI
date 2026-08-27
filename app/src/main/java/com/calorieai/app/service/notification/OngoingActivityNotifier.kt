@@ -85,7 +85,11 @@ class OngoingActivityNotifier @Inject constructor(
             )
         }
 
-        manager.notify(state.notificationId, notification)
+        try {
+            manager.notify(state.notificationId, notification)
+        } catch (t: SecurityException) {
+            Log.w(TAG, "ongoing notification blocked by permission: id=${state.notificationId}", t)
+        }
     }
 
     fun cancel(notificationId: Int) {

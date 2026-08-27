@@ -244,18 +244,6 @@ class StatsViewModel @Inject constructor(
     }
 
     /**
-     * 閲嶇疆瓒嬪娍鏃ユ湡鑼冨洿
-     */
-    fun resetTrendDateRange() {
-        _uiState.value = _uiState.value.copy(
-            trendStartDate = null,
-            trendEndDate = null,
-            trendTimeDimension = TimeDimension.DAY
-        )
-        refreshTrendData()
-    }
-
-    /**
      * 璁＄畻鍛ㄥ钩鍧囬ギ姘撮噺
      */
     private suspend fun computeWeeklyWaterAverage(): Float {
@@ -469,4 +457,3 @@ data class RecipeStats(
     val mostUsedFavoriteUseCount: Int = 0,
     val recipePlanCount: Int = 0
 )
-

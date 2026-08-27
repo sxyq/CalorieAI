@@ -6,12 +6,12 @@ import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.model.WaterRecord
 import com.calorieai.app.data.repository.UserSettingsRepository
 import com.calorieai.app.data.repository.WaterRecordRepository
+import com.calorieai.app.utils.DateUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.util.Calendar
 import javax.inject.Inject
 
 @HiltViewModel
@@ -30,8 +30,7 @@ class WaterTrackerViewModel @Inject constructor(
     fun refreshData() {
         viewModelScope.launch {
             val settings = userSettingsRepository.getSettingsOnce() ?: UserSettings()
-            val todayStart = getStartOfDay(System.currentTimeMillis())
-            val todayEnd = getEndOfDay(System.currentTimeMillis())
+            val (todayStart, todayEnd) = DateUtils.getDayRange(System.currentTimeMillis())
             val todayRecords = waterRecordRepository.getRecordsBetweenSync(todayStart, todayEnd)
                 .sortedByDescending { it.recordTime }
 
@@ -51,7 +50,7 @@ class WaterTrackerViewModel @Inject constructor(
                 WaterRecord(
                     amount = safeAmount,
                     recordTime = now,
-                    recordDate = getStartOfDay(now)
+                    recordDate = DateUtils.getDayRange(now).first
                 )
             )
             refreshData()
@@ -67,27 +66,6 @@ class WaterTrackerViewModel @Inject constructor(
         }
     }
 
-    private fun getStartOfDay(timestamp: Long): Long {
-        val calendar = Calendar.getInstance().apply {
-            timeInMillis = timestamp
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        return calendar.timeInMillis
-    }
-
-    private fun getEndOfDay(timestamp: Long): Long {
-        val calendar = Calendar.getInstance().apply {
-            timeInMillis = timestamp
-            set(Calendar.HOUR_OF_DAY, 23)
-            set(Calendar.MINUTE, 59)
-            set(Calendar.SECOND, 59)
-            set(Calendar.MILLISECOND, 999)
-        }
-        return calendar.timeInMillis
-    }
 }
 
 data class WaterTrackerUiState(

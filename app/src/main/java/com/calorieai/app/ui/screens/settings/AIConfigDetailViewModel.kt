@@ -38,7 +38,8 @@ class AIConfigDetailViewModel @Inject constructor(
             _uiState.value = AIConfigDetailUiState(isLoading = true)
             viewModelScope.launch {
                 runCatching { aiConfigRepository.getConfigById(id) }
-                    .onSuccess { config ->
+                    .onSuccess { storedConfig ->
+                        val config = storedConfig ?: AIConfigPresets.getById(id)
                         config?.let {
                             _uiState.value = AIConfigDetailUiState(
                                 isLoading = false,
@@ -170,10 +171,6 @@ class AIConfigDetailViewModel @Inject constructor(
                 }
             )
         }
-    }
-
-    fun clearTestResult() {
-        _uiState.value = _uiState.value.copy(testResult = null)
     }
 
     fun saveConfig(): Boolean {

@@ -3,7 +3,6 @@ package com.calorieai.app.service.ai
 import android.content.Context
 import com.calorieai.app.data.model.MealPlan
 import com.calorieai.app.data.model.MealPlanResponse
-import com.calorieai.app.data.model.MealSuggestion
 import com.calorieai.app.data.repository.APICallRecordRepository
 import com.calorieai.app.data.repository.AIConfigRepository
 import com.calorieai.app.data.repository.FoodRecordRepository
@@ -99,50 +98,6 @@ class MealPlanService @Inject constructor(
         }
         
         // 生成新的菜谱
-        return generateNewMealPlan()
-    }
-    
-    /**
-     * 获取实时推荐
-     * 根据当前时间和用户用餐习惯推荐
-     */
-    suspend fun getRealTimeRecommendation(): Result<MealSuggestion> {
-        val cachedPlan = getCachedMealPlan()
-        
-        if (cachedPlan != null) {
-            // 根据当前时间返回对应的餐食
-            val hour = java.time.LocalTime.now().hour
-            return when {
-                hour in 6..10 -> Result.success(cachedPlan.plan.breakfast)
-                hour in 11..14 -> Result.success(cachedPlan.plan.lunch)
-                hour in 17..20 -> Result.success(cachedPlan.plan.dinner)
-                else -> {
-                    // 返回加餐或最近的餐食
-                    cachedPlan.plan.snacks.firstOrNull()?.let {
-                        Result.success(it)
-                    } ?: Result.success(cachedPlan.plan.breakfast)
-                }
-            }
-        }
-        
-        // 没有缓存，生成新的
-        val result = generateNewMealPlan()
-        return result.map { response ->
-            val hour = java.time.LocalTime.now().hour
-            when {
-                hour in 6..10 -> response.plan.breakfast
-                hour in 11..14 -> response.plan.lunch
-                hour in 17..20 -> response.plan.dinner
-                else -> response.plan.snacks.firstOrNull() ?: response.plan.breakfast
-            }
-        }
-    }
-    
-    /**
-     * 强制刷新菜谱缓存
-     */
-    suspend fun refreshMealPlan(): Result<MealPlanResponse> {
-        clearCache()
         return generateNewMealPlan()
     }
     
@@ -355,36 +310,6 @@ $dataContext
         }
     }
     
-    /**
-     * 清除缓存
-     */
-    private fun clearCache() {
-        try {
-            val cacheFile = File(cacheDir, CACHE_FILE_NAME)
-            if (cacheFile.exists()) {
-                cacheFile.delete()
-            }
-        } catch (e: Exception) {
-            // 忽略
-        }
-    }
-    
-    /**
-     * 检查缓存是否有效
-     */
-    fun isCacheValid(): Boolean {
-        return try {
-            val cacheFile = File(cacheDir, CACHE_FILE_NAME)
-            if (!cacheFile.exists()) return false
-            
-            val cacheContent = cacheFile.readText()
-            val cacheData = gson.fromJson(cacheContent, MealPlanCacheData::class.java)
-            
-            System.currentTimeMillis() <= cacheData.expiresAt
-        } catch (e: Exception) {
-            false
-        }
-    }
 }
 
 /**

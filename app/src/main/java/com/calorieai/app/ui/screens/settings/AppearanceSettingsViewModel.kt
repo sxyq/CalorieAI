@@ -75,23 +75,8 @@ class AppearanceSettingsViewModel @Inject constructor(
         saveSettings()
     }
 
-    fun updateDeadlinerStyle(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(useDeadlinerStyle = enabled)
-        saveSettings()
-    }
-
-    fun updateHideDividers(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(hideDividers = enabled)
-        saveSettings()
-    }
-
     fun updateFontSize(size: FontSize) {
         _uiState.value = _uiState.value.copy(fontSize = size)
-        saveSettings()
-    }
-
-    fun updateEnableAnimations(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(enableAnimations = enabled)
         saveSettings()
     }
 
@@ -115,40 +100,6 @@ class AppearanceSettingsViewModel @Inject constructor(
             )
             userSettingsRepository.saveSettings(settings)
         }
-    }
-
-    fun updateWallpaperType(type: WallpaperType) {
-        _uiState.value = _uiState.value.copy(wallpaperType = type)
-        saveSettings()
-    }
-
-    fun updateWallpaperColor(color: String?) {
-        _uiState.value = _uiState.value.copy(wallpaperColor = color)
-        saveSettings()
-    }
-
-    fun updateWallpaperGradient(startColor: String?, endColor: String?) {
-        _uiState.value = _uiState.value.copy(
-            wallpaperGradientStart = startColor,
-            wallpaperGradientEnd = endColor
-        )
-        saveSettings()
-    }
-
-    fun updateWallpaperImage(uri: String?) {
-        _uiState.value = _uiState.value.copy(wallpaperImageUri = uri)
-        saveSettings()
-    }
-
-    fun resetWallpaperToDefault() {
-        _uiState.value = _uiState.value.copy(
-            wallpaperType = WallpaperType.SOLID,
-            wallpaperColor = DEFAULT_LIGHT_WALLPAPER_COLOR,
-            wallpaperGradientStart = null,
-            wallpaperGradientEnd = null,
-            wallpaperImageUri = null
-        )
-        saveSettings()
     }
 
     fun updateShowAIWidget(show: Boolean) {

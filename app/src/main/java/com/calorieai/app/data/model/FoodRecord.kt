@@ -111,18 +111,6 @@ fun getSimplifiedMealTypeOrder(mealType: MealType): Int {
     }
 }
 
-fun getMealTypeOrder(mealType: MealType): Int {
-    return when (mealType) {
-        MealType.BREAKFAST -> 1
-        MealType.BREAKFAST_SNACK -> 2
-        MealType.LUNCH -> 3
-        MealType.LUNCH_SNACK -> 4
-        MealType.DINNER -> 5
-        MealType.DINNER_SNACK -> 6
-        MealType.SNACK -> 7
-    }
-}
-
 enum class ConfidenceLevel {
     HIGH, MEDIUM, LOW
 }

@@ -8,9 +8,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.calorieai.app.data.model.Gender
-import com.calorieai.app.data.model.GoalType
-import com.calorieai.app.data.model.WeightLossStrategy
 import com.calorieai.app.ui.screens.onboarding.OnboardingStepData
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
@@ -147,16 +144,6 @@ class OnboardingDataStore @Inject constructor(
         }
     }
     
-    /**
-     * 重置引导流程（用于重新引导）
-     */
-    suspend fun resetOnboarding() {
-        context.onboardingDataStore.edit { preferences ->
-            preferences[ONBOARDING_COMPLETED] = false
-            preferences[CURRENT_STEP] = 1
-            preferences[ONBOARDING_DATA] = gson.toJson(OnboardingData())
-        }
-    }
 }
 
 /**
@@ -218,117 +205,4 @@ data class OnboardingData(
     @SerializedName("bmi")
     val bmi: Float? = null  // BMI指数
 ) {
-    /**
-     * 计算年龄
-     */
-    fun calculateAge(): Int? {
-        return birthDate?.let { birth ->
-            val birthYear = java.time.Instant.ofEpochMilli(birth)
-                .atZone(java.time.ZoneId.systemDefault())
-                .year
-            java.time.Year.now().value - birthYear
-        }
-    }
-    
-    /**
-     * 计算BMR（基础代谢率）
-     */
-    fun calculateBMR(): Int? {
-        val w = weight ?: return null
-        val h = height ?: return null
-        val age = calculateAge() ?: return null
-        
-        return when (gender?.uppercase()) {
-            "MALE" -> (10 * w + 6.25f * h - 5 * age + 5).toInt()
-            "FEMALE" -> (10 * w + 6.25f * h - 5 * age - 161).toInt()
-            else -> (10 * w + 6.25f * h - 5 * age - 78).toInt()
-        }
-    }
-    
-    /**
-     * 计算TDEE（每日总能量消耗）
-     */
-    fun calculateTDEE(): Int? {
-        val bmrValue = calculateBMR() ?: return null
-        val multiplier = when (activityLevel) {
-            "SEDENTARY" -> 1.2f
-            "LIGHT" -> 1.375f
-            "MODERATE" -> 1.55f
-            "ACTIVE" -> 1.725f
-            "VERY_ACTIVE" -> 1.9f
-            else -> 1.2f
-        }
-        return (bmrValue * multiplier).toInt()
-    }
-    
-    /**
-     * 计算BMI
-     */
-    fun calculateBMI(): Float? {
-        val w = weight ?: return null
-        val h = height ?: return null
-        val heightInMeters = h / 100f
-        return w / (heightInMeters * heightInMeters)
-    }
-    
-    /**
-     * 计算预计达成目标周数
-     */
-    fun calculateEstimatedWeeks(): Int? {
-        val currentWeight = weight ?: return null
-        val target = targetWeight ?: return null
-        val strategy = weightLossStrategy?.let { WeightLossStrategy.fromString(it) } ?: return null
-        
-        val weightDiff = kotlin.math.abs(currentWeight - target)
-        return if (strategy.weeklyChange > 0) {
-            (weightDiff / strategy.weeklyChange).toInt().coerceAtLeast(1)
-        } else null
-    }
-    
-    /**
-     * 获取性别枚举
-     */
-    fun getGenderEnum(): Gender? {
-        return gender?.let { Gender.fromString(it) }
-    }
-    
-    /**
-     * 获取目标类型枚举
-     */
-    fun getGoalTypeEnum(): GoalType? {
-        return goalType?.let { GoalType.fromString(it) }
-    }
-    
-    /**
-     * 获取减肥策略枚举
-     */
-    fun getWeightLossStrategyEnum(): WeightLossStrategy? {
-        return weightLossStrategy?.let { WeightLossStrategy.fromString(it) }
-    }
-    
-    /**
-     * 验证数据完整性
-     */
-    fun isValidForStep(step: Int): Boolean {
-        return when (step) {
-            1 -> gender != null && birthDate != null
-            2 -> weight != null && height != null
-            3 -> dailyCalorieGoal != null
-            4 -> goalType != null
-            5 -> targetWeight != null && weightLossStrategy != null
-            else -> true
-        }
-    }
-    
-    /**
-     * 获取所有计算后的数据
-     */
-    fun withCalculatedValues(): OnboardingData {
-        return copy(
-            bmr = calculateBMR(),
-            tdee = calculateTDEE(),
-            bmi = calculateBMI(),
-            estimatedWeeksToGoal = calculateEstimatedWeeks()
-        )
-    }
 }

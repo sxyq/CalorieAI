@@ -81,8 +81,6 @@ object AIConfigPresets {
 
     fun getById(id: String): AIConfig? = presetMap[id]
 
-    fun getByProtocol(protocol: AIProtocol): List<AIConfig> = ALL_PRESETS.filter { it.protocol == protocol }
-
     val LONGCAT_FLASH_OMNI: AIConfig get() = getById(ID_LONGCAT_FLASH_OMNI)!!
     val LONGCAT_FLASH_CHAT: AIConfig get() = getById(ID_LONGCAT_FLASH_CHAT)!!
     val LONGCAT_FLASH_THINKING: AIConfig get() = getById(ID_LONGCAT_FLASH_THINKING)!!
