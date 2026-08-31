@@ -29,6 +29,19 @@ object MetabolicConstants {
         return (bmr * multiplier).toInt().coerceAtLeast(1200)
     }
 
+    /**
+     * 将 BMI 映射为应用内统一展示的分类。
+     */
+    fun getBmiCategory(bmi: Float?): String {
+        if (bmi == null) return "未设置"
+        return when {
+            bmi < 18.5f -> "偏瘦"
+            bmi < 24f -> "正常"
+            bmi < 28f -> "偏胖"
+            else -> "肥胖"
+        }
+    }
+
     fun calculateBMRFromTDEE(tdee: Int, activityLevel: String): Int {
         val multiplier = getMultiplier(activityLevel)
         return (tdee / multiplier).toInt()

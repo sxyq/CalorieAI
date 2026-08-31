@@ -27,6 +27,7 @@ import com.calorieai.app.data.model.GoalType
 import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.model.WeightLossStrategy
 import com.calorieai.app.ui.theme.*
+import com.calorieai.app.utils.MetabolicConstants
 import com.calorieai.app.viewmodel.MyViewModel
 import kotlin.math.roundToInt
 
@@ -183,7 +184,7 @@ private fun GlassBMICard(userSettings: UserSettings?, isDark: Boolean) {
             userSettings?.bmi
         }
     }
-    val bmiCategory = getBMICategory(bmi)
+    val bmiCategory = MetabolicConstants.getBmiCategory(bmi)
     val bmiColor = getGlassBMIColor(bmi, isDark)
 
     Box(
@@ -694,16 +695,6 @@ private fun GlassLifestyleItem(
 }
 
 // 辅助函数
-
-private fun getBMICategory(bmi: Float?): String {
-    if (bmi == null) return "未设置"
-    return when {
-        bmi < 18.5f -> "偏瘦"
-        bmi < 24f -> "正常"
-        bmi < 28f -> "偏胖"
-        else -> "肥胖"
-    }
-}
 
 private fun getGlassBMIColor(bmi: Float?, isDark: Boolean): Color {
     if (bmi == null) return if (isDark) GlassDarkColors.OnSurfaceVariant else GlassLightColors.OnSurfaceVariant

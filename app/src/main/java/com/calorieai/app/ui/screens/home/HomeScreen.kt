@@ -136,9 +136,8 @@ fun HomeScreen(
                     TodayOverviewCard(
                         totalCalories = uiState.totalCalories,
                         dailyGoal = uiState.dailyGoal,
-                        bmr = uiState.bmr,
-                        exerciseCalories = uiState.exerciseCalories,
-                        selectedDate = selectedDate
+                        selectedDate = selectedDate,
+                        onClick = onNavigateToStats
                     )
                 }
 
@@ -240,14 +239,12 @@ fun HomeScreen(
 fun TodayOverviewCard(
     totalCalories: Int,
     dailyGoal: Int,
-    bmr: Int,
-    exerciseCalories: Int,
-    selectedDate: java.time.LocalDate
+    selectedDate: java.time.LocalDate,
+    onClick: () -> Unit = {}
 ) {
     val isDark = isSystemInDarkTheme()
     val progress = (totalCalories.toFloat() / dailyGoal).coerceIn(0f, 1f)
     val remaining = dailyGoal - totalCalories
-    val netCalories = totalCalories - bmr - exerciseCalories // 鐑噺宸€硷紙姝ｄ负鐩堜綑锛岃礋涓虹己鍙ｏ級
     
     // 鏍规嵁鏄惁鏄粖澶╂樉绀轰笉鍚岀殑鏍囬
     val today = java.time.LocalDate.now()
@@ -261,24 +258,36 @@ fun TodayOverviewCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
             .background(
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 shape = MaterialTheme.shapes.extraLarge
             )
             .clip(MaterialTheme.shapes.extraLarge)
+            .clickable(onClick = onClick)
     ) {
         Column(
-            modifier = Modifier.padding(20.dp)
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
-            // 鏍囬
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = if (isDark) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (isDark) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = "查看每日消耗",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             
             // 涓昏鏁版嵁琛岋細宸叉憚鍏?| 鐩爣 | 鍓╀綑
             Row(
@@ -306,14 +315,14 @@ fun TodayOverviewCard(
                 )
             }
             
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             
             // 杩涘害鏉?
             LinearProgressIndicator(
                 progress = { progress },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(8.dp),
+                    .height(6.dp),
                 color = when {
                     progress > 1f -> MaterialTheme.colorScheme.error
                     progress > 0.8f -> MaterialTheme.colorScheme.tertiary
@@ -321,13 +330,13 @@ fun TodayOverviewCard(
                 }
             )
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             
             // 榧撳姳鏍囪 - 浣跨敤remember閬垮厤姣忔閲嶇粍閮介噸鏂拌绠?
             val encouragement by remember(totalCalories, dailyGoal) {
                 derivedStateOf { com.calorieai.app.utils.getRandomEncouragement() }
             }
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -346,41 +355,6 @@ fun TodayOverviewCard(
                 )
             }
             
-            // 浠ｈ阿鍜岃繍鍔ㄦ暟鎹紙浠呬粖澶╂樉绀猴級
-            if (selectedDate == today && bmr > 0) {
-                HorizontalDivider()
-                
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    CalorieInfoSmall(
-                        value = bmr.toString(),
-                        label = "基础代谢",
-                        icon = "🔥",
-                        highlighted = false
-                    )
-                    CalorieInfoSmall(
-                        value = "+${exerciseCalories}",
-                        label = "运动消耗",
-                        icon = "💪",
-                        highlighted = true
-                    )
-                    CalorieInfoSmall(
-                        value = "${if (netCalories >= 0) "+" else ""}$netCalories",
-                        label = "净摄入",
-                        icon = "⚖️",
-                        color = when {
-                            netCalories > 500 -> MaterialTheme.colorScheme.error
-                            netCalories < -500 -> MaterialTheme.colorScheme.tertiary
-                            else -> MaterialTheme.colorScheme.primary
-                        },
-                        highlighted = true
-                    )
-                }
-            }
         }
     }
 }
@@ -416,48 +390,6 @@ fun CalorieInfo(
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (isDark) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-fun CalorieInfoSmall(
-    value: String,
-    label: String,
-    icon: String,
-    color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
-    highlighted: Boolean
-) {
-    val isDark = isSystemInDarkTheme()
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                when {
-                    isDark && highlighted -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
-                    isDark -> MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.9f)
-                    highlighted -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
-                    else -> MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.8f)
-                }
-            )
-            .padding(horizontal = 12.dp, vertical = 10.dp)
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = icon,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
                 color = if (isDark) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

@@ -11,7 +11,8 @@ import com.calorieai.app.data.model.WeightLossStrategy
 import com.calorieai.app.utils.MetabolicConstants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,6 +21,8 @@ class UserSettingsRepository @Inject constructor(
     private val userSettingsDao: UserSettingsDao,
     @ApplicationContext private val context: Context
 ) {
+    private val settingsWriteMutex = Mutex()
+
     private val encryptedPrefs: SharedPreferences by lazy {
         try {
             val masterKey = MasterKey.Builder(context)
@@ -40,9 +43,19 @@ class UserSettingsRepository @Inject constructor(
     fun getSettings(): Flow<UserSettings?> = userSettingsDao.getSettings()
 
     suspend fun saveSettings(settings: UserSettings) {
-        val sanitized = sanitizeUserSettings(settings)
-        userSettingsDao.insertOrUpdate(sanitized)
-        syncToEncryptedPreferences(sanitized)
+        settingsWriteMutex.withLock {
+            saveSettingsInternal(settings)
+        }
+    }
+
+    /**
+     * 在最新设置上执行一次原子字段更新，避免多个页面读到旧快照后互相覆盖。
+     */
+    suspend fun updateSettings(transform: (UserSettings) -> UserSettings): UserSettings {
+        return settingsWriteMutex.withLock {
+            val current = userSettingsDao.getSettingsOnce() ?: UserSettings()
+            saveSettingsInternal(transform(current))
+        }
     }
 
     suspend fun getSettingsOnce(): UserSettings? {
@@ -60,8 +73,7 @@ class UserSettingsRepository @Inject constructor(
         specialPopulationMode: String,
         weeklyRecordGoalDays: Int
     ) {
-        val settings = getSettingsOnce() ?: UserSettings()
-        saveSettings(
+        updateSettings { settings ->
             settings.copy(
                 dietaryAllergens = dietaryAllergens?.trim()?.ifBlank { null },
                 flavorPreferences = flavorPreferences?.trim()?.ifBlank { null },
@@ -70,31 +82,28 @@ class UserSettingsRepository @Inject constructor(
                 specialPopulationMode = specialPopulationMode,
                 weeklyRecordGoalDays = weeklyRecordGoalDays.coerceIn(1, 7)
             )
-        )
+        }
     }
 
     /**
      * 更新引导完成状态
      */
     suspend fun updateOnboardingCompleted(completed: Boolean) {
-        val settings = getSettingsOnce() ?: UserSettings()
-        saveSettings(settings.copy(onboardingCompleted = completed))
+        updateSettings { it.copy(onboardingCompleted = completed) }
     }
 
     /**
      * 更新当前引导步骤
      */
     suspend fun updateOnboardingStep(step: Int) {
-        val settings = getSettingsOnce() ?: UserSettings()
-        saveSettings(settings.copy(onboardingCurrentStep = step))
+        updateSettings { it.copy(onboardingCurrentStep = step) }
     }
 
     /**
      * 更新引导数据JSON
      */
     suspend fun updateOnboardingData(dataJson: String?) {
-        val settings = getSettingsOnce() ?: UserSettings()
-        saveSettings(settings.copy(onboardingDataJson = dataJson))
+        updateSettings { it.copy(onboardingDataJson = dataJson) }
     }
 
     /**
@@ -106,15 +115,16 @@ class UserSettingsRepository @Inject constructor(
         strategy: WeightLossStrategy?,
         estimatedWeeks: Int? = null
     ) {
-        val settings = getSettingsOnce() ?: UserSettings()
-        val weeklyChange = strategy?.weeklyChange
-        saveSettings(settings.copy(
-            goalType = goalType?.name,
-            targetWeight = targetWeight,
-            weightLossStrategy = strategy?.name,
-            estimatedWeeksToGoal = estimatedWeeks,
-            weeklyWeightChangeGoal = weeklyChange
-        ))
+        updateSettings { settings ->
+            val weeklyChange = strategy?.weeklyChange
+            settings.copy(
+                goalType = goalType?.name,
+                targetWeight = targetWeight,
+                weightLossStrategy = strategy?.name,
+                estimatedWeeksToGoal = estimatedWeeks,
+                weeklyWeightChangeGoal = weeklyChange
+            )
+        }
     }
 
     /**
@@ -128,23 +138,23 @@ class UserSettingsRepository @Inject constructor(
         tdee: Int? = null,
         bmi: Float? = null
     ) {
-        val settings = getSettingsOnce() ?: UserSettings()
-        saveSettings(settings.copy(
-            birthDate = birthDate ?: settings.birthDate,
-            userHeight = height ?: settings.userHeight,
-            userWeight = weight ?: settings.userWeight,
-            bmr = bmr ?: settings.bmr,
-            tdee = tdee ?: settings.tdee,
-            bmi = bmi ?: settings.bmi
-        ))
+        updateSettings { settings ->
+            settings.copy(
+                birthDate = birthDate ?: settings.birthDate,
+                userHeight = height ?: settings.userHeight,
+                userWeight = weight ?: settings.userWeight,
+                bmr = bmr ?: settings.bmr,
+                tdee = tdee ?: settings.tdee,
+                bmi = bmi ?: settings.bmi
+            )
+        }
     }
 
     /**
      * 更新运动习惯
      */
     suspend fun updateExerciseHabits(habitsJson: String?) {
-        val settings = getSettingsOnce() ?: UserSettings()
-        saveSettings(settings.copy(exerciseHabitsJson = habitsJson))
+        updateSettings { it.copy(exerciseHabitsJson = habitsJson) }
     }
 
     /**
@@ -174,7 +184,7 @@ class UserSettingsRepository @Inject constructor(
                 appendLine("- 每周目标变化：${it.weeklyChange}kg")
             }
             settings.estimatedWeeksToGoal?.let { appendLine("- 预计达成时间：${it}周") }
-            settings.dailyCalorieGoal?.let { appendLine("- 每日热量目标：${it}kcal") }
+            appendLine("- 每日热量目标：${settings.dailyCalorieGoal}kcal")
         }
     }
 
@@ -182,48 +192,52 @@ class UserSettingsRepository @Inject constructor(
      * 计算并更新BMR和TDEE
      */
     suspend fun calculateAndUpdateMetabolicRates() {
-        val settings = getSettingsOnce() ?: return
-        
-        val weight = settings.userWeight ?: return
-        val height = settings.userHeight ?: return
-        val age = settings.userAge ?: return
-        val gender = settings.userGender ?: return
-        val activityLevel = settings.activityLevel
-        
-        // 计算BMR（基础代谢率）- 使用Mifflin-St Jeor公式
-        val bmr = when (gender.uppercase()) {
-            "MALE" -> (10 * weight + 6.25f * height - 5 * age + 5).toInt()
-            "FEMALE" -> (10 * weight + 6.25f * height - 5 * age - 161).toInt()
-            else -> (10 * weight + 6.25f * height - 5 * age - 78).toInt() // 其他取中间值
+        settingsWriteMutex.withLock {
+            val settings = userSettingsDao.getSettingsOnce() ?: return@withLock
+            val weight = settings.userWeight ?: return@withLock
+            val height = settings.userHeight ?: return@withLock
+            val age = settings.userAge ?: return@withLock
+            val gender = settings.userGender ?: return@withLock
+            val activityLevel = settings.activityLevel
+
+            // 保留此流程原有的公式和边界策略；统一规则需要单独的产品确认与数据测试。
+            val bmr = when (gender.uppercase()) {
+                "MALE" -> (10 * weight + 6.25f * height - 5 * age + 5).toInt()
+                "FEMALE" -> (10 * weight + 6.25f * height - 5 * age - 161).toInt()
+                else -> (10 * weight + 6.25f * height - 5 * age - 78).toInt()
+            }
+            val activityMultiplier = when (activityLevel) {
+                "SEDENTARY" -> 1.2f
+                "LIGHT" -> 1.375f
+                "MODERATE" -> 1.55f
+                "ACTIVE" -> 1.725f
+                "VERY_ACTIVE" -> 1.9f
+                else -> 1.2f
+            }
+            val tdee = (bmr * activityMultiplier).toInt()
+            val heightInMeters = height / 100f
+            val bmi = weight / (heightInMeters * heightInMeters)
+            val dailyWaterGoal = MetabolicConstants.calculateDailyWaterGoal(
+                weight = weight,
+                activityLevel = activityLevel,
+                age = age,
+                gender = gender
+            )
+
+            saveSettingsInternal(settings.copy(
+                bmr = bmr,
+                tdee = tdee,
+                bmi = bmi,
+                dailyWaterGoal = dailyWaterGoal
+            ))
         }
-        
-        // 计算TDEE（每日总能量消耗）
-        val activityMultiplier = when (activityLevel) {
-            "SEDENTARY" -> 1.2f
-            "LIGHT" -> 1.375f
-            "MODERATE" -> 1.55f
-            "ACTIVE" -> 1.725f
-            "VERY_ACTIVE" -> 1.9f
-            else -> 1.2f
-        }
-        val tdee = (bmr * activityMultiplier).toInt()
-        
-        // 计算BMI
-        val heightInMeters = height / 100f
-        val bmi = weight / (heightInMeters * heightInMeters)
-        val dailyWaterGoal = MetabolicConstants.calculateDailyWaterGoal(
-            weight = weight,
-            activityLevel = activityLevel,
-            age = age,
-            gender = gender
-        )
-        
-        saveSettings(settings.copy(
-            bmr = bmr,
-            tdee = tdee,
-            bmi = bmi,
-            dailyWaterGoal = dailyWaterGoal
-        ))
+    }
+
+    private suspend fun saveSettingsInternal(settings: UserSettings): UserSettings {
+        val sanitized = sanitizeUserSettings(settings)
+        userSettingsDao.insertOrUpdate(sanitized)
+        syncToEncryptedPreferences(sanitized)
+        return sanitized
     }
 
     /**

@@ -5,6 +5,7 @@
     <!-- 网络权限 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     
     <!-- 相机权限 -->
     <uses-permission android:name="android.permission.CAMERA" />
@@ -59,6 +60,13 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <activity
+            android:name=".service.update.AppUpdateInstallActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:theme="@style/Theme.CalorieAI" />
 
         <!-- WorkManager: 使用 on-demand 初始化时，移除默认初始化器 -->
         <provider

@@ -60,8 +60,7 @@ class WaterTrackerViewModel @Inject constructor(
     fun updateDailyGoal(goal: Int) {
         val safeGoal = goal.coerceIn(1200, 5000)
         viewModelScope.launch {
-            val settings = userSettingsRepository.getSettingsOnce() ?: UserSettings()
-            userSettingsRepository.saveSettings(settings.copy(dailyWaterGoal = safeGoal))
+            userSettingsRepository.updateSettings { it.copy(dailyWaterGoal = safeGoal) }
             _uiState.value = _uiState.value.copy(dailyGoal = safeGoal)
         }
     }

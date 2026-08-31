@@ -3,6 +3,7 @@ package com.calorieai.app.data.repository
 import com.calorieai.app.data.local.APICallRecordDao
 import com.calorieai.app.data.model.APICallRecord
 import com.calorieai.app.data.model.APICallStats
+import com.calorieai.app.utils.DateUtils
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
@@ -84,12 +85,17 @@ class APICallRecordRepository @Inject constructor(
      * 获取API调用统计
      */
     suspend fun getStats(): APICallStats {
-        val today = LocalDate.now()
-        val startOfToday = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val endOfToday = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val startOfMonth = today.withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val zoneId = ZoneId.systemDefault()
+        val today = LocalDate.now(zoneId)
+        val todayRange = DateUtils.getDayRangeExclusive(today, zoneId)
+        val monthRange = DateUtils.getMonthRangeExclusive(today, zoneId)
 
-        return apiCallRecordDao.getStats(startOfToday, endOfToday, startOfMonth, endOfToday)
+        return apiCallRecordDao.getStats(
+            todayStart = todayRange.startInclusive,
+            todayEnd = todayRange.endExclusive,
+            monthStart = monthRange.startInclusive,
+            monthEnd = todayRange.endExclusive
+        )
     }
 
     /**

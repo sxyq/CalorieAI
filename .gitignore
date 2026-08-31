@@ -21,6 +21,7 @@ app/build/
 # Keystore files
 *.jks
 *.keystore
+signing/
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild

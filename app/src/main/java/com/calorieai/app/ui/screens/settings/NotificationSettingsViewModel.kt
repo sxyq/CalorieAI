@@ -2,7 +2,6 @@
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.repository.UserSettingsRepository
 import com.calorieai.app.service.notification.NotificationCapabilityManager
 import com.calorieai.app.service.notification.ReminderResyncCoordinator
@@ -27,7 +26,6 @@ class NotificationSettingsViewModel @Inject constructor(
 
     private val formatter = DateTimeFormatter.ofPattern("HH:mm")
     private val saveMutex = Mutex()
-    private var latestPersistedSettings: UserSettings? = null
 
     private val _uiState = MutableStateFlow(NotificationSettingsUiState())
     val uiState: StateFlow<NotificationSettingsUiState> = _uiState.asStateFlow()
@@ -102,7 +100,6 @@ class NotificationSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             userSettingsRepository.getSettings().collectLatest { settings ->
                 if (settings == null) return@collectLatest
-                latestPersistedSettings = settings
                 _uiState.value = applyCapabilityState(
                     NotificationSettingsUiState(
                         isLoaded = true,
@@ -147,30 +144,27 @@ class NotificationSettingsViewModel @Inject constructor(
                 val state = _uiState.value
                 if (!state.isLoaded) return@withLock
 
-                val base = latestPersistedSettings ?: userSettingsRepository.getSettingsOnce() ?: UserSettings()
                 val interval = state.waterReminderIntervalMinutes.toIntOrNull()?.coerceIn(0, 24 * 60) ?: 0
                 val times = state.waterReminderTimes
                     .map { normalizeTime(it) }
                     .distinct()
                     .take(MAX_WATER_TIMES)
 
-                val updated = base.copy(
-                    id = base.id,
-                    isNotificationEnabled = state.isNotificationEnabled,
-                    breakfastReminderTime = normalizeTime(state.breakfastReminderTime),
-                    lunchReminderTime = normalizeTime(state.lunchReminderTime),
-                    dinnerReminderTime = normalizeTime(state.dinnerReminderTime),
-                    enableGoalReminder = state.enableGoalReminder,
-                    enableStreakReminder = state.enableStreakReminder,
-                    enableWaterReminder = state.showWaterFeatures && state.enableWaterReminder,
-                    waterReminderTimesJson = encodeReminderTimes(times),
-                    waterReminderIntervalMinutes = interval,
-                    waterReminderWindowStart = normalizeTime(state.waterReminderWindowStart),
-                    waterReminderWindowEnd = normalizeTime(state.waterReminderWindowEnd)
-                )
-
-                userSettingsRepository.saveSettings(updated)
-                latestPersistedSettings = updated
+                val updated = userSettingsRepository.updateSettings { base ->
+                    base.copy(
+                        isNotificationEnabled = state.isNotificationEnabled,
+                        breakfastReminderTime = normalizeTime(state.breakfastReminderTime),
+                        lunchReminderTime = normalizeTime(state.lunchReminderTime),
+                        dinnerReminderTime = normalizeTime(state.dinnerReminderTime),
+                        enableGoalReminder = state.enableGoalReminder,
+                        enableStreakReminder = state.enableStreakReminder,
+                        enableWaterReminder = state.showWaterFeatures && state.enableWaterReminder,
+                        waterReminderTimesJson = encodeReminderTimes(times),
+                        waterReminderIntervalMinutes = interval,
+                        waterReminderWindowStart = normalizeTime(state.waterReminderWindowStart),
+                        waterReminderWindowEnd = normalizeTime(state.waterReminderWindowEnd)
+                    )
+                }
                 reminderResyncCoordinator.sync(
                     settings = updated,
                     source = "NotificationSettings.save"

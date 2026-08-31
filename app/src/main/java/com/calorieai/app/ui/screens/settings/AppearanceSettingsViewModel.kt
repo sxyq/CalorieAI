@@ -2,7 +2,6 @@ package com.calorieai.app.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.repository.UserSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -82,23 +81,23 @@ class AppearanceSettingsViewModel @Inject constructor(
 
     private fun saveSettings() {
         viewModelScope.launch {
-            val currentSettings = userSettingsRepository.getSettingsOnce()
             val currentState = _uiState.value
-            val settings = (currentSettings ?: UserSettings()).copy(
-                themeMode = currentState.themeMode.name,
-                useDeadlinerStyle = currentState.useDeadlinerStyle,
-                hideDividers = currentState.hideDividers,
-                fontSize = currentState.fontSize.name,
-                enableAnimations = currentState.enableAnimations,
-                showAIWidget = currentState.showAIWidget,
-                showWaterFeatures = currentState.showWaterFeatures,
-                wallpaperType = currentState.wallpaperType.name,
-                wallpaperColor = currentState.wallpaperColor,
-                wallpaperGradientStart = currentState.wallpaperGradientStart,
-                wallpaperGradientEnd = currentState.wallpaperGradientEnd,
-                wallpaperImageUri = currentState.wallpaperImageUri
-            )
-            userSettingsRepository.saveSettings(settings)
+            userSettingsRepository.updateSettings { settings ->
+                settings.copy(
+                    themeMode = currentState.themeMode.name,
+                    useDeadlinerStyle = currentState.useDeadlinerStyle,
+                    hideDividers = currentState.hideDividers,
+                    fontSize = currentState.fontSize.name,
+                    enableAnimations = currentState.enableAnimations,
+                    showAIWidget = currentState.showAIWidget,
+                    showWaterFeatures = currentState.showWaterFeatures,
+                    wallpaperType = currentState.wallpaperType.name,
+                    wallpaperColor = currentState.wallpaperColor,
+                    wallpaperGradientStart = currentState.wallpaperGradientStart,
+                    wallpaperGradientEnd = currentState.wallpaperGradientEnd,
+                    wallpaperImageUri = currentState.wallpaperImageUri
+                )
+            }
         }
     }
 

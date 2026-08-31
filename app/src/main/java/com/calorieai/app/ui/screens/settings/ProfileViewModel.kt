@@ -113,7 +113,6 @@ class ProfileViewModel @Inject constructor(
                 "userName" to currentState.userName,
                 "hasAvatar" to !currentState.avatarUrl.isNullOrBlank()
             )
-            val existing = userSettingsRepository.getSettingsOnce()
             val bmr = MetabolicConstants.calculateBMR(
                 gender = currentState.gender,
                 weight = currentState.weight,
@@ -139,23 +138,23 @@ class ProfileViewModel @Inject constructor(
                 gender = currentState.gender
             )
             val dailyWaterGoal = currentState.dailyWaterGoal.takeIf { it > 0 } ?: suggestedWaterGoal
-            val settings = (existing ?: UserSettings()).copy(
-                id = existing?.id ?: 1,
-                userAvatarUri = currentState.avatarUrl,
-                userName = currentState.userName,
-                userId = currentState.userId,
-                userGender = currentState.gender,
-                userAge = currentState.age,
-                userHeight = currentState.height,
-                userWeight = currentState.weight,
-                activityLevel = currentState.activityLevel,
-                dailyCalorieGoal = currentState.calorieGoal,
-                dailyWaterGoal = dailyWaterGoal,
-                bmr = bmr,
-                tdee = tdee,
-                bmi = bmi
-            )
-            userSettingsRepository.saveSettings(settings)
+            val settings = userSettingsRepository.updateSettings { existing ->
+                existing.copy(
+                    userAvatarUri = currentState.avatarUrl,
+                    userName = currentState.userName,
+                    userId = currentState.userId,
+                    userGender = currentState.gender,
+                    userAge = currentState.age,
+                    userHeight = currentState.height,
+                    userWeight = currentState.weight,
+                    activityLevel = currentState.activityLevel,
+                    dailyCalorieGoal = currentState.calorieGoal,
+                    dailyWaterGoal = dailyWaterGoal,
+                    bmr = bmr,
+                    tdee = tdee,
+                    bmi = bmi
+                )
+            }
             SecureLogger.event(
                 TAG,
                 "save_profile_done",

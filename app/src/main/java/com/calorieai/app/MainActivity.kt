@@ -7,8 +7,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -18,17 +23,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.calorieai.app.data.repository.UserSettingsRepository
 import com.calorieai.app.service.startup.MainActivityStartupCoordinator
+import com.calorieai.app.service.update.AppUpdateDownloadState
 import com.calorieai.app.service.update.AppUpdateInfo
 import com.calorieai.app.ui.navigation.NavGraph
 import com.calorieai.app.ui.screens.onboarding.OnboardingFlow
 import com.calorieai.app.ui.screens.settings.ThemeMode
 import com.calorieai.app.ui.theme.CalorieAITheme
 import dagger.hilt.android.AndroidEntryPoint
+import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -94,14 +104,19 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            var shouldSkipOnboarding by remember { mutableStateOf(false) }
-            var isLoading by remember { mutableStateOf(true) }
+            // null 表示启动状态尚未从持久化存储读取完成，避免把未加载误判为未完成。
+            var shouldSkipOnboarding by remember { mutableStateOf<Boolean?>(null) }
+            val isLoading = shouldSkipOnboarding == null
             var pendingUpdateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
+            var updateDownloadId by remember { mutableStateOf<UUID?>(null) }
+            var updateDownloadState by remember {
+                mutableStateOf<AppUpdateDownloadState>(AppUpdateDownloadState.Idle)
+            }
+            var installMessage by remember { mutableStateOf<String?>(null) }
+            val updateScope = rememberCoroutineScope()
 
-            LaunchedEffect(settings?.onboardingCompleted) {
-                val completed = startupCoordinator.resolveShouldSkipOnboarding(settings)
-                shouldSkipOnboarding = completed
-                isLoading = false
+            LaunchedEffect(Unit) {
+                shouldSkipOnboarding = startupCoordinator.resolveShouldSkipOnboarding()
             }
 
             LaunchedEffect(
@@ -119,14 +134,25 @@ class MainActivity : ComponentActivity() {
                 settings?.waterReminderWindowEnd
             ) {
                 val currentSettings = settings ?: return@LaunchedEffect
-                if (isLoading || !shouldSkipOnboarding) return@LaunchedEffect
+                if (isLoading || shouldSkipOnboarding != true) return@LaunchedEffect
 
                 startupCoordinator.syncReminderStateAfterLaunch(currentSettings)
             }
 
             LaunchedEffect(isLoading, shouldSkipOnboarding) {
-                if (isLoading || !shouldSkipOnboarding) return@LaunchedEffect
+                if (isLoading || shouldSkipOnboarding != true) return@LaunchedEffect
                 pendingUpdateInfo = startupCoordinator.checkForUpdatesAfterLaunch()
+            }
+
+            LaunchedEffect(updateDownloadId) {
+                val workId = updateDownloadId
+                if (workId == null) {
+                    updateDownloadState = AppUpdateDownloadState.Idle
+                    return@LaunchedEffect
+                }
+                startupCoordinator.observeUpdateDownload(workId).collect { state ->
+                    updateDownloadState = state
+                }
             }
 
             CalorieAITheme(
@@ -154,27 +180,50 @@ class MainActivity : ComponentActivity() {
                             MaterialTheme.colorScheme.background
                         }
                     ) {
-                        if (isLoading) {
-                            // 鏄剧ず澹佺焊鑳屾櫙锛岄伩鍏嶉棯鐑?
-                        } else if (shouldSkipOnboarding) {
-                            val navController = rememberNavController()
-                            NavGraph(navController = navController)
-                        } else {
-                            OnboardingFlow(
-                                onComplete = {
-                                    shouldSkipOnboarding = true
-                                }
-                            )
+                        when {
+                            isLoading -> {
+                                // 保持启动占位状态，直到完成标记读取完毕。
+                            }
+
+                            shouldSkipOnboarding == true -> {
+                                val navController = rememberNavController()
+                                NavGraph(navController = navController)
+                            }
+
+                            else -> {
+                                OnboardingFlow(
+                                    onComplete = {
+                                        shouldSkipOnboarding = true
+                                    }
+                                )
+                            }
                         }
                     }
                 }
                 pendingUpdateInfo?.let { updateInfo ->
-                        AppUpdateDialog(
+                    AppUpdateDialog(
                         updateInfo = updateInfo,
+                        downloadState = updateDownloadState,
+                        installMessage = installMessage,
                         onDownload = {
-                            val opened = startupCoordinator.openDownloadPage(updateInfo)
-                            if (opened) {
-                                pendingUpdateInfo = null
+                            installMessage = null
+                            updateDownloadId = startupCoordinator.startUpdateDownload(updateInfo)
+                        },
+                        onInstall = { apkPath ->
+                            updateScope.launch {
+                                when (val result = startupCoordinator.installDownloadedUpdate(apkPath)) {
+                                    is com.calorieai.app.service.update.AppUpdateManager.InstallResult.Started -> {
+                                        pendingUpdateInfo = null
+                                    }
+
+                                    is com.calorieai.app.service.update.AppUpdateManager.InstallResult.PermissionRequired -> {
+                                        installMessage = "请在系统设置中允许本应用安装未知来源应用，然后返回重试。"
+                                    }
+
+                                    is com.calorieai.app.service.update.AppUpdateManager.InstallResult.Failed -> {
+                                        installMessage = result.message
+                                    }
+                                }
                             }
                         },
                         onLater = {
@@ -190,28 +239,97 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun AppUpdateDialog(
     updateInfo: AppUpdateInfo,
+    downloadState: AppUpdateDownloadState,
+    installMessage: String?,
     onDownload: () -> Unit,
+    onInstall: (String) -> Unit,
     onLater: () -> Unit
 ) {
     AlertDialog(
-        onDismissRequest = onLater,
+        onDismissRequest = { if (!updateInfo.isMandatory) onLater() },
         title = {
             Text("发现新版本 ${updateInfo.latestVersionName}")
         },
         text = {
-            Text(updateInfo.changelog)
+            Column {
+                Text(updateInfo.releaseNotes)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "版本号 ${updateInfo.latestVersionCode} · ${formatUpdateSize(updateInfo.apkSize)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                when (downloadState) {
+                    AppUpdateDownloadState.Idle -> Unit
+                    AppUpdateDownloadState.Queued -> {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("正在等待网络连接…")
+                    }
+
+                    is AppUpdateDownloadState.Downloading -> {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = { downloadState.percent / 100f },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            "正在下载 ${downloadState.percent}%（" +
+                                "${formatUpdateSize(downloadState.downloadedBytes)} / " +
+                                formatUpdateSize(downloadState.totalBytes) + "）"
+                        )
+                    }
+
+                    is AppUpdateDownloadState.Ready -> Text("下载完成，可以安装。")
+                    is AppUpdateDownloadState.Failed -> Text(
+                        downloadState.message,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                if (!installMessage.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(installMessage, color = MaterialTheme.colorScheme.error)
+                }
+            }
         },
         confirmButton = {
-            TextButton(onClick = onDownload) {
-                Text("立即下载")
+            when (downloadState) {
+                is AppUpdateDownloadState.Ready -> TextButton(
+                    onClick = { onInstall(downloadState.apkPath) },
+                    enabled = downloadState.apkPath.isNotBlank()
+                ) {
+                    Text("安装更新")
+                }
+
+                AppUpdateDownloadState.Queued,
+                is AppUpdateDownloadState.Downloading -> TextButton(
+                    onClick = {},
+                    enabled = false
+                ) {
+                    Text("下载中")
+                }
+
+                AppUpdateDownloadState.Idle,
+                is AppUpdateDownloadState.Failed -> TextButton(onClick = onDownload) {
+                    Text(if (downloadState is AppUpdateDownloadState.Failed) "重试" else "立即下载")
+                }
             }
         },
-        dismissButton = {
-            TextButton(onClick = onLater) {
-                Text("稍后")
+        dismissButton = if (!updateInfo.isMandatory) {
+            {
+                TextButton(onClick = onLater) {
+                    Text("稍后")
+                }
             }
+        } else {
+            null
         }
     )
+}
+
+private fun formatUpdateSize(bytes: Long): String {
+    if (bytes <= 0L) return "未知大小"
+    val megabytes = bytes / (1024f * 1024f)
+    return "%.1f MB".format(java.util.Locale.getDefault(), megabytes)
 }
 
 @Composable

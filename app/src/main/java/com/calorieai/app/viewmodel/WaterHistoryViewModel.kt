@@ -127,11 +127,7 @@ class WaterHistoryViewModel @Inject constructor(
     fun updateTargetAmount(amount: Int) {
         viewModelScope.launch {
             _targetAmount.value = amount
-            val settings = userSettingsRepository.getSettings().firstOrNull()
-            settings?.let {
-                val updatedSettings = it.copy(dailyWaterGoal = amount)
-                userSettingsRepository.saveSettings(updatedSettings)
-            }
+            userSettingsRepository.updateSettings { it.copy(dailyWaterGoal = amount) }
         }
     }
 

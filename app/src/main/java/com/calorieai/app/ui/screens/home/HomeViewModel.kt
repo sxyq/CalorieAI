@@ -9,9 +9,8 @@ import com.calorieai.app.data.repository.ExerciseRecordRepository
 import com.calorieai.app.data.repository.FoodRecordRepository
 import com.calorieai.app.data.repository.UserSettingsRepository
 import com.calorieai.app.data.repository.WeightRecordRepository
-import com.calorieai.app.ui.screens.settings.calculateBMR
-import com.calorieai.app.ui.screens.settings.calculateTDEE
 import com.calorieai.app.utils.DateUtils
+import com.calorieai.app.utils.MetabolicConstants
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -56,13 +55,13 @@ class HomeViewModel @Inject constructor(
                 settings?.let {
                     // 优先使用最新体重记录，如果没有则使用用户设置中的体重
                     val currentWeight = latestWeightRecord?.weight ?: it.userWeight
-                    val bmr = calculateBMR(
+                    val bmr = MetabolicConstants.calculateBMR(
                         gender = it.userGender ?: "MALE",
                         weight = currentWeight,
                         height = it.userHeight,
                         age = it.userAge
                     )
-                    val tdee = calculateTDEE(bmr, it.activityLevel)
+                    val tdee = MetabolicConstants.calculateTDEE(bmr, it.activityLevel)
                     _uiState.value = _uiState.value.copy(
                         dailyGoal = it.dailyCalorieGoal,
                         bmr = bmr,

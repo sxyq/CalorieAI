@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieai.app.ui.components.OnboardingNavigationButtons
 import com.calorieai.app.ui.theme.*
+import com.calorieai.app.utils.MetabolicConstants
 
 /**
  * 引导界面二：身体数据采集
@@ -171,7 +172,7 @@ fun OnboardingScreen2(
                 } else null
 
                 bmi?.let {
-                    val bmiCategory = getBMICategory(it)
+                    val bmiCategory = MetabolicConstants.getBmiCategory(it)
                     val primaryContainerColor = if (isDark) GlassDarkColors.PrimaryContainer else GlassLightColors.PrimaryContainer
                     val onSurfaceVariantColor = if (isDark) GlassDarkColors.OnSurfaceVariant else GlassLightColors.OnSurfaceVariant
                     val primaryColor = if (isDark) GlassDarkColors.Primary else GlassLightColors.Primary
@@ -383,16 +384,4 @@ private fun calculateBMI(weightKg: Float, heightCm: Float): Float {
 private fun calculateBMIImperial(weightLb: Float, heightFt: Float): Float {
     val heightInches = heightFt * 12
     return (weightLb / (heightInches * heightInches)) * 703
-}
-
-/**
- * 获取BMI分类
- */
-private fun getBMICategory(bmi: Float): String {
-    return when {
-        bmi < 18.5f -> "偏瘦"
-        bmi < 24f -> "正常"
-        bmi < 28f -> "偏胖"
-        else -> "肥胖"
-    }
 }

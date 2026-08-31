@@ -81,13 +81,13 @@ fun ProfileScreen(
         }
     }
 
-    val bmr = calculateBMR(
+    val bmr = MetabolicConstants.calculateBMR(
         gender = uiState.gender,
         weight = uiState.weight,
         height = uiState.height,
         age = uiState.age
     )
-    val tdee = calculateTDEE(bmr, uiState.activityLevel)
+    val tdee = MetabolicConstants.calculateTDEE(bmr, uiState.activityLevel)
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -776,16 +776,6 @@ private fun WaterGoalSection(
         }
     }
 }
-
-fun calculateBMR(
-    gender: String,
-    weight: Float?,
-    height: Float?,
-    age: Int?
-): Int = MetabolicConstants.calculateBMR(gender, weight, height, age)
-
-fun calculateTDEE(bmr: Int, activityLevel: String): Int =
-    MetabolicConstants.calculateTDEE(bmr, activityLevel)
 
 private fun calculateBMRFromTDEE(tdee: Int, activityLevel: String): Int =
     MetabolicConstants.calculateBMRFromTDEE(tdee, activityLevel)

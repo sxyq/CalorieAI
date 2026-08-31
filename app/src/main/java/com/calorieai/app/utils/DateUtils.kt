@@ -5,7 +5,34 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 
+/**
+ * 时间查询范围，适用于 timestamp >= startInclusive && timestamp < endExclusive。
+ */
+data class TimeRange(
+    val startInclusive: Long,
+    val endExclusive: Long
+)
+
 object DateUtils {
+
+    fun getDayRangeExclusive(
+        date: LocalDate,
+        zoneId: ZoneId = ZoneId.systemDefault()
+    ): TimeRange {
+        val start = date.atStartOfDay(zoneId).toInstant().toEpochMilli()
+        val endExclusive = date.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+        return TimeRange(start, endExclusive)
+    }
+
+    fun getMonthRangeExclusive(
+        date: LocalDate,
+        zoneId: ZoneId = ZoneId.systemDefault()
+    ): TimeRange {
+        val firstDay = date.withDayOfMonth(1)
+        val start = firstDay.atStartOfDay(zoneId).toInstant().toEpochMilli()
+        val endExclusive = firstDay.plusMonths(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+        return TimeRange(start, endExclusive)
+    }
 
     fun getDayRange(date: LocalDate): Pair<Long, Long> {
         val startOfDay = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()

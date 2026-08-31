@@ -41,11 +41,7 @@ class WeightHistoryViewModel @Inject constructor(
             weightRecordRepository.insert(record)
             
             // 同时更新UserSettings中的体重
-            val currentSettings = userSettingsRepository.getSettings().firstOrNull()
-            currentSettings?.let { settings ->
-                val updatedSettings = settings.copy(userWeight = weight)
-                userSettingsRepository.saveSettings(updatedSettings)
-            }
+            userSettingsRepository.updateSettings { it.copy(userWeight = weight) }
         }
     }
 

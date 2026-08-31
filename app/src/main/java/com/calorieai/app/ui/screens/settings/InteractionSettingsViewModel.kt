@@ -2,7 +2,6 @@ package com.calorieai.app.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calorieai.app.data.model.UserSettings
 import com.calorieai.app.data.repository.UserSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -83,19 +82,19 @@ class InteractionSettingsViewModel @Inject constructor(
     private fun saveSettings() {
         viewModelScope.launch {
             val currentState = _uiState.value
-            val existingSettings = userSettingsRepository.getSettings().firstOrNull()
-            val settings = (existingSettings ?: UserSettings()).copy(
-                feedbackType = currentState.feedbackType.name,
-                enableVibration = currentState.enableVibration,
-                enableSound = currentState.enableSound,
-                backgroundBehavior = currentState.backgroundBehavior.name,
-                startupPage = currentState.startupPage.name,
-                enableQuickAdd = currentState.enableQuickAdd,
-                enableLongPressHomeToAdd = currentState.enableLongPressHomeToAdd,
-                enableLongPressOverviewToStats = currentState.enableLongPressOverviewToStats,
-                enableLongPressMyToProfileEdit = currentState.enableLongPressMyToProfileEdit
-            )
-            userSettingsRepository.saveSettings(settings)
+            userSettingsRepository.updateSettings { settings ->
+                settings.copy(
+                    feedbackType = currentState.feedbackType.name,
+                    enableVibration = currentState.enableVibration,
+                    enableSound = currentState.enableSound,
+                    backgroundBehavior = currentState.backgroundBehavior.name,
+                    startupPage = currentState.startupPage.name,
+                    enableQuickAdd = currentState.enableQuickAdd,
+                    enableLongPressHomeToAdd = currentState.enableLongPressHomeToAdd,
+                    enableLongPressOverviewToStats = currentState.enableLongPressOverviewToStats,
+                    enableLongPressMyToProfileEdit = currentState.enableLongPressMyToProfileEdit
+                )
+            }
         }
     }
 }

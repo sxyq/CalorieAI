@@ -57,7 +57,7 @@ object WidgetDataProvider {
                 .getRecordsBetweenSync(startOfDay, endOfDayExclusive)
             val waterIntakeMl = database.waterRecordDao()
                 .getTotalAmountByDate(startOfDay) ?: 0
-            val settings = database.userSettingsDao().getSettingsSync()
+            val settings = database.userSettingsDao().getSettingsOnce()
 
             val snapshot = TodaySnapshot(
                 dateLabel = SimpleDateFormat("M月d日", Locale.getDefault()).format(Date()),
