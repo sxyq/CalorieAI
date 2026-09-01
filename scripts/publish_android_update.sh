@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 # Publish one immutable APK version and atomically replace stable metadata.
-# The script never changes Nginx or removes an existing release directory.
+# The script never changes Nginx and retains the two newest release directories.
 
 usage() {
     cat >&2 <<'USAGE'
@@ -12,10 +12,10 @@ Usage:
 
 Environment for a remote publish:
   UPDATE_SERVER_KEY   SSH private-key path
-  UPDATE_SERVER_HOST  SSH target, default root@101.132.250.38
-  UPDATE_CHECK_URL    manifest URL, default https://update.sxyq27.online/android/stable/latest.json
+  UPDATE_SERVER_HOST  SSH target, default ubuntu@124.222.153.108
+  UPDATE_CHECK_URL    manifest URL, default https://calorieai.sxyq27.online/android/stable/latest.json
   UPDATE_DOWNLOAD_BASE_URL
-                      APK base URL, default https://update.sxyq27.online
+                      APK base URL, default https://calorieai.sxyq27.online
   APKANALYZER         optional path to Android SDK apkanalyzer
   APKSIGNER           optional path to Android SDK apksigner
   MIN_SUPPORTED_VERSION_CODE  default 100
@@ -135,20 +135,20 @@ RELEASE_NOTES=${RELEASE_NOTES:-"Bug fixes and stability improvements."}
 verify_apk_identity
 
 APK_FILE="CalorieAI-v${VERSION_NAME}.apk"
-UPDATE_CHECK_URL=${UPDATE_CHECK_URL:-"https://update.sxyq27.online/android/stable/latest.json"}
-UPDATE_DOWNLOAD_BASE_URL=${UPDATE_DOWNLOAD_BASE_URL:-"https://update.sxyq27.online"}
+UPDATE_CHECK_URL=${UPDATE_CHECK_URL:-"https://calorieai.sxyq27.online/android/stable/latest.json"}
+UPDATE_DOWNLOAD_BASE_URL=${UPDATE_DOWNLOAD_BASE_URL:-"https://calorieai.sxyq27.online"}
 UPDATE_DOWNLOAD_BASE_URL=${UPDATE_DOWNLOAD_BASE_URL%/}
 
 case "$UPDATE_CHECK_URL" in
-    "https://update.sxyq27.online/android/stable/latest.json") ;;
+    "https://calorieai.sxyq27.online/android/stable/latest.json") ;;
     *) echo "unsupported UPDATE_CHECK_URL: $UPDATE_CHECK_URL" >&2; exit 1 ;;
 esac
 case "$UPDATE_DOWNLOAD_BASE_URL" in
-    "https://update.sxyq27.online") ;;
+    "https://calorieai.sxyq27.online") ;;
     *) echo "unsupported UPDATE_DOWNLOAD_BASE_URL: $UPDATE_DOWNLOAD_BASE_URL" >&2; exit 1 ;;
 esac
-if [[ "$UPDATE_CHECK_URL" != "https://update.sxyq27.online/android/stable/latest.json" ||
-      "$UPDATE_DOWNLOAD_BASE_URL" != "https://update.sxyq27.online" ]]; then
+if [[ "$UPDATE_CHECK_URL" != "https://calorieai.sxyq27.online/android/stable/latest.json" ||
+      "$UPDATE_DOWNLOAD_BASE_URL" != "https://calorieai.sxyq27.online" ]]; then
     echo "UPDATE_CHECK_URL and UPDATE_DOWNLOAD_BASE_URL must use the same endpoint pair" >&2
     exit 1
 fi
@@ -193,7 +193,7 @@ if $CHECK_ONLY; then
 fi
 
 SERVER_KEY=${UPDATE_SERVER_KEY:?UPDATE_SERVER_KEY is required for remote publish}
-SERVER_HOST=${UPDATE_SERVER_HOST:-root@101.132.250.38}
+SERVER_HOST=${UPDATE_SERVER_HOST:-ubuntu@124.222.153.108}
 [[ -f "$SERVER_KEY" ]] || { echo "SSH key not found" >&2; exit 1; }
 
 SSH_OPTS=(
@@ -205,30 +205,48 @@ SSH_OPTS=(
 )
 REMOTE_STAGING="/srv/calorieai-updates/staging"
 REMOTE_RELEASE_DIR="/srv/calorieai-updates/public/releases/${VERSION_NAME}"
-REMOTE_APK="${REMOTE_STAGING}/${APK_FILE}.part"
-REMOTE_JSON="${REMOTE_STAGING}/latest-${VERSION_NAME}.json.part"
+REMOTE_UPLOAD_TOKEN="calorieai-publish-${VERSION_CODE}-${VERSION_NAME}-$$"
+REMOTE_UPLOAD_APK="/tmp/${REMOTE_UPLOAD_TOKEN}-${APK_FILE}.part"
+REMOTE_UPLOAD_JSON="/tmp/${REMOTE_UPLOAD_TOKEN}-latest.json.part"
+REMOTE_STAGING_APK="${REMOTE_STAGING}/${REMOTE_UPLOAD_TOKEN}-${APK_FILE}.part"
+REMOTE_STAGING_JSON="${REMOTE_STAGING}/${REMOTE_UPLOAD_TOKEN}-latest.json.part"
 
-scp -q "${SSH_OPTS[@]}" "$APK_PATH" "${SERVER_HOST}:${REMOTE_APK}"
-scp -q "${SSH_OPTS[@]}" "$METADATA_PATH" "${SERVER_HOST}:${REMOTE_JSON}"
+scp -q "${SSH_OPTS[@]}" "$APK_PATH" "${SERVER_HOST}:${REMOTE_UPLOAD_APK}"
+scp -q "${SSH_OPTS[@]}" "$METADATA_PATH" "${SERVER_HOST}:${REMOTE_UPLOAD_JSON}"
 
 ssh "${SSH_OPTS[@]}" "$SERVER_HOST" bash -s -- \
-    "$REMOTE_APK" "$REMOTE_JSON" "$REMOTE_RELEASE_DIR" "$VERSION_CODE" "$VERSION_NAME" \
-    "$APK_SIZE" "$APK_SHA256_LOWER" "$APK_FILE" "$APK_URL" <<'REMOTE'
+    "$REMOTE_UPLOAD_APK" "$REMOTE_UPLOAD_JSON" "$REMOTE_STAGING_APK" "$REMOTE_STAGING_JSON" \
+    "$REMOTE_RELEASE_DIR" "$VERSION_CODE" "$VERSION_NAME" "$APK_SIZE" "$APK_SHA256_LOWER" \
+    "$APK_FILE" "$APK_URL" <<'REMOTE'
 set -Eeuo pipefail
-remote_apk=$1
-remote_json=$2
-remote_release_dir=$3
-version_code=$4
-version_name=$5
-expected_size=$6
-expected_sha=$7
-apk_file=$8
-expected_url=$9
+remote_upload_apk=$1
+remote_upload_json=$2
+remote_staging_apk=$3
+remote_staging_json=$4
+remote_release_dir=$5
+version_code=$6
+version_name=$7
+expected_size=$8
+expected_sha=$9
+apk_file=${10}
+expected_url=${11}
 
-test -s "$remote_apk"
-test -s "$remote_json"
-test "$(stat -c '%s' "$remote_apk")" = "$expected_size"
-test "$(sha256sum "$remote_apk" | awk '{print $1}')" = "$expected_sha"
+stable_root=/srv/calorieai-updates/public/android/stable
+release_root=/srv/calorieai-updates/public/releases
+remote_staging=/srv/calorieai-updates/staging
+
+cleanup_uploads() {
+    rm -f -- "$remote_upload_apk" "$remote_upload_json"
+}
+trap cleanup_uploads EXIT
+
+test -s "$remote_upload_apk"
+test -s "$remote_upload_json"
+sudo install -d -o root -g root -m 0755 "$stable_root" "$release_root" "$remote_staging"
+sudo install -o root -g root -m 0644 "$remote_upload_apk" "$remote_staging_apk"
+sudo install -o root -g root -m 0644 "$remote_upload_json" "$remote_staging_json"
+test "$(stat -c '%s' "$remote_staging_apk")" = "$expected_size"
+test "$(sha256sum "$remote_staging_apk" | awk '{print $1}')" = "$expected_sha"
 jq -e --arg sha "$expected_sha" --argjson size "$expected_size" \
     --argjson versionCode "$version_code" --arg versionName "$version_name" \
     --arg expectedUrl "$expected_url" \
@@ -236,19 +254,50 @@ jq -e --arg sha "$expected_sha" --argjson size "$expected_size" \
      (.apkSize == $size) and (.apkSha256 == $sha) and (.apkUrl == $expectedUrl) and
      (has("voiceModel")|not) and (has("modelUrl")|not) and (has("tokensUrl")|not) and
      ((tostring|test("sk-|Authorization|password|private.key";"i"))|not)' \
-    "$remote_json" >/dev/null
+    "$remote_staging_json" >/dev/null
 
-test ! -e "$remote_release_dir"
-if [ -f /srv/calorieai-updates/public/android/stable/latest.json ]; then
-    current_version=$(jq -r '.versionCode // 0' /srv/calorieai-updates/public/android/stable/latest.json)
-    test "$version_code" -gt "$current_version"
+if sudo test -f "$stable_root/latest.json"; then
+    current_version=$(sudo jq -r '.versionCode // 0' "$stable_root/latest.json")
+    if [ "$version_code" -lt "$current_version" ]; then
+        echo "versionCode must increase beyond current manifest" >&2
+        exit 1
+    fi
+    if [ "$version_code" -eq "$current_version" ]; then
+        current_manifest=$(sudo jq -S -c . "$stable_root/latest.json")
+        staged_manifest=$(sudo jq -S -c . "$remote_staging_json")
+        test "$current_manifest" = "$staged_manifest"
+    fi
 fi
-install -d -o root -g root -m 0755 "$remote_release_dir"
-mv "$remote_apk" "$remote_release_dir/$apk_file"
-chmod 0644 "$remote_release_dir/$apk_file"
-mv "$remote_json" /srv/calorieai-updates/public/android/stable/latest.json
-chmod 0644 /srv/calorieai-updates/public/android/stable/latest.json
-test "$(sha256sum "$remote_release_dir/$apk_file" | awk '{print $1}')" = "$expected_sha"
+sudo install -d -o root -g root -m 0755 "$remote_release_dir"
+release_apk="$remote_release_dir/$apk_file"
+if sudo test -e "$release_apk"; then
+    sudo test -f "$release_apk"
+    test "$(sudo stat -c '%s' "$release_apk")" = "$expected_size"
+    test "$(sudo sha256sum "$release_apk" | awk '{print $1}')" = "$expected_sha"
+    sudo rm -f -- "$remote_staging_apk"
+else
+    sudo mv "$remote_staging_apk" "$release_apk"
+    sudo chmod 0644 "$release_apk"
+fi
+test "$(sudo sha256sum "$release_apk" | awk '{print $1}')" = "$expected_sha"
+sudo mv "$remote_staging_json" "$stable_root/latest.json"
+sudo chmod 0644 "$stable_root/latest.json"
+test "$(sudo jq -r '.apkSha256' "$stable_root/latest.json")" = "$expected_sha"
+
+# Keep only the two newest semantic-version directories. The manifest version
+# has already been checked to increase, so the active release cannot be removed.
+mapfile -t release_versions < <(
+    sudo find "$release_root" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' |
+        awk '/^[0-9]+\.[0-9]+\.[0-9]+$/' | sort -V
+)
+delete_count=$(( ${#release_versions[@]} - 2 ))
+if (( delete_count > 0 )); then
+    for ((index = 0; index < delete_count; index++)); do
+        old_version=${release_versions[$index]}
+        test "$old_version" != "$version_name"
+        sudo rm -rf -- "$release_root/$old_version"
+    done
+fi
 REMOTE
 
 echo "published: $APK_URL"

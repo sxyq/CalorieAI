@@ -103,8 +103,15 @@ class AppUpdateDownloadWorker @AssistedInject constructor(
             .build()
         client.newCall(request).execute().use { response ->
             val append = existingBytes > 0L && response.code == 206
+            if (response.code == 429) {
+                throw IOException("当前网络繁忙，请稍后重试。")
+            }
+            if (response.code == 416 && existingBytes > 0L) {
+                partFile.delete()
+                return@use download(url, partFile, expectedSize)
+            }
             if (!response.isSuccessful || (existingBytes > 0L && !append && response.code != 200)) {
-                throw IOException("下载服务返回 HTTP ${response.code}")
+                throw IOException("下载服务返回 HTTP ${response.code}，请稍后重试。")
             }
             val body = response.body ?: throw IOException("下载响应为空")
             val startingBytes = if (append) existingBytes else 0L
