@@ -61,6 +61,10 @@ class MainActivityStartupCoordinator @Inject constructor(
         return appUpdateManager.observeDownload(workId)
     }
 
+    fun findDownloadedUpdate(versionCode: Int): String? {
+        return appUpdateManager.findDownloadedApk(versionCode)
+    }
+
     suspend fun installDownloadedUpdate(apkPath: String): AppUpdateManager.InstallResult {
         return appUpdateManager.installDownloadedApk(apkPath)
     }

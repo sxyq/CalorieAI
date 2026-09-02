@@ -141,7 +141,13 @@ class MainActivity : ComponentActivity() {
 
             LaunchedEffect(isLoading, shouldSkipOnboarding) {
                 if (isLoading || shouldSkipOnboarding != true) return@LaunchedEffect
-                pendingUpdateInfo = startupCoordinator.checkForUpdatesAfterLaunch()
+                val updateInfo = startupCoordinator.checkForUpdatesAfterLaunch()
+                pendingUpdateInfo = updateInfo
+                updateInfo?.let { info ->
+                    startupCoordinator.findDownloadedUpdate(info.latestVersionCode)?.let { apkPath ->
+                        updateDownloadState = AppUpdateDownloadState.Ready(apkPath)
+                    }
+                }
             }
 
             LaunchedEffect(updateDownloadId) {

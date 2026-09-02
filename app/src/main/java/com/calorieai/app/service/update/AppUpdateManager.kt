@@ -30,6 +30,17 @@ class AppUpdateManager @Inject constructor(
 ) {
     private val workManager by lazy { WorkManager.getInstance(context) }
 
+    /**
+     * Returns a previously downloaded, verified APK for the requested version.
+     * This lets the update dialog recover after an OEM permission/settings activity
+     * recreates MainActivity.
+     */
+    fun findDownloadedApk(versionCode: Int): String? {
+        if (versionCode <= 0) return null
+        val file = File(context.filesDir, "updates/$versionCode/CalorieAI-$versionCode.apk")
+        return file.takeIf { it.isFile && it.length() > 0L }?.absolutePath
+    }
+
     suspend fun checkForUpdate(): AppUpdateInfo? = withContext(Dispatchers.IO) {
         runCatching {
             val remote = appUpdateService.fetchUpdateInfo() ?: return@runCatching null
