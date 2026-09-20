@@ -1,6 +1,16 @@
-# CalorieAI 官网规划
+# CalorieAI 官网规划与当前实现
 
-本文件规划 `calorieai.sxyq27.online` 官网的落地方式。官网与现有更新服务复用同一个容器，不新增常驻进程。
+本文件规划并记录 `calorieai.sxyq27.online` 官网的落地方式。官网与现有更新服务复用同一个容器，不新增常驻进程。
+
+## 当前实现状态（2026-09-05）
+
+官网静态源已落在 `deploy/calorieai-gateway/web/`，包含 `index.html`、`assets/site.css`、`assets/site.js` 和本地 Logo。站点采用 Stitch 项目 `18037500192872421969` 的 `CalorieAI Neo-Academic Editorial` 设计系统，并保留六个单页视图：功能概览、App 展示、下载应用、更新记录、帮助文档、隐私与安全。
+
+2026-09-06 补充：全站中文文案已按当前 App 实际功能（1.3.x）完整落盘，七个视图（首页/功能/界面展示/下载/更新记录/帮助/隐私）全部可用；`nginx.conf` 已移除根路径 404 的临时规则，`location /` 现以 `try_files` 服务 `index.html`。界面展示使用结构化 CSS 预览而非截图。站点脚本已通过本地浏览器自动化验收：视图切换、清单读取三态（加载/失败/就绪）、非法清单拒绝、下载须知弹窗、SHA-256 复制、FAQ 折叠、移动端菜单均通过。
+
+2026-09-06 二轮逻辑修复：① `apkUrl` 校验兼容完整地址与 `/releases/...` 相对路径；正式站允许固定的 101 IP 直连更新地址，其余非 HTTPS 地址仍拒绝；② 预设文案修正为「GPT-5.6 Luna」，明确预设不内置密钥、需先填 API Key 才能启用，删除"零配置/开箱即用"表述；③ 隐私说明区分自定义直连地址与默认中转服务 `oneapi.sxyq27.online`；④ 清单请求加 10 秒超时（AbortController）；⑤ 下载前用 HEAD 预检通道，429/HTTP 错误/超时/断网均有页面内提示，确认后用隐藏锚点触发下载不跳页；⑥ 包体大小改为 `data-apk-size` 动态占位，清单到达后全站统一替换；⑦ `?manifest=` 覆盖仅限 localhost 自测；⑧ 移除无效变量，弹窗补焦点圈与焦点归还、FAQ 补 aria-expanded。每日调用限制经代码核实为每条配置 50 次/天（`AIChatUiState` 中的 10 为 UI 初始占位），官网文案与此一致。
+
+下载页从 `/android/stable/latest.json` 读取版本、实际 APK 大小、SHA-256 和更新说明。官网页面仍经 124 的 HTTPS 入口访问；清单中的 APK 链接改为 `http://101.132.250.38:80/releases/...`，手机下载时绕过 124 的公网出口，直接从 101 获取文件。APP 同样固定使用该 101 IP 端点。IP 直连不具备域名 TLS 证书保护，APK 下载完成后仍执行大小与 SHA-256 校验。
 
 ## 当前已确认的服务现状
 
@@ -80,14 +90,16 @@
 
 ## 与更新服务的边界
 
-官网和 APK 下载共用域名，必须划清边界，避免互相影响。
+官网继续使用 124 的 HTTPS 域名入口，APK 下载改走 101 的 IP 入口，清单由官网入口展示但内容需与 101 发布版本同步。
+
+首屏保留现有产品说明与结构化手机预览，并加入轻量字符背景层：字符密度由低频噪声生成，指针经过首屏时在附近提亮并显示柔和余辉；首屏离开后恢复低对比度。效果使用 `requestAnimationFrame`、可见区域监听和 `prefers-reduced-motion` 降级，不参与内容布局，也不影响下载与版本清单逻辑。
 
 | 路径 | 用途 | 缓存 | 限流 |
 | --- | --- | --- | --- |
 | `/` | 官网首页 | 短缓存 | 不限 |
 | `/assets/**` | 静态资源 | 长缓存 | 不限 |
-| `/android/stable/latest.json` | 版本清单 | no-store | 不限 |
-| `/releases/**/*.apk` | APK 下载 | 长期缓存 | 单并发，超出返回 429 |
+| `/android/stable/latest.json` | 版本清单（官网经 124 展示，源文件同步到 101） | no-store | 不限 |
+| `/releases/**/*.apk` | APK 下载（101:80 直连） | 长期缓存 | 单并发，超出返回 429 |
 | `/healthz` | 健康检查 | no-store | 不限 |
 
 `latest.json` 设为 `no-store` 是必须的，否则用户会拿到缓存的旧版本号，导致更新提醒失效。
@@ -100,9 +112,9 @@
 
 ## 实施步骤
 
-1. 在本机 `deploy/calorieai-gateway/web/` 下编写静态文件，这是镜像里的官网源目录。
-2. 用真实 APP 截图填充 `assets/img/`。
-3. 确认 `latest.json` 的跨域读取方式。同域，无需 CORS。
+1. [x] 在本机 `deploy/calorieai-gateway/web/` 下编写静态文件，这是镜像里的官网源目录。
+2. [ ] 用真实 APP 截图填充 `assets/img/`；当前版本先使用可访问的结构化产品预览，避免伪造截图数据。
+3. [x] 确认 `latest.json` 的跨域读取方式。正式站同域读取，无需 CORS。
 4. 执行 `scripts/deploy_calorieai_gateway.sh prepare` 重新构建并替换容器。
 5. 验证：根路径 200、`/android/stable/latest.json` 仍 no-store、APK 下载限流仍生效、原有服务未中断。
 
@@ -110,5 +122,6 @@
 
 - 磁盘余量 15 Gi。官网素材加两个 APK 后仍有余量，但如果以后要保留更多 APK 版本，需要先扩盘或改对象存储。
 - 证书 2026-11-29 到期。官网与更新服务共用同一张证书，续期失败会同时影响两边。
-- 官网截图需要从真实 APP 界面采集并压缩；本轮虽完成真机更新验收，但未采集官网所需截图，官网仍保持未实施状态。
-- 当前 APK 约 363 MiB，主要来自内置的 SenseVoice 语音模型。官网需要明确提示安装包体积，避免用户误判。
+- 官网截图需从真实 APP 界面采集并压缩；当前界面展示区使用结构化 CSS 预览代替，页面已预留截图位（见 `#view-showcase` 尾注）。
+- 当前 APK 约 363 MiB，主要来自内置的 SenseVoice 语音模型。官网已在首页、下载页与 FAQ 三处明确提示安装包体积。
+- `nginx.conf` 原先 `location = /` 返回 404，已于 2026-09-06 移除该块；部署时需执行 `scripts/deploy_calorieai_gateway.sh prepare` 重建容器后，根路径方可返回官网。

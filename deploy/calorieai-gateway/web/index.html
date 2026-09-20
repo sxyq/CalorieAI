@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">
+  <title>CalorieAI · 本地优先的 Android 热量记录应用</title>
+  <meta name="description" content="CalorieAI 是一款本地优先的 Android 热量记录应用：AI 识别饮食、13 项营养追踪、体重与运动记录、本地存储与加密密钥，数据不上传服务器。">
+  <link rel="icon" type="image/svg+xml" href="assets/calorieai-logo.svg">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+  <!-- ======================= 导航栏 ======================= -->
+  <header class="site-header">
+    <div class="nav-inner">
+      <a class="brand" href="#home" data-nav>
+        <svg viewBox="0 0 100 100" width="28" height="28" aria-hidden="true"><defs><linearGradient id="caiAppleH" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7CB342"/><stop offset="0.45" stop-color="#C0D339"/><stop offset="0.75" stop-color="#FFB300"/><stop offset="1" stop-color="#FF7043"/></linearGradient></defs><rect width="100" height="100" rx="24" fill="#FFFFFF"/><rect x="1" y="1" width="98" height="98" rx="23" fill="none" stroke="#E3E6EA" stroke-width="2"/><path d="M50 31C50 25 52 20 56 17" stroke="#795548" stroke-width="4" stroke-linecap="round"/><path d="M57 19C61 11 72 9 77 13C73 22 63 25 57 19Z" fill="#43A047"/><path d="M50 33C43 26 29 28 26 42C23 56 33 76 44 79C47 80 48 78 50 78C52 78 53 80 56 79C67 76 77 56 74 42C71 28 57 26 50 33Z" fill="url(#caiAppleH)"/><circle cx="40.5" cy="52" r="3.2" fill="#4E342E"/><circle cx="59.5" cy="52" r="3.2" fill="#4E342E"/><path d="M40 60C44 66 56 66 60 60" stroke="#4E342E" stroke-width="3.5" stroke-linecap="round"/></svg>
+        CalorieAI
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#home" data-nav>首页</a></li>
+        <li><a href="#features" data-nav>功能</a></li>
+        <li><a href="#showcase" data-nav>界面展示</a></li>
+        <li><a href="#changelog" data-nav>更新记录</a></li>
+        <li><a href="#help" data-nav>帮助</a></li>
+        <li><a href="#privacy" data-nav>隐私与安全</a></li>
+        <li><a href="#download" data-nav class="nav-cta">下载应用</a></li>
+      </ul>
+
+      <button class="nav-toggle" id="navToggle" aria-label="打开菜单" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+
+    <!-- 移动端菜单 -->
+    <nav class="mobile-menu" id="mobileMenu" aria-label="移动端菜单">
+      <a href="#home" data-nav>首页</a>
+      <a href="#features" data-nav>功能介绍</a>
+      <a href="#showcase" data-nav>界面展示</a>
+      <a href="#download" data-nav>下载应用</a>
+      <a href="#changelog" data-nav>更新记录</a>
+      <a href="#help" data-nav>帮助文档</a>
+      <a href="#privacy" data-nav>隐私与安全</a>
+      <a href="#download" data-nav class="mobile-cta">下载 CalorieAI</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- ======================= 首页 ======================= -->
+    <section class="view" id="view-home">
+
+      <div class="hero">
+        <div class="hero-field" id="heroField" aria-hidden="true"><pre id="heroFieldText"></pre></div>
+        <div id="vignette" aria-hidden="true"></div>
+        <div class="hero-inner">
+          <div class="hero-copy">
+            <span class="hero-tag"><span class="dot"></span>数据保存在你的手机上，不上传服务器</span>
+            <h1>把每天吃了什么，<br>老老实实<em>记下来</em>。</h1>
+            <p class="hero-sub">CalorieAI 是一款本地优先的 Android 热量记录应用。提供文字、拍照与语音输入，自动估算热量及 13 项营养指标；同步记录体重、饮水与运动，数据保存在设备本地。</p>
+
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="#download" data-nav>
+                下载 CalorieAI
+                <span class="btn-note" id="heroApkSize">Android 8.0+</span>
+              </a>
+              <a class="btn" href="#features" data-nav>查看功能介绍</a>
+            </div>
+
+            <p class="hero-version">
+              <span id="heroVersionLine"><strong>当前版本</strong>正在读取版本信息…</span>
+              <span>免费使用 · 无广告 · 无账号</span>
+            </p>
+          </div>
+
+          <!-- 结构化产品预览（非截图） -->
+          <section class="hero-preview phone-demo" aria-labelledby="phoneDemoHeading">
+            <div class="hero-demo-copy">
+              <div class="hero-demo-count"><strong id="phoneDemoIndex" data-demo-role="index">01</strong><span>/ 04</span></div>
+              <div>
+                <p class="hero-demo-kicker" id="phoneDemoRoute" data-demo-role="route">首页 · 今日记录</p>
+                <h2 id="phoneDemoHeading" data-demo-role="heading">当日热量收支集中在首屏</h2>
+                <p id="phoneDemoDescription" data-demo-role="description">集中展示日期切换、热量收支、当日饮食明细与饮水卡片，点击对应项目可查看关联详情。</p>
+              </div>
+            </div>
+
+            <div class="phone-demo-rail" role="tablist" aria-label="选择 App 界面">
+              <button type="button" role="tab" id="phoneDemoTabHome" class="phone-demo-pick on" aria-selected="true" aria-controls="phoneDemoScreen" tabindex="0" data-demo-tab="home">
+                <span class="phone-demo-pick-no">01</span><span><b>首页</b><small>今日记录</small></span>
+              </button>
+              <button type="button" role="tab" id="phoneDemoTabRecipe" class="phone-demo-pick" aria-selected="false" aria-controls="phoneDemoScreen" tabindex="-1" data-demo-tab="recipe">
+                <span class="phone-demo-pick-no">02</span><span><b>菜谱</b><small>收藏与复用</small></span>
+              </button>
+              <button type="button" role="tab" id="phoneDemoTabOverview" class="phone-demo-pick" aria-selected="false" aria-controls="phoneDemoScreen" tabindex="-1" data-demo-tab="overview">
+                <span class="phone-demo-pick-no">03</span><span><b>概览</b><small>趋势与统计</small></span>
+              </button>
+              <button type="button" role="tab" id="phoneDemoTabProfile" class="phone-demo-pick" aria-selected="false" aria-controls="phoneDemoScreen" tabindex="-1" data-demo-tab="profile">
+                <span class="phone-demo-pick-no">04</span><span><b>我的</b><small>资料与设置</small></span>
+              </button>
+            </div>
+
+            <div class="phone-demo-stage">
+              <div class="phone-demo-stage-label" aria-hidden="true">CALORIEAI / ANDROID</div>
+              <div class="hero-phone">
+                <div class="phone">
+                  <div class="screen" id="phoneDemoScreen" data-demo-role="screen" role="tabpanel" aria-labelledby="phoneDemoTabHome">
+                    <div class="notch"></div>
+                    <div class="app-title"><span>CalorieAI</span><span id="phoneDemoTitle" data-demo-role="title">首页</span></div>
+
+                    <div class="phone-demo-home-view">
+                    <div class="p-card p-calendar phone-demo-clickable" data-demo-action="calendar" role="button" tabindex="0" aria-label="展开日期选择器">
+                      <div class="p-calendar-date"><b id="phoneDemoWeekday" data-demo-role="weekday">周五</b><strong id="phoneDemoDate" data-demo-role="date">09-18</strong><span id="phoneDemoRelative" data-demo-role="relative">（今天）</span></div><span class="p-chevron" aria-hidden="true">⌄</span>
+                    </div>
+
+                    <div class="p-card phone-demo-clickable" data-demo-action="overview" role="button" tabindex="0" aria-label="查看今日概览">
+                      <div class="p-card-head"><div class="p-label">今日摄入</div><span class="p-chevron" aria-hidden="true">›</span></div>
+                      <div class="p-nums">
+                        <div class="p-num p-calorie-box"><b>0</b><span>已摄入</span></div>
+                        <div class="p-num p-calorie-box"><b>2 400</b><span>目标</span></div>
+                        <div class="p-num p-calorie-box"><b class="accent">2 400</b><span>剩余</span></div>
+                      </div>
+                      <div class="p-bar"><i style="width:0%"></i></div>
+                      <div class="p-encouragement"><span aria-hidden="true">🎯</span> 保持专注，目标就在前方</div>
+                    </div>
+
+                    <div class="p-empty-state" aria-label="暂无饮食记录">
+                      <svg class="p-empty-state-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h2v7h1V3h2v7h1V3h2v7c0 1.95-1.27 3.51-3 3.95V21h-2v-7.05C8.27 13.51 7 11.95 7 10V3zm10 0c-2.21 0-4 1.79-4 4v4h2v10h2V3z"/></svg>
+                      <b>暂无记录</b>
+                      <span>点击右下角按钮添加记录</span>
+                    </div>
+                    </div>
+
+                    <div class="phone-demo-panel" id="phoneDemoPanel" data-demo-role="panel" hidden></div>
+                    <div class="phone-demo-sheet" id="phoneDemoSheet" data-demo-role="sheet" hidden role="dialog" aria-modal="true" aria-label="新增记录">
+                      <div class="phone-demo-sheet-head"><b>新增记录</b><button type="button" class="phone-demo-close" data-demo-close aria-label="关闭新增记录">×</button></div>
+                      <div class="phone-demo-entry-list">
+                        <button type="button" data-demo-entry="AI 智能识别"><span class="phone-demo-entry-icon">AI</span><span><b>AI 智能识别</b><small>拍照、文字或语音输入</small></span><span class="phone-demo-arrow">›</span></button>
+                        <button type="button" data-demo-entry="手动录入"><span class="phone-demo-entry-icon">＋</span><span><b>手动录入</b><small>手动填写食物与热量</small></span><span class="phone-demo-arrow">›</span></button>
+                        <button type="button" data-demo-entry="记录体重"><span class="phone-demo-entry-icon">kg</span><span><b>记录体重</b><small>记录当前体重数值</small></span><span class="phone-demo-arrow">›</span></button>
+                      </div>
+                    </div>
+                    <div class="phone-demo-feedback" id="phoneDemoFeedback" data-demo-role="feedback" role="status" aria-live="polite" hidden></div>
+                    <button type="button" class="p-fab p-fab-stats" data-demo-action="overview" aria-label="概览统计">▥</button>
+                    <button type="button" class="p-fab" id="phoneDemoFab" data-demo-role="fab" aria-label="新增记录" aria-expanded="false">+</button>
+                    <nav class="p-nav" aria-label="应用预览导航">
+                      <button type="button" class="on" aria-pressed="true" data-demo-tab="home"><span class="p-nav-icon" aria-hidden="true">⌂</span><span>首页</span></button>
+                      <button type="button" aria-pressed="false" data-demo-tab="recipe"><span class="p-nav-icon" aria-hidden="true">☆</span><span>菜谱</span></button>
+                      <button type="button" aria-pressed="false" data-demo-tab="overview"><span class="p-nav-icon" aria-hidden="true">▥</span><span>概览</span></button>
+                      <button type="button" aria-pressed="false" data-demo-tab="profile"><span class="p-nav-icon" aria-hidden="true">○</span><span>我的</span></button>
+                    </nav>
+                  </div>
+                </div>
+              </div>
+
+              <button type="button" class="phone-demo-hotspot" id="phoneDemoHotspot" data-demo-role="hotspot" data-demo-action="overview" aria-label="查看今日概览">
+                <span id="phoneDemoHotspotNo" data-demo-role="hotspot-no">1</span><em id="phoneDemoHotspotLabel" data-demo-role="hotspot-label">今日概览</em>
+              </button>
+              <div class="phone-demo-linkage" aria-live="polite">
+                <span>当前界面</span><b id="phoneDemoCurrent" data-demo-role="current">首页</b><i aria-hidden="true"></i><span>关联界面</span><b id="phoneDemoRelated" data-demo-role="related">详细统计</b>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- 功能四组 -->
+      <div class="section">
+        <div class="wrap">
+          <div class="section-head">
+            <div class="kicker">核心功能</div>
+            <h2>日常记录的核心功能</h2>
+            <p class="lede">覆盖饮食录入、模型配置、健康指标追踪与本地数据管理。</p>
+          </div>
+
+          <div class="grid-2">
+            <div class="feature-card">
+              <div class="fc-icon tint-blue">🍜</div>
+              <h3>饮食记录</h3>
+              <p>可通过文字描述、拍照或语音输入，由 AI 估算食材热量与营养成分；不使用 AI 时也可以手动录入。</p>
+              <ul>
+                <li>提供文字、拍照与语音三种 AI 记录方式</li>
+                <li>追踪蛋白质、碳水、脂肪等 13 项营养指标</li>
+                <li>按早、中、晚、加餐分类记录</li>
+                <li>常用菜谱可加入收藏，后续一键记入</li>
+              </ul>
+            </div>
+
+            <div class="feature-card">
+              <div class="fc-icon tint-purple">✦</div>
+              <h3>AI 助手与模型配置</h3>
+              <p>提供对话式营养助手，结合饮食记录与健康目标给出建议；允许自定义模型服务商，密钥在本地加密保存。</p>
+              <ul>
+                <li>兼容 OpenAI、Claude、Kimi、GLM、Qwen、DeepSeek、Gemini、LongCat 八种协议</li>
+                <li>流式输出，逐字实时显示回复</li>
+                <li>具备多会话管理能力，可置顶、清空或删除</li>
+                <li>记录调用次数、Token 用量与响应耗时</li>
+              </ul>
+            </div>
+
+            <div class="feature-card">
+              <div class="fc-icon tint-green">⚖️</div>
+              <h3>健康追踪</h3>
+              <p>整合体重、饮水与运动记录，结合基础代谢计算每日热量平衡。</p>
+              <ul>
+                <li>体重记录与历史趋势回顾</li>
+                <li>自定义饮水目标（1200–5000 毫升）与快捷加水</li>
+                <li>预置 29 种运动类型，按时长估算消耗热量</li>
+                <li>基于 Mifflin-St Jeor 公式计算 BMR 与 TDEE</li>
+              </ul>
+            </div>
+
+            <div class="feature-card">
+              <div class="fc-icon tint-cyan">🗄️</div>
+              <h3>数据管理</h3>
+              <p>所有记录均保存在手机本地数据库中，可随时导出备份文件，方便换机迁移与存档。</p>
+              <ul>
+                <li>基于 Room 本地数据库，离线可用</li>
+                <li>一键导出 JSON 格式备份文件</li>
+                <li>提供 WebDAV 协议云端备份与恢复</li>
+                <li>恢复前可查看数据预览，分为全量覆盖与合并导入</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 隐私区 -->
+      <div class="section">
+        <div class="wrap">
+          <div class="privacy-banner">
+            <div>
+              <h3>数据保留在手机本地</h3>
+              <p>CalorieAI 不设账号系统，没有用于收集用户数据的中心服务器。饮食、体重、对话等记录均保存在手机本地 Room 数据库中；AI 密钥通过系统级加密落盘；备份与导出完全由用户自主操作。</p>
+            </div>
+            <div class="privacy-points">
+              <div class="privacy-point">
+                <div class="pp-ico">🔒</div>
+                <div><b>健康数据留在本机</b><span>记录保存在手机本地数据库，不上传到任何服务器。</span></div>
+              </div>
+              <div class="privacy-point">
+                <div class="pp-ico">🔑</div>
+                <div><b>API 密钥本地加密</b><span>密钥经 Android KeyStore 的 AES-GCM 加密后落盘，源码中不内置任何密钥。</span></div>
+              </div>
+              <div class="privacy-point">
+                <div class="pp-ico">📤</div>
+                <div><b>备份由用户触发</b><span>云备份使用自主配置的 WebDAV 地址与凭据，不会自动静默上传。</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 系统要求条 -->
+      <div class="sysbar">
+        <div class="sysbar-inner">
+          <span><b>系统要求</b>Android 8.0 及以上</span>
+          <span><b>安装包</b><span data-apk-size>约 363 MiB</span>（内置离线语音识别模型，以下载页为准）</span>
+          <span><b>完整性</b>提供 SHA-256 校验值</span>
+          <span><b>下载限制</b>同时仅允许一个下载任务</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= 功能介绍 ======================= -->
+    <section class="view" id="view-features">
+      <div class="section">
+        <div class="wrap">
+
+          <div class="section-head">
+            <div class="kicker">功能详解</div>
+            <h2>功能模块说明</h2>
+            <p class="lede">介绍界面结构、数据存储位置与可选功能，所有说明与当前发布版本保持一致。</p>
+          </div>
+
+          <!-- 01 工作台 -->
+          <div class="chapter">
+            <div class="chapter-no"><span class="ch-title">工作台</span><div class="ch-sub">由四个核心页面构成。</div></div>
+            <div class="chapter-body">
+              <h3>首页 · 菜谱 · 概览 · 我的</h3>
+              <p>底部导航包含四个页面。<strong>首页</strong>展示每日收支与明细：顶部为可切换日期的日历，中间为摄入概览卡片，列出「已摄入 / 目标 / 剩余」三组数值与进度条，标题随日期动态切换：当日为「今日摄入」，切换至既往日期为「昨日摄入」，切换至未来日期则为「明日目标」。下方依序展示当天的饮食与运动明细，支持左滑编辑或删除。</p>
+              <p><strong>菜谱</strong>页用于管理常用食物：将核对过的菜品加入收藏后，可在「快捷复用」中按餐次筛选并一键「加入今日」，无需重复输入。每条菜谱均显示对应热量与累计使用次数。</p>
+              <p><strong>概览</strong>页用于查看中长期趋势与综合统计，主要分为六个部分：</p>
+              <ul class="spec-list">
+                <li><span class="k">本月活跃度</span><span class="v">12 周打卡热力图，展示每日打卡分布，并统计连续记录天数与月度活跃度。</span></li>
+                <li><span class="k">本月总结</span><span class="v">汇总当月摄入总热量、运动消耗与体重变化。</span></li>
+                <li><span class="k">数据速览</span><span class="v">集中查看今日摄入、饮水、当前体重与运动消耗四项指标。</span></li>
+                <li><span class="k">连续记录成长</span><span class="v">本周记录目标、已连续记录天数与成就徽章。</span></li>
+                <li><span class="k">菜谱相关统计</span><span class="v">已有食材、收藏数量、复用次数与临期食材提醒。</span></li>
+                <li><span class="k">快捷入口</span><span class="v">直达详细统计、体重历史和健康目标。</span></li>
+              </ul>
+              <p><strong>我的</strong>页用于管理个人身体档案、应用设置与数据备份，具体选项在后文展开说明。</p>
+              <div class="callout">在「我的 → 界面外观」中可开启简洁模式，仅保留首页与我的两项页面，详见第 08 节。</div>
+            </div>
+          </div>
+
+          <!-- 02 饮食记录 -->
+          <div class="chapter">
+            <div class="chapter-no"><span class="ch-title">饮食记录</span><div class="ch-sub">提供三种 AI 识别方式与手动录入。</div></div>
+            <div class="chapter-body">
+              <h3>录入方式与识别流程</h3>
+              <p>点击首页右下角「+」号，可选择<strong>AI 智能识别</strong>或<strong>手动录入</strong>。</p>
+              <p>进入 AI 识别后，可从三种输入方式中选择：<strong>文本描述</strong>直接输入食材与分量（如「番茄炒蛋，番茄150g，鸡蛋2个，油10g」），分量写得越明确，估算结果越贴近实际；<strong>拍照识别</strong>直接拍摄食物由多模态模型分析，并可补充文字备注；<strong>语音输入</strong>由安装包内置的离线语音模型完成转写并交由 AI 分析，录音无需上传至第三方云端。</p>
+              <p>识别完成后进入记录详情页，展示总热量及三大宏量营养素，并细化列出膳食纤维、糖、饱和脂肪、钠、胆固醇、钙、铁、钾、维生素 A、维生素 C 等 <strong>13 项营养指标</strong>与食材明细。所有数值均可手动修改，也可让 AI 重新生成。确认无误后选择餐次（早餐、午餐、晚餐、加餐）即可保存。</p>
+              <p>若无需 AI 辅助，可选择<strong>手动录入</strong>。只填写食物名称与热量即可保存，营养成分与备注均为选填项；录入的菜品同样能加入菜谱中心，方便后续复用。</p>
+              <p>在首页列表中，<strong>向左滑动</strong>任一记录即可进行编辑或删除，删除前会二次确认以防误触。</p>
+              <ul class="spec-list">
+                <li><span class="k">输入方式</span><span class="v">文本描述 / 拍照识别 / 语音输入（AI），纯手动录入</span></li>
+                <li><span class="k">营养追踪</span><span class="v"><strong>13 项指标</strong>：三大营养素 + 膳食纤维、糖、饱和脂肪、钠、胆固醇、钙、铁、钾、维生素 A、维生素 C</span></li>
+                <li><span class="k">餐次</span><span class="v">早餐、午餐、晚餐、加餐</span></li>
+                <li><span class="k">整理</span><span class="v">左滑编辑 / 删除；收藏菜谱后一键复用</span></li>
+                <li><span class="k">食材库存</span><span class="v">记录现有食材种类、数量与保质期，临期时自动发出提醒</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- 03 体重记录 -->
+          <div class="chapter">
+            <div class="chapter-no"><span class="ch-title">体重记录</span><div class="ch-sub">记录数值与可选备注。</div></div>
+            <div class="chapter-body">
+              <h3>记录与趋势跟踪</h3>
+              <p>输入<strong>体重（公斤）</strong>并选择日期，可添加「晨起空腹」等可选备注，保存即完成记录。</p>
+              <p>点击「查看历史记录」可浏览或删除历史记录。体重数据将同步计入统计页中的<strong>体重变化趋势</strong>与 <strong>BMI 趋势</strong>图表，并呈现在概览页的当前指标中，同时为 AI 助手的饮食建议提供参考。</p>
+              <div class="callout warn">应用内没有单独的「目标体重」追踪项。设定健康目标时填写的目标体重用于引导阶段的方向选择与预计周期估算，日常以记录和趋势为主。</div>
+            </div>
+          </div>
+
+          <!-- 04 饮水与运动 -->
+          <div class="chapter">
+            <div class="chapter-no"><span class="ch-title">饮水与运动</span><div class="ch-sub">日常水分补充与热量消耗记录。</div></div>
+            <div class="chapter-body">
+              <h3>饮水管理与运动消耗</h3>
+              <p><strong>饮水记录</strong>以毫升为单位。目标量默认为 2000 毫升，支持在 1200–5000 毫升范围内自定义或参考系统推荐值；支持 100、200、250、300、500 毫升快捷加水与自定义输入，并可设置按时段喝水提醒。</p>
+              <p><strong>运动记录</strong>内置 29 种运动分类，涵盖跑步、骑行、游泳、力量训练等。输入时长（分钟）后，系统可自动估算消耗热量，也支持手动填写精确数值。所有运动消耗均计入当日总热量支出。</p>
+              <ul class="spec-list">
+                <li><span class="k">饮水目标</span><span class="v">1200–5000 毫升，默认 2000，可参考推荐值</span></li>
+                <li><span class="k">快捷加水</span><span class="v">100 / 200 / 250 / 300 / 500 毫升，或自定义</span></li>
+                <li><span class="k">运动类型</span><span class="v">29 种，覆盖日常与训练场景</span></li>
+                <li><span class="k">消耗估算</span><span class="v">按时长自动估算，也可手动填写</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- 05 每日统计 -->
+          <div class="chapter">
+            <div class="chapter-no"><span class="ch-title">每日统计</span><div class="ch-sub">当日汇总、趋势变化与月度总结。</div></div>
+            <div class="chapter-body">
+              <h3>多维度统计与分析</h3>
+              <p>统计页面包含三个标签页。<strong>概览统计</strong>汇总当日数据：摄入与目标差值、基础代谢与总消耗、净摄入量、餐次热量分布、达标天数统计，以及 13 项营养成分的详细摄入情况。</p>
+              <p><strong>趋势分析</strong>支持按日、周、月三种粒度查看，时间跨度覆盖近 7 天至近 6 个月，可切换热量摄入、运动消耗、体重、BMI 与饮水五类趋势图表。</p>
+              <p><strong>上月总结</strong>以月度为周期生成汇总：包含有效记录天数、最高摄入日、目标达成率、餐次热量占比、运动总消耗与体重变化幅度。</p>
+              <p>若开启<strong>简洁模式</strong>，统计页面将精简为三张核心卡片：近七日摄入柱状图、今日消耗（基础代谢与活动消耗）以及近期体重变化。</p>
+              <ul class="spec-list">
+                <li><span class="k">概览统计</span><span class="v">今日摄入状态、餐次分布、达标统计、连续记录、13 项营养素</span></li>
+                <li><span class="k">趋势分析</span><span class="v">热量 / 运动 / 体重 / BMI / 饮水五类趋势，按天·周·月切换</span></li>
+                <li><span class="k">上月总结</span><span class="v">记录天数、最高日摄入、达标率、运动与体重月报</span></li>
+                <li><span class="k">活跃热力图</span><span class="v">12 周打卡热力图，展示连续记录情况</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- 06 AI 配置 -->
+          <div class="chapter">
+            <div class="chapter-no"><span class="ch-title">AI 配置</span><div class="ch-sub">自主接入模型服务商与端点。</div></div>
+            <div class="chapter-body">
+              <h3>服务商协议与自定义配置</h3>
+              <p>CalorieAI 不绑定特定模型服务商，亦不内置任何生产 API 密钥。首次启动会自动生成一条指向项目方中转服务的「GPT-5.6 Luna (默认)」配置。在「我的 → AI 配置」中点击「添加新的 AI 配置」，填写以下字段即可接入自主账号：</p>
+              <ul class="spec-list">
+                <li><span class="k">协议格式</span><span class="v">OpenAI、Claude（Anthropic）、Kimi、GLM、Qwen、DeepSeek、Gemini、LongCat 八选一</span></li>
+                <li><span class="k">API 地址</span><span class="v">官方端点或兼容自建端点；默认配置预填项目方中转服务地址</span></li>
+                <li><span class="k">API 密钥</span><span class="v">由服务商平台控制台提供</span></li>
+                <li><span class="k">模型 ID</span><span class="v">服务商支持的模型标识</span></li>
+                <li><span class="k">图像理解</span><span class="v">开启后拍照识别使用多模态模型</span></li>
+              </ul>
+              <p>配置支持添加多条并随时切换。每项配置均提供<strong>「测试连接」</strong>功能，发起验证请求并在界面返回连接状态。应用内置了 4 条<strong>「GPT-5.6 Luna」预设模板</strong>（拍照、对话、思考、文本），采用 OpenAI 兼容协议。预设模板不含内置密钥，需在任意配置中填入有效的 API Key 后方可使用。</p>
+              <p>为防止过度调用，默认<strong>单条配置每日上限 50 次</strong>，输入框实时显示当日剩余可用次数。「模型调用统计」页面完整记录调用日志：包含总请求量、成功率、输入与输出 Token 数、响应耗时及预估费用。</p>
+              <div class="callout">网络请求路径说明：<strong>自定义配置直接连接用户配置的 API 端点</strong>；默认的「GPT-5.6 Luna」配置与预设将请求发送至项目方中转服务 <code class="code-pill">oneapi.sxyq27.online</code>，并由其转发至上游模型。如需完全直连，可直接配置自有端点地址与密钥。</div>
+            </div>
+          </div>
+
+          <!-- 07 本地密钥保存 -->
+          <div class="chapter">
+            <div class="chapter-no"><span class="ch-title">本地密钥保存</span><div class="ch-sub">经由系统硬件级密钥库加密后落盘。</div></div>
+            <div class="chapter-body">
+              <h3>密钥存储与加密机制</h3>
+              <p>填写的 API 密钥不会以明文写入数据库。保存时，系统在 <strong>Android KeyStore</strong> 中生成专属密钥，使用 <strong>AES/GCM</strong> 算法对密钥加密后存入本地数据库。密文字符串带有 <code class="code-pill">enc:v1:</code> 前缀，仅在内存发起请求时解密使用，磁盘不存明文。</p>
+              <p>KeyStore 密钥不可导出，其他应用亦无法访问。导出备份时，AI 配置默认以<strong>已加密状态</strong>写入 JSON 文件；也可在导出时取消勾选「包含 AI 配置」，使导出的备份文件不含任何密钥数据。</p>
+              <ul class="spec-list">
+                <li><span class="k">加密方式</span><span class="v">Android KeyStore + AES/GCM（NoPadding）</span></li>
+                <li><span class="k">存储位置</span><span class="v">手机本地数据库 <code class="code-pill">ai_configs</code> 表</span></li>
+                <li><span class="k">密文标识</span><span class="v"><code class="code-pill">enc:v1:</code> 前缀，读取时解密、永不回显明文入库</span></li>
+                <li><span class="k">源码审计</span><span class="v">代码仓库不含任何内置生产密钥</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- 08 简洁模式 -->
+          <div class="chapter">
+            <div class="chapter-no"><span class="ch-title">简洁模式</span><div class="ch-sub">精简页面层级与核心视图。</div></div>
+            <div class="chapter-body">
+              <h3>界面精简与保留功能</h3>
+              <p>开启「我的 → 界面外观 → 简洁模式」后，应用收敛为<strong>首页</strong>与<strong>我的</strong>两个主页面。隐藏菜谱、概览、饮水、运动、AI 对话及拍照识别，底栏字号与图标相应放大，便于直观操作。</p>
+              <p>统计页面精简为三张核心卡片：近七日摄入柱状图、今日消耗（基础代谢与活动消耗）以及近期体重变化。</p>
+              <p>该模式适合仅需基础热量记账的使用场景。设置即时生效，切换回完整模式后所有隐藏模块与历史数据均不受影响。</p>
+              <ul class="spec-list">
+                <li><span class="k">开关位置</span><span class="v">我的 → 界面外观 → 显示模式 → 简洁模式</span></li>
+                <li><span class="k">保留功能</span><span class="v">首页、我的、饮食记录、体重记录、核心统计</span></li>
+                <li><span class="k">隐藏功能</span><span class="v">菜谱、概览、饮水、运动、AI 助手、拍照识别</span></li>
+                <li><span class="k">默认状态</span><span class="v">关闭。开关即时生效，随时可切回完整模式</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- 09 备份与恢复 -->
+          <div class="chapter">
+            <div class="chapter-no"><span class="ch-title">备份与恢复</span><div class="ch-sub">本地文件导出与 WebDAV 云端备份。</div></div>
+            <div class="chapter-body">
+              <h3>备份方式与数据恢复</h3>
+              <p>在「我的 → 备份」中提供两种备份途径。<strong>本地备份</strong>将全部数据导出为 JSON 格式文件（命名为 <code class="code-pill">calorieai_backup_时间戳.json</code>），保存路径由系统文件选择器指定，支持勾选是否包含已加密的 AI 配置。</p>
+              <p><strong>WebDAV 云备份</strong>支持配置自定义服务器地址、目录、文件名及账号密码（建议使用应用专用密码），可直接上传备份并在更换设备后从云端拉取恢复。支持坚果云、Nextcloud 等通用 WebDAV 服务，应用不经由第三方服务器中转凭据。</p>
+              <p>恢复前系统会展示<strong>恢复预览</strong>：包含备份生成时间、各类记录条数及导入方式判断。确认时提供两种恢复模式：</p>
+              <ul class="spec-list">
+                <li><span class="k">全量覆盖</span><span class="v">先清空当前记录，再按备份完整重建。备份中包含的数据项会被完全替换。</span></li>
+                <li><span class="k">合并导入</span><span class="v">保留当前数据并导入备份内容；相同 ID 的记录会被更新，其余记录原样保留。</span></li>
+              </ul>
+              <div class="callout warn">「全量覆盖」将先清空本地现有数据后再写入备份内容。执行前请确认当前设备无未备份的必要记录。</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= 界面展示 ======================= -->
+    <section class="view" id="view-showcase">
+      <div class="section">
+        <div class="wrap">
+
+          <div class="section-head">
+            <div class="kicker">界面展示</div>
+            <h2>界面交互展示</h2>
+            <p class="lede">演示区域按实际页面布局呈现，展示首页、菜谱、概览与我的四大主屏结构。深色模式跟随系统设置切换。</p>
+          </div>
+
+          <section class="hero-preview phone-demo showcase-demo" aria-labelledby="showcaseDemoHeading">
+            <div class="hero-demo-copy">
+              <div class="hero-demo-count"><strong data-demo-role="index">01</strong><span>/ 04</span></div>
+              <div>
+                <p class="hero-demo-kicker" data-demo-role="route">首页 · 今日记录</p>
+                <h2 id="showcaseDemoHeading" data-demo-role="heading">当日热量收支集中在首屏</h2>
+                <p data-demo-role="description">包含日期切换、热量收支、饮食明细与饮水卡片。点击日期、记录或标记可查看关联详情。</p>
+              </div>
+            </div>
+
+            <div class="phone-demo-rail" role="tablist" aria-label="选择 App 界面">
+              <button type="button" role="tab" id="showcaseDemoTabHome" class="phone-demo-pick on" aria-selected="true" aria-controls="showcaseDemoScreen" tabindex="0" data-demo-tab="home">
+                <span class="phone-demo-pick-no">01</span><span><b>首页</b><small>今日记录</small></span>
+              </button>
+              <button type="button" role="tab" id="showcaseDemoTabRecipe" class="phone-demo-pick" aria-selected="false" aria-controls="showcaseDemoScreen" tabindex="-1" data-demo-tab="recipe">
+                <span class="phone-demo-pick-no">02</span><span><b>菜谱</b><small>收藏与复用</small></span>
+              </button>
+              <button type="button" role="tab" id="showcaseDemoTabOverview" class="phone-demo-pick" aria-selected="false" aria-controls="showcaseDemoScreen" tabindex="-1" data-demo-tab="overview">
+                <span class="phone-demo-pick-no">03</span><span><b>概览</b><small>趋势与统计</small></span>
+              </button>
+              <button type="button" role="tab" id="showcaseDemoTabProfile" class="phone-demo-pick" aria-selected="false" aria-controls="showcaseDemoScreen" tabindex="-1" data-demo-tab="profile">
+                <span class="phone-demo-pick-no">04</span><span><b>我的</b><small>资料与设置</small></span>
+              </button>
+            </div>
+
+            <div class="phone-demo-stage">
+              <div class="phone-demo-stage-label" aria-hidden="true">CALORIEAI / ANDROID</div>
+              <div class="hero-phone">
+                <div class="phone">
+                  <div class="screen" id="showcaseDemoScreen" data-demo-role="screen" role="tabpanel" aria-labelledby="showcaseDemoTabHome">
+                    <div class="notch"></div>
+                    <div class="app-title"><span>CalorieAI</span><span data-demo-role="title">首页</span></div>
+
+                    <div class="phone-demo-home-view">
+                    <div class="p-card p-calendar phone-demo-clickable" data-demo-action="calendar" role="button" tabindex="0" aria-label="展开日期选择器">
+                      <div class="p-calendar-date"><b data-demo-role="weekday">周五</b><strong data-demo-role="date">09-18</strong><span data-demo-role="relative">（今天）</span></div><span class="p-chevron" aria-hidden="true">⌄</span>
+                    </div>
+
+                    <div class="p-card phone-demo-clickable" data-demo-action="overview" role="button" tabindex="0" aria-label="查看今日概览">
+                      <div class="p-card-head"><div class="p-label">今日摄入</div><span class="p-chevron" aria-hidden="true">›</span></div>
+                      <div class="p-nums">
+                        <div class="p-num p-calorie-box"><b>0</b><span>已摄入</span></div>
+                        <div class="p-num p-calorie-box"><b>2 400</b><span>目标</span></div>
+                        <div class="p-num p-calorie-box"><b class="accent">2 400</b><span>剩余</span></div>
+                      </div>
+                      <div class="p-bar"><i style="width:0%"></i></div>
+                      <div class="p-encouragement"><span aria-hidden="true">🎯</span> 保持专注，目标就在前方</div>
+                    </div>
+
+                    <div class="p-empty-state" aria-label="暂无饮食记录">
+                      <svg class="p-empty-state-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h2v7h1V3h2v7h1V3h2v7c0 1.95-1.27 3.51-3 3.95V21h-2v-7.05C8.27 13.51 7 11.95 7 10V3zm10 0c-2.21 0-4 1.79-4 4v4h2v10h2V3z"/></svg>
+                      <b>暂无记录</b>
+                      <span>点击右下角按钮添加记录</span>
+                    </div>
+                    </div>
+
+                    <div class="phone-demo-panel" data-demo-role="panel" hidden></div>
+                    <div class="phone-demo-sheet" data-demo-role="sheet" hidden role="dialog" aria-modal="true" aria-label="新增记录">
+                      <div class="phone-demo-sheet-head"><b>新增记录</b><button type="button" class="phone-demo-close" data-demo-close aria-label="关闭新增记录">×</button></div>
+                      <div class="phone-demo-entry-list">
+                        <button type="button" data-demo-entry="AI 智能识别"><span class="phone-demo-entry-icon">AI</span><span><b>AI 智能识别</b><small>拍照、文字或语音输入</small></span><span class="phone-demo-arrow">›</span></button>
+                        <button type="button" data-demo-entry="手动录入"><span class="phone-demo-entry-icon">＋</span><span><b>手动录入</b><small>手动填写食物与热量</small></span><span class="phone-demo-arrow">›</span></button>
+                        <button type="button" data-demo-entry="记录体重"><span class="phone-demo-entry-icon">kg</span><span><b>记录体重</b><small>记录当前体重数值</small></span><span class="phone-demo-arrow">›</span></button>
+                      </div>
+                    </div>
+                    <div class="phone-demo-feedback" data-demo-role="feedback" role="status" aria-live="polite" hidden></div>
+                    <button type="button" class="p-fab p-fab-stats" data-demo-action="overview" aria-label="概览统计">▥</button>
+                    <button type="button" class="p-fab" data-demo-role="fab" aria-label="新增记录" aria-expanded="false">+</button>
+                    <nav class="p-nav" aria-label="应用预览导航">
+                      <button type="button" class="on" aria-pressed="true" data-demo-tab="home"><span class="p-nav-icon" aria-hidden="true">⌂</span><span>首页</span></button>
+                      <button type="button" aria-pressed="false" data-demo-tab="recipe"><span class="p-nav-icon" aria-hidden="true">☆</span><span>菜谱</span></button>
+                      <button type="button" aria-pressed="false" data-demo-tab="overview"><span class="p-nav-icon" aria-hidden="true">▥</span><span>概览</span></button>
+                      <button type="button" aria-pressed="false" data-demo-tab="profile"><span class="p-nav-icon" aria-hidden="true">○</span><span>我的</span></button>
+                    </nav>
+                  </div>
+                </div>
+              </div>
+
+              <button type="button" class="phone-demo-hotspot" data-demo-role="hotspot" data-demo-action="overview" aria-label="查看今日概览">
+                <span data-demo-role="hotspot-no">1</span><em data-demo-role="hotspot-label">今日概览</em>
+              </button>
+              <div class="phone-demo-linkage" aria-live="polite">
+                <span>当前界面</span><b data-demo-role="current">首页</b><i aria-hidden="true"></i><span>关联界面</span><b data-demo-role="related">详细统计</b>
+              </div>
+            </div>
+          </section>
+
+          <p class="preview-note">该演示同步展示各页面的卡片布局与交互流程；数据均为演示样本。</p>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= 下载 ======================= -->
+    <section class="view" id="view-download">
+      <div class="section">
+        <div class="wrap">
+
+          <div class="section-head">
+            <div class="kicker">下载应用</div>
+            <h2>下载与安装</h2>
+            <p class="lede">安装包由官方发布。版本号、文件大小与 SHA-256 校验值读取自线上版本清单，发布更新后自动同步。</p>
+          </div>
+
+          <div class="download-layout">
+
+            <!-- 左：版本信息卡 -->
+            <div class="dl-card">
+              <h3>当前稳定版</h3>
+              <p class="dl-sub">版本信息读取自 <code class="code-pill">/android/stable/latest.json</code></p>
+
+              <!-- 清单读取状态：加载中 -->
+              <div class="manifest-state" id="manifestLoading">
+                <div class="state-loading">
+                  <div class="sl-line" style="width:38%"></div>
+                  <div class="sl-line" style="width:86%"></div>
+                  <div class="sl-line" style="width:70%"></div>
+                  <div class="sl-line" style="width:52%"></div>
+                  <div class="sl-text">正在读取版本信息…</div>
+                </div>
+              </div>
+
+              <!-- 清单读取状态：失败 -->
+              <div class="manifest-state" id="manifestError" hidden>
+                <div class="state-error">
+                  <b>未能获取版本信息</b>
+                  <p id="manifestErrorDetail">未能读取到有效的版本清单。可能是网络异常或发布服务正在维护。未获取完整版本信息前，下载暂不开放。</p>
+                  <button class="btn" id="manifestRetry" type="button">重试</button>
+                </div>
+              </div>
+
+              <!-- 清单读取状态：就绪 -->
+              <div id="manifestReady" hidden>
+                <ul class="version-table">
+                  <li><span class="k">版本号</span><span class="v" id="vName">—</span></li>
+                  <li><span class="k">内部版本号</span><span class="v dim" id="vCode">—</span></li>
+                  <li><span class="k">安装包大小</span><span class="v dim" id="vSize">—</span></li>
+                  <li><span class="k">最低可覆盖版本</span><span class="v dim" id="vMin">—</span></li>
+                </ul>
+
+                <div style="margin-top:18px">
+                  <button class="btn btn-primary" id="dlButton" type="button" style="width:100%">下载 APK<span class="btn-note" id="dlButtonNote"></span></button>
+                  <p style="margin-top:10px;font-size:12.5px;color:var(--ink-faint)" id="dlButtonHint">点击后将检查下载通道状态，并弹出下载须知。</p>
+                </div>
+
+                <div style="margin-top:18px">
+                  <div style="font-size:13.5px;color:var(--ink-faint);margin-bottom:6px">SHA-256 校验值（下载后可比对）</div>
+                  <div class="sha-box">
+                    <code id="vSha">—</code>
+                    <button class="copy-btn" id="copySha" type="button">复制</button>
+                  </div>
+                </div>
+
+                <div style="margin-top:18px">
+                  <div style="font-size:13.5px;color:var(--ink-faint);margin-bottom:6px">更新说明</div>
+                  <div class="release-notes" id="vNotes">—</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 右：安装说明 + 更新说明 -->
+            <div style="display:grid;gap:24px">
+              <div class="dl-card">
+                <h3>安装说明</h3>
+                <p class="dl-sub">覆盖安装无需卸载旧版本，既有数据将完整保留。</p>
+                <ol class="steps">
+                  <li><b>下载 APK</b>点击「下载 APK」并在确认下载须知后开始。发布通道设有限额，如遇「当前网络繁忙」提示稍后重试即可。</li>
+                  <li><b>系统授权</b>若系统提示「安装未知应用」，前往系统设置允许当前浏览器安装应用后返回继续。</li>
+                  <li><b>完成安装</b>打开下载的 APK 文件，依提示确认安装。覆盖升级与应用内更新均会保留既有数据。</li>
+                </ol>
+                <div class="callout warn"><b>体积说明：</b>安装包<span data-apk-size>约 363 MiB</span>，体积主要来自内置的离线语音识别模型，用于在无网环境下保护语音隐私。下载前请确认存储空间与流量充裕。</div>
+              </div>
+
+              <div class="dl-card">
+                <h3>应用内更新说明</h3>
+                <p class="dl-sub">应用启动约 1 秒后自动检查最新版本，无需手动重复访问官网。</p>
+                <ul class="state-list">
+                  <li><span class="st-name">发现新版本<small>更新弹窗</small></span><span class="st-desc">展示新版本号、更新说明与文件大小。支持暂缓更新或立即下载。</span></li>
+                  <li><span class="st-name">下载中<small>进度提示</small></span><span class="st-desc">显示下载进度百分比、已下载大小与进度条；网络断开时提示等待连接。</span></li>
+                  <li><span class="st-name">校验<small>自动进行</small></span><span class="st-desc">下载完成后自动校验文件大小与 SHA-256，校验通过后提示可开始安装。</span></li>
+                  <li><span class="st-name">安装<small>系统确认</small></span><span class="st-desc">点击「安装更新」唤起系统安装界面；若未开启安装权限，将引导前往系统设置开启。</span></li>
+                  <li><span class="st-name">失败与重试<small>错误处理</small></span><span class="st-desc">出现校验失败、通道繁忙或网络异常时均提供重试入口；已通过校验的文件不会重复下载。</span></li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="callout safe" style="margin-top:24px"><b>安装要求：</b>系统为 Android 8.0 及以上 · 设备可用存储空间 ≥ 1 GiB · 安装包体积<span data-apk-size>约 363 MiB</span>。</div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= 更新记录 ======================= -->
+    <section class="view" id="view-changelog">
+      <div class="section">
+        <div class="wrap">
+
+          <div class="section-head">
+            <div class="kicker">更新记录</div>
+            <h2>版本演进与发布记录</h2>
+            <p class="lede">按发布节点记录主要功能与架构迭代。当前稳定版的具体变更以下载页的版本清单为准。</p>
+          </div>
+
+          <div class="timeline">
+
+            <div class="tl-item">
+              <div class="tl-head">
+                <h3>当前稳定版 · 1.3.x 系列</h3>
+                <span class="tl-badge">真机验收通过</span>
+                <span class="tl-date">2026-09-02 验证</span>
+              </div>
+              <p>完成更新全链路真机验收：涵盖检查版本、下载进度展示、SHA-256 完整性校验与覆盖安装，升级后既有数据完整保留。</p>
+              <ul>
+                <li><b>修复</b>从系统安装权限设置页返回后可能丢失下载状态的问题，现可自动识别已完成的安装包</li>
+                <li><b>修复</b>AI 会话或分析被取消后，结果仍写回界面的问题</li>
+                <li><b>修复</b>桌面小组件与主应用数据库配置不一致的问题</li>
+                <li><b>加固</b>本地构建不再内置默认生产 API Key；网络日志策略收紧，减少敏感信息暴露</li>
+              </ul>
+            </div>
+
+            <div class="tl-item muted">
+              <div class="tl-head">
+                <h3>工程化与稳定性节点</h3>
+                <span class="tl-badge prev">架构整理</span>
+              </div>
+              <p>优化底层架构与运行稳定性，完善基础服务与系统兼容性。</p>
+              <ul>
+                <li><b>新增</b>统一的首屏启动流程，依序处理引导判定、提醒同步与更新检查</li>
+                <li><b>新增</b>通知渠道集中管理，支持 Android 16 实时通知能力</li>
+                <li><b>升级</b>目标系统版本升至 Android 16（targetSdk 36），兼容最新系统行为</li>
+                <li><b>优化</b>数据导出改为并发采集以提升速度；统一主应用与小组件的数据库迁移逻辑</li>
+                <li><b>修复</b>数据库迁移中可能清空数据的隐患</li>
+              </ul>
+            </div>
+
+            <div class="tl-item muted">
+              <div class="tl-head">
+                <h3>功能扩展节点</h3>
+                <span class="tl-badge prev">大版本扩展</span>
+              </div>
+              <p>扩展饮食管理场景，新增菜谱管理、云端备份与图表分析能力。</p>
+              <ul>
+                <li><b>新增</b>收藏菜谱与快捷复用；食材库存管理，临期提醒</li>
+                <li><b>新增</b>WebDAV 云备份；智能恢复模式（全量覆盖 / 合并导入）与恢复预览</li>
+                <li><b>增强</b>饮水追踪与目标管理；更多尺寸的桌面小组件</li>
+                <li><b>增强</b>AI 文本与图片分析能力；新增 AI 调用统计</li>
+              </ul>
+            </div>
+
+            <div class="tl-item muted">
+              <div class="tl-head">
+                <h3>v1.0 · 首个公开版本</h3>
+                <span class="tl-badge prev">起点</span>
+              </div>
+              <p>首个正式公开版本，建立基础热量记录与本地存储架构。</p>
+              <ul>
+                <li><b>核心</b>AI 食物识别（文本 / 拍照 / 语音）与 13 种营养素追踪</li>
+                <li><b>核心</b>个性化营养参考值（BMR / TDEE）、运动记录、数据统计与可视化</li>
+                <li><b>核心</b>AI 营养助手与对话历史、本地备份与恢复</li>
+                <li><b>体验</b>桌面小组件、自定义主题、壁纸与基础动效</li>
+              </ul>
+            </div>
+
+          </div>
+
+          <div class="callout" style="margin-top:8px">应用默认开启启动时自动检查更新，有新版本时将自动弹窗提示。<a href="#download" data-nav>前往下载页 →</a></div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= 帮助文档 ======================= -->
+    <section class="view" id="view-help">
+      <div class="section">
+        <div class="wrap">
+
+          <div class="section-head">
+            <div class="kicker">帮助文档</div>
+            <h2>使用指南与常见问题</h2>
+            <p class="lede">包含基础功能上手指引与常见疑问解答，应用内使用手册与常见问题同步更新。</p>
+          </div>
+
+          <div class="help-grid">
+            <div class="help-card">
+              <h4>初次使用：设置身体档案</h4>
+              <p>新手引导将依序收集身体基本指标（性别、年龄、身高、体重）、日常活动量、健康目标及减增重节奏。系统基于 Mifflin-St Jeor 公式计算基础代谢（BMR）与每日建议摄入量，作为主页热量目标基准。后续可在「我的 → 个人信息」中随时调整。</p>
+            </div>
+            <div class="help-card">
+              <h4>记录第一餐</h4>
+              <p>在首页点击「+」按钮，选择「AI 智能识别」后输入文字、拍摄照片或语音录入。详细描述食材分量可提高估算准确度；在结果页核对数值并选择餐次后即可保存。若未配置模型，可直接使用「手动录入」。</p>
+            </div>
+            <div class="help-card">
+              <h4>接入自定义模型</h4>
+              <p>进入「我的 → AI 配置」点击「添加新的 AI 配置」，选择对应协议（支持 OpenAI、Claude、Kimi、GLM 等八类），填入 API 地址、密钥与模型 ID，点击「测试连接」测试可用性。若需使用拍照识别，请开启「图像理解」并选用支持视觉的模型。</p>
+            </div>
+            <div class="help-card">
+              <h4>数据备份与设备迁移</h4>
+              <p>在「我的 → 备份」中点击「创建备份」可导出 JSON 文件；或配置 WebDAV 后使用「上传云备份」。新设备安装后可从云端拉取，系统将提供数据预览并支持选择全量覆盖或合并导入。</p>
+            </div>
+            <div class="help-card">
+              <h4>启用简洁模式</h4>
+              <p>在「我的 → 界面外观」中开启「简洁模式」，界面将精简为首页与我的两页，放大字体与图标，隐藏扩展模块，仅保留核心记账与基础统计。关闭开关可随时切回完整版。</p>
+            </div>
+            <div class="help-card">
+              <h4>应用内自动更新</h4>
+              <p>应用启动约 1 秒后自动查询版本清单。检测到新版本将弹出更新提示，确认后自动下载、进行 SHA-256 完整性校验并调起系统安装更新。</p>
+            </div>
+          </div>
+
+          <div class="section-head">
+            <div class="kicker">常见问题</div>
+            <h2>常见问题解答</h2>
+          </div>
+
+          <div id="faqList">
+
+            <div class="faq-item">
+              <button class="faq-q" type="button">CalorieAI 免费吗？需要注册账号吗？<span class="faq-arrow">＋</span></button>
+              <div class="faq-a"><div class="faq-a-inner">
+                <p>应用免费、无广告，且无需注册账号。应用本身不设账号系统，数据全部保存在本地。AI 功能需接入有效 API Key，由此产生的 Token 费用由用户直接向对应模型服务商结算，应用本身不收取任何费用。</p>
+              </div></div>
+            </div>
+
+            <div class="faq-item">
+              <button class="faq-q" type="button">我的饮食和体重数据会被上传吗？<span class="faq-arrow">＋</span></button>
+              <div class="faq-a"><div class="faq-a-inner">
+                <p>不会。所有记录均保存在设备本地 Room 数据库中，项目不设中心数据服务器。应用仅在发起 AI 请求（分析食物、助手对话、测试连接）、自动检查版本清单，以及用户手动触发 WebDAV 云备份时向指定地址发起网络请求。</p>
+              </div></div>
+            </div>
+
+            <div class="faq-item">
+              <button class="faq-q" type="button">安装包为什么这么大？<span class="faq-arrow">＋</span></button>
+              <div class="faq-a"><div class="faq-a-inner">
+                <p>安装包体积主要由内置的离线语音识别模型（SenseVoice）构成。该模型在本地端侧运行，使语音输入无需依赖外网亦不上传录音数据。若不需要语音功能，应用亦支持纯文字或拍照记录。包体大小以当前下载页面标示为准。</p>
+              </div></div>
+            </div>
+
+            <div class="faq-item">
+              <button class="faq-q" type="button">没有配置 AI，能用吗？<span class="faq-arrow">＋</span></button>
+              <div class="faq-a"><div class="faq-a-inner">
+                <p>可以正常使用。手动记录饮食、体重、饮水、运动及数据统计、备份恢复等核心功能均不依赖 AI。文字描述估算与助手对话等 AI 特性则需在配置中填入有效 API Key 方可启用。</p>
+              </div></div>
+            </div>
+
+            <div class="faq-item">
+              <button class="faq-q" type="button">AI 估算的热量准不准？<span class="faq-arrow">＋</span></button>
+              <div class="faq-a"><div class="faq-a-inner">
+                <p>估算准确度受输入描述的具体程度与所用模型能力影响。尽可能注明食材种类与大致分量有助于获得更合理的估算值。所有 AI 估算数据在保存前均可手动修改，数值仅作为日常饮食记录参考，不构成医疗依据。</p>
+              </div></div>
+            </div>
+
+            <div class="faq-item">
+              <button class="faq-q" type="button">想换一家模型服务商，记录会丢吗？<span class="faq-arrow">＋</span></button>
+              <div class="faq-a"><div class="faq-a-inner">
+                <p>不会。模型配置与本地数据相互独立。在「AI 配置」中新增或切换服务商不会影响既有的饮食记录、体重数据、菜谱收藏与历史统计。</p>
+              </div></div>
+            </div>
+
+            <div class="faq-item">
+              <button class="faq-q" type="button">下载时提示「当前网络繁忙，请稍后重试」怎么回事？<span class="faq-arrow">＋</span></button>
+              <div class="faq-a"><div class="faq-a-inner">
+                <p>发布服务为保障带宽稳定设置了并发连接限制，同一时间仅处理单个下载请求。若收到 HTTP 429 繁忙提示，说明当前有正在进行的下载任务，稍候重试即可。该机制在官网下载与应用内更新中保持一致。</p>
+              </div></div>
+            </div>
+
+            <div class="faq-item">
+              <button class="faq-q" type="button">安装时提示「安装未知应用」被拦，怎么办？<span class="faq-arrow">＋</span></button>
+              <div class="faq-a"><div class="faq-a-inner">
+                <p>此提示为 Android 系统针对非应用商店来源安装包的系统安全防护。进入系统设置并允许当前使用的浏览器安装应用后返回，即可继续安装流程。安装完成后可随时在系统设置中撤销该权限。</p>
+              </div></div>
+            </div>
+
+            <div class="faq-item">
+              <button class="faq-q" type="button">简洁模式和完整模式具体差在哪？<span class="faq-arrow">＋</span></button>
+              <div class="faq-a"><div class="faq-a-inner">
+                <p>简洁模式仅保留首页与我的两项主视图，专注于饮食与体重记录及基础统计卡片，隐藏菜谱、概览、饮水、运动与 AI 相关模块，并适度放大界面字体。模式切换仅改变显示层级，既有数据均完整保留，可随时无损切回完整模式。</p>
+              </div></div>
+            </div>
+
+            <div class="faq-item">
+              <button class="faq-q" type="button">卸载重装或换手机，数据怎么办？<span class="faq-arrow">＋</span></button>
+              <div class="faq-a"><div class="faq-a-inner">
+                <p>应用数据存放于设备本地，卸载应用会导致本地数据库一并被系统清除。建议在更换设备或重装前，前往「我的 → 备份」导出 JSON 文件保存，或通过 WebDAV 上传云备份。后续可通过云端或文件导入恢复。直接覆盖升级（不卸载）则会保留全部数据。</p>
+              </div></div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= 隐私与安全 ======================= -->
+    <section class="view" id="view-privacy">
+      <div class="section">
+        <div class="wrap">
+
+          <div class="section-head">
+            <div class="kicker">隐私与安全</div>
+            <h2>数据存哪、发给谁、你怎么拿回来</h2>
+            <p class="lede">这一页不谈态度，只谈实现——每一条都对应代码里真实存在的机制，欢迎对照源码验证。</p>
+          </div>
+
+          <div class="chapter">
+            <div class="chapter-no"><span class="ch-title">数据存储说明</span><div class="ch-sub">一切记录的家，在你手机里。</div></div>
+            <div class="chapter-body">
+              <h3>本地数据库，不上传服务器</h3>
+              <p>饮食、体重、饮水、运动、AI 对话、收藏菜谱、食材库存、调用日志——全部记录保存在手机本地的 <strong>Room 数据库</strong>中，共 12 张表；应用设置（主题、简洁模式、各项目标）存在本地 DataStore。手机不联网，这些功能照常工作。</p>
+              <p>CalorieAI 没有账号体系，没有自己的数据服务器，因此也不存在「我们的数据库泄露了你的健康记录」这种风险面——数据从来没离开过你的设备，除非你亲手导出。</p>
+              <ul class="spec-list">
+                <li><span class="k">记录数据</span><span class="v">Room 本地数据库（12 张表：饮食、体重、饮水、运动、AI 配置、AI 对话、Token 用量、调用记录、收藏菜谱、食材库存、菜谱计划、用户设置）</span></li>
+                <li><span class="k">应用设置</span><span class="v">DataStore 本地键值存储</span></li>
+                <li><span class="k">账号体系</span><span class="v">无。不注册、不登录、不采集设备标识</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="chapter">
+            <div class="chapter-no"><span class="ch-title">网络请求说明</span><div class="ch-sub">手机什么时候会往外发东西。</div></div>
+            <div class="chapter-body">
+              <h3>只有三种情况</h3>
+              <ul class="spec-list">
+                <li><span class="k">AI 功能</span><span class="v">文本分析、拍照识别、AI 对话、连接测试。请求发往<strong>当前生效配置的 API 地址</strong>：自定义配置直连你填的地址；默认的「GPT-5.6 Luna」配置与预设发往项目方的中转服务 <code class="code-pill">oneapi.sxyq27.online</code>，食物描述、照片或对话内容会经由该服务转发到上游模型。在意中转环节的话，改用你自己的直连地址即可。</span></li>
+                <li><span class="k">更新检查</span><span class="v">应用启动后读取本站的版本清单（仅一个 JSON 文件，不含任何个人数据）。</span></li>
+                <li><span class="k">云备份</span><span class="v">仅当你手动点「上传云备份 / 从云端恢复」时，向<strong>你自己填写的 WebDAV 地址</strong>传输备份文件。</span></li>
+              </ul>
+              <p>除以上三项，应用不做任何网络请求——没有埋点、没有崩溃上报、没有广告 SDK。</p>
+            </div>
+          </div>
+
+          <div class="chapter">
+            <div class="chapter-no"><span class="ch-title">密钥与凭据</span><div class="ch-sub">钥匙加密后才落盘。</div></div>
+            <div class="chapter-body">
+              <h3>AI 密钥的保存方式</h3>
+              <p>你的 API 密钥在保存时经过 <strong>Android KeyStore + AES/GCM</strong> 加密（密文以 <code class="code-pill">enc:v1:</code> 标识），以密文形态存于本地数据库；KeyStore 密钥由系统硬件保护，不可导出、其他应用无法读取。使用时在内存中解密，不回写明文。</p>
+              <p>WebDAV 的地址与凭据保存在本地设置中，仅在你触发云备份时使用。应用源码中不含任何内置密钥或硬编码凭据，这一点可以直接审计仓库确认。</p>
+              <div class="callout safe"><b>导出备份时</b>，AI 配置默认随备份走且保持加密形态；如希望备份文件完全不包含密钥，导出时取消勾选「包含 AI 配置」即可。</div>
+            </div>
+          </div>
+
+          <div class="chapter">
+            <div class="chapter-no"><span class="ch-title">备份与恢复说明</span><div class="ch-sub">数据的去向，你来签字。</div></div>
+            <div class="chapter-body">
+              <h3>带走与找回</h3>
+              <p><strong>导出</strong>：一键生成 JSON 备份（<code class="code-pill">calorieai_backup_时间戳.json</code>），内含饮食、运动、体重、饮水、设置、收藏、库存、菜谱计划、AI 对话与调用日志，保存路径由你选择。</p>
+              <p><strong>云备份</strong>：WebDAV 协议，服务器地址、目录、文件名、凭据全部由你填写——坚果云、Nextcloud 或任何兼容网盘均可。应用不内置、不推荐、不代理任何云服务商。</p>
+              <p><strong>恢复</strong>：恢复前先看预览（备份日期、各类记录条数、每类是新增还是覆盖），然后二选一——<strong>全量覆盖</strong>（先清空再按备份重建）或<strong>合并导入</strong>（保留现有数据，同 ID 记录更新、其余保留）。选错模式有清库风险，请看清再确认。</p>
+            </div>
+          </div>
+
+          <div class="chapter">
+            <div class="chapter-no"><span class="ch-title">权限说明</span><div class="ch-sub">要权限，都给了理由。</div></div>
+            <div class="chapter-body">
+              <h3>应用会申请哪些权限</h3>
+              <ul class="spec-list">
+                <li><span class="k">相机</span><span class="v">拍照识别食物。不用此功能可拒绝。</span></li>
+                <li><span class="k">麦克风</span><span class="v">语音输入食物描述。识别在设备端完成，录音不上传。</span></li>
+                <li><span class="k">通知</span><span class="v">餐次与喝水提醒。在通知设置里可精细到每个时段。</span></li>
+                <li><span class="k">精确闹钟</span><span class="v">保证提醒在设定时间准时触发。</span></li>
+                <li><span class="k">安装未知应用</span><span class="v">仅应用内更新时由系统引导授权，用于安装新版本。</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="chapter">
+            <div class="chapter-no"><span class="ch-title">免责声明</span><div class="ch-sub">认真说清楚的一句话。</div></div>
+            <div class="chapter-body">
+              <h3>记录工具，不是医疗器械</h3>
+              <p>CalorieAI 提供的是记录与统计工具。AI 生成的热量与营养估算基于你提供的描述和所用模型的能力，<strong>仅供参考，不构成医疗、营养治疗或用药建议</strong>。如有减重、慢病、孕产等健康需求，请咨询专业医师或注册营养师。</p>
+              <p>更新说明与版本信息由发布者随版本清单提供；下载请认准本站提供的 SHA-256 校验值。</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ======================= 页脚 ======================= -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand">
+            <svg viewBox="0 0 100 100" width="26" height="26" aria-hidden="true"><defs><linearGradient id="caiAppleF" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7CB342"/><stop offset="0.45" stop-color="#C0D339"/><stop offset="0.75" stop-color="#FFB300"/><stop offset="1" stop-color="#FF7043"/></linearGradient></defs><rect width="100" height="100" rx="24" fill="#FFFFFF"/><rect x="1" y="1" width="98" height="98" rx="23" fill="none" stroke="#E3E6EA" stroke-width="2"/><path d="M50 31C50 25 52 20 56 17" stroke="#795548" stroke-width="4" stroke-linecap="round"/><path d="M57 19C61 11 72 9 77 13C73 22 63 25 57 19Z" fill="#43A047"/><path d="M50 33C43 26 29 28 26 42C23 56 33 76 44 79C47 80 48 78 50 78C52 78 53 80 56 79C67 76 77 56 74 42C71 28 57 26 50 33Z" fill="url(#caiAppleF)"/><circle cx="40.5" cy="52" r="3.2" fill="#4E342E"/><circle cx="59.5" cy="52" r="3.2" fill="#4E342E"/><path d="M40 60C44 66 56 66 60 60" stroke="#4E342E" stroke-width="3.5" stroke-linecap="round"/></svg>
+            CalorieAI
+          </div>
+          <p class="footer-desc">本地优先的 Android 热量记录应用。AI 帮你估算，账本留在手机里。</p>
+          <p class="footer-desc" style="margin-top:10px">AI 估算结果仅供参考，不构成医疗建议。</p>
+        </div>
+        <div class="footer-col">
+          <h5>站点导航</h5>
+          <a href="#home" data-nav>首页</a>
+          <a href="#features" data-nav>功能介绍</a>
+          <a href="#showcase" data-nav>界面展示</a>
+          <a href="#download" data-nav>下载应用</a>
+          <a href="#changelog" data-nav>更新记录</a>
+          <a href="#help" data-nav>帮助文档</a>
+          <a href="#privacy" data-nav>隐私与安全</a>
+        </div>
+        <div class="footer-col">
+          <h5>项目</h5>
+          <a href="https://github.com/sxyq/CalorieAI" target="_blank" rel="noopener">项目主页（GitHub）</a>
+          <a href="https://github.com/sxyq/CalorieAI/issues" target="_blank" rel="noopener">反馈问题</a>
+          <a href="https://github.com/sxyq/CalorieAI/issues" target="_blank" rel="noopener">功能建议</a>
+          <a href="#privacy" data-nav>隐私与数据说明</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 CalorieAI · 基于 Kotlin 与 Jetpack Compose 构建</span>
+        <span>系统要求 Android 8.0+ · 安装包<span data-apk-size>约 363 MiB</span> · 提供官方 SHA-256 校验</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ======================= 下载须知弹窗 ======================= -->
+  <div class="modal-mask" id="dlModal" role="dialog" aria-modal="true" aria-labelledby="dlModalTitle">
+    <div class="modal" tabindex="-1">
+      <h3 id="dlModalTitle">开始下载前，说三件事</h3>
+      <p>这份 APK 来自本站官方发布，下载完成后建议核对 SHA-256 校验值。</p>
+      <ul>
+        <li>安装包约 <b id="modalApkSize">360+ MiB</b>（含离线语音识别模型），请确认流量与存储空间。</li>
+        <li>站点同一时刻只允许一个下载任务，遇到「当前网络繁忙」请稍后重试。</li>
+        <li>首次安装需在系统设置中允许「安装未知应用」，覆盖升级不受影响、数据保留。</li>
+      </ul>
+      <div class="modal-actions">
+        <button class="btn" id="dlCancel" type="button">再想想</button>
+        <button class="btn btn-primary" id="dlConfirm" type="button">继续下载</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 操作反馈 Toast -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="assets/site.js"></script>
+</body>
+</html>
