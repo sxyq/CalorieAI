@@ -20,6 +20,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calorieai.app.data.model.ExerciseRecord
 import com.calorieai.app.data.model.FoodRecord
 import com.calorieai.app.data.model.MealType
@@ -36,14 +37,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
-import androidx.compose.foundation.lazy.itemsIndexed
 import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.ui.components.interactiveScale
+import com.calorieai.app.ui.navigation.UiProfile
+import com.calorieai.app.ui.screens.stats.SimplifiedStatsSection
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
     bottomContentPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    uiProfile: UiProfile = UiProfile(),
     onNavigateToAdd: (String) -> Unit,
     onNavigateToAIAdd: (String) -> Unit = {},
     onNavigateToStats: () -> Unit,
@@ -52,26 +55,13 @@ fun HomeScreen(
     onNavigateToResult: (String) -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
+    val isSimplifiedMode = uiProfile.showsSimplifiedStats
     val haptics = rememberAppHapticController()
-    val uiState by viewModel.uiState.collectAsState()
-    val selectedDate by viewModel.selectedDate.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     
     // 杩愬姩瀵硅瘽妗嗘樉绀虹姸鎬?
     var showExerciseDialog by remember { mutableStateOf(false) }
-    
-    // 椤甸潰鑾峰緱鐒︾偣鏃跺埛鏂版暟鎹紙浠庡叾浠栭〉闈㈣繑鍥炴椂锛?
-    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshData()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
     
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -92,6 +82,7 @@ fun HomeScreen(
                 },
                 modifier = Modifier
                     .padding(bottom = bottomContentPadding)
+                    .size(if (isSimplifiedMode) 64.dp else 56.dp)
                     .pointerInput(uiState.enableQuickAdd, selectedDate) {
                     detectTapGestures(
                         onLongPress = {
@@ -141,6 +132,12 @@ fun HomeScreen(
                     )
                 }
 
+                if (isSimplifiedMode) {
+                    item {
+                        SimplifiedHomeStats()
+                    }
+                }
+
                 if (uiState.isLoading) {
                     item {
                         Box(
@@ -152,7 +149,7 @@ fun HomeScreen(
                             CircularProgressIndicator()
                         }
                     }
-                } else if (uiState.records.isEmpty() && uiState.exerciseRecords.isEmpty()) {
+                } else if (uiState.records.isEmpty() && (isSimplifiedMode || uiState.exerciseRecords.isEmpty())) {
                     item { EmptyState() }
                 } else {
                     if (uiState.records.isNotEmpty()) {
@@ -164,10 +161,10 @@ fun HomeScreen(
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
                         }
-                        itemsIndexed(
+                        items(
                             items = uiState.records,
-                            key = { _, record -> "food_" + record.id }
-                        ) { index, record ->
+                            key = { record -> "food_" + record.id }
+                        ) { record ->
                             FoodRecordItem(
                                 record = record,
                                 onClick = { onNavigateToResult(record.id) },
@@ -177,7 +174,7 @@ fun HomeScreen(
                         }
                     }
 
-                    if (uiState.exerciseRecords.isNotEmpty()) {
+                    if (!isSimplifiedMode && uiState.exerciseRecords.isNotEmpty()) {
                         item {
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
@@ -187,10 +184,10 @@ fun HomeScreen(
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
                         }
-                        itemsIndexed(
+                        items(
                             items = uiState.exerciseRecords,
-                            key = { _, record -> "exercise_" + record.id }
-                        ) { index, record ->
+                            key = { record -> "exercise_" + record.id }
+                        ) { record ->
                             ExerciseRecordItem(
                                 record = record,
                                 onDeleteClick = { viewModel.deleteExerciseRecord(record) }
@@ -211,7 +208,9 @@ fun HomeScreen(
                     haptics.confirm()
                     onNavigateToStats()
                 },
-                modifier = Modifier.padding(end = 16.dp, bottom = 88.dp + bottomContentPadding),
+                modifier = Modifier
+                    .padding(end = 16.dp, bottom = 88.dp + bottomContentPadding)
+                    .size(if (isSimplifiedMode) 64.dp else 56.dp),
                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
             ) {
@@ -233,6 +232,13 @@ fun HomeScreen(
             }
         )
     }
+}
+
+@Composable
+private fun SimplifiedHomeStats() {
+    val statsViewModel: com.calorieai.app.ui.screens.stats.StatsViewModel = hiltViewModel()
+    val statsState by statsViewModel.uiState.collectAsStateWithLifecycle()
+    SimplifiedStatsSection(uiState = statsState)
 }
 
 @Composable
@@ -333,8 +339,8 @@ fun TodayOverviewCard(
             Spacer(modifier = Modifier.height(10.dp))
             
             // 榧撳姳鏍囪 - 浣跨敤remember閬垮厤姣忔閲嶇粍閮介噸鏂拌绠?
-            val encouragement by remember(totalCalories, dailyGoal) {
-                derivedStateOf { com.calorieai.app.utils.getRandomEncouragement() }
+            val encouragement = remember(totalCalories, dailyGoal) {
+                com.calorieai.app.utils.getRandomEncouragement()
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(
@@ -405,7 +411,7 @@ fun FoodRecordItem(
     onDeleteClick: () -> Unit
 ) {
     val isDark = isSystemInDarkTheme()
-    val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+    val dateFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     
     // 婊戝姩鍋忕Щ閲?

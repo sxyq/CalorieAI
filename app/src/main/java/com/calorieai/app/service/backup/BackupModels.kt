@@ -4,11 +4,13 @@ import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+const val CURRENT_BACKUP_VERSION = 8
+
 @Serializable
 data class BackupData(
-    val version: Int = 8,
+    val version: Int = CURRENT_BACKUP_VERSION,
     val backupDate: String,
-    val appVersion: String = "3.6.0",
+    val appVersion: String = "",
     val foodRecords: List<FoodRecordBackup>,
     val exerciseRecords: List<ExerciseRecordBackup>,
     val userSettings: UserSettingsBackup?,

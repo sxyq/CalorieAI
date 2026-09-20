@@ -1,5 +1,6 @@
 package com.calorieai.app.service.backup
 
+import com.calorieai.app.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -22,6 +23,7 @@ class BackupExportService @Inject constructor(
 
         val backupData = BackupData(
             backupDate = LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME),
+            appVersion = BuildConfig.VERSION_NAME,
             foodRecords = snapshot.foodRecords.map { it.toBackup() },
             exerciseRecords = snapshot.exerciseRecords.map { it.toBackup() },
             userSettings = snapshot.userSettings?.toBackup(),

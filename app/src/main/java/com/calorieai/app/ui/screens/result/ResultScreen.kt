@@ -33,6 +33,8 @@ import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.model.getMealTypeName
 import com.calorieai.app.ui.components.interactiveScale
 import com.calorieai.app.ui.components.liquidGlass
+import com.calorieai.app.ui.navigation.UiProfileViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +44,8 @@ fun ResultScreen(
     viewModel: ResultViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
+    val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(recordId) {
@@ -98,6 +102,7 @@ fun ResultScreen(
                 ResultContent(
                     record = uiState.record!!,
                     isFavoritedRecipe = uiState.isFavoritedRecipe,
+                    allowRecipeActions = uiProfile.allowsRecipes,
                     onSave = { updatedRecord ->
                         viewModel.updateRecord(updatedRecord)
                         onNavigateBack()
@@ -120,6 +125,7 @@ fun ResultScreen(
 fun ResultContent(
     record: FoodRecord,
     isFavoritedRecipe: Boolean,
+    allowRecipeActions: Boolean = true,
     onSave: (FoodRecord) -> Unit,
     onToggleFavorite: () -> Unit,
     onRegenerate: () -> Unit = {},
@@ -249,10 +255,12 @@ fun ResultContent(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        FavoriteRecipeButton(
-            isFavorited = isFavoritedRecipe,
-            onClick = onToggleFavorite
-        )
+        if (allowRecipeActions) {
+            FavoriteRecipeButton(
+                isFavorited = isFavoritedRecipe,
+                onClick = onToggleFavorite
+            )
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
 

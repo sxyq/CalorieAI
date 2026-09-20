@@ -46,9 +46,9 @@ fun AIFunctionType.getDescription(): String = when (this) {
  * 获取功能类型的推荐模型
  */
 fun AIFunctionType.getRecommendedModel(): String = when (this) {
-    AIFunctionType.FOOD_IMAGE_ANALYSIS -> "LongCat-Flash-Omni-2603"
-    AIFunctionType.FOOD_TEXT_ANALYSIS -> "LongCat-Flash-Lite"
-    AIFunctionType.AI_CHAT -> "LongCat-Flash-Thinking-2601"
+    AIFunctionType.FOOD_IMAGE_ANALYSIS,
+    AIFunctionType.FOOD_TEXT_ANALYSIS,
+    AIFunctionType.AI_CHAT -> AIConfigPresets.DEFAULT_MODEL_ID
 }
 
 /**

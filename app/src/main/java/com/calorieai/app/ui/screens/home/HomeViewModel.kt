@@ -2,6 +2,7 @@ package com.calorieai.app.ui.screens.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calorieai.app.data.local.DailyCalorieData
 import com.calorieai.app.data.model.ExerciseRecord
 import com.calorieai.app.data.model.ExerciseType
 import com.calorieai.app.data.model.FoodRecord
@@ -100,9 +101,9 @@ class HomeViewModel @Inject constructor(
             combine(
                 foodRecordRepository.getRecordsByDateRange(startOfDay, endOfDay),
                 exerciseRecordRepository.getRecordsBetween(startOfDay, endOfDay),
-                foodRecordRepository.getRecordsByDateRange(calendarRange.startMillis, calendarRange.endMillis)
-            ) { records, exerciseRecords, heatmapRecords ->
-                Triple(records, exerciseRecords, heatmapRecords)
+                foodRecordRepository.getDailyCaloriesByDateRange(calendarRange.startMillis, calendarRange.endMillis)
+            ) { records, exerciseRecords, calorieData ->
+                Triple(records, exerciseRecords, calorieData)
             }.collectLatest { (records, exerciseRecords, heatmapRecords) ->
                 val calendarData = withContext(Dispatchers.Default) {
                     buildCalendarData(heatmapRecords)
@@ -129,16 +130,12 @@ class HomeViewModel @Inject constructor(
     /**
      * 加载日历数据（最近30天）
      */
-    private fun buildCalendarData(records: List<FoodRecord>): Map<LocalDate, Int> {
-        return records
-            .groupBy {
-                java.time.Instant.ofEpochMilli(it.recordTime)
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDate()
-            }
-            .mapValues { (_, dayRecords) -> 
-                dayRecords.sumOf { it.totalCalories }
-            }
+    private fun buildCalendarData(records: List<DailyCalorieData>): Map<LocalDate, Int> {
+        if (records.isEmpty()) return emptyMap()
+
+        return records.mapNotNull { record ->
+            runCatching { LocalDate.parse(record.date) to record.totalCalories }.getOrNull()
+        }.toMap()
     }
 
     private fun getCalendarRange(endDate: LocalDate): CalendarRange {

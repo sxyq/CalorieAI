@@ -129,9 +129,9 @@ class AppUpdateDownloadWorker @AssistedInject constructor(
         startingBytes: Long,
         expectedSize: Long
     ) {
-        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        val buffer = ByteArray(IO_BUFFER_SIZE)
         var downloaded = startingBytes
-        var lastReport = startingBytes
+        var lastReportedPercent = -1
         while (true) {
             if (isStopped) throw IOException("下载已取消")
             val count = input.read(buffer)
@@ -141,10 +141,10 @@ class AppUpdateDownloadWorker @AssistedInject constructor(
             if (downloaded > expectedSize) {
                 throw IOException("下载文件超过元数据声明大小")
             }
-            if (downloaded - lastReport >= PROGRESS_STEP || downloaded == expectedSize) {
-                val percent = ((downloaded * 100L) / expectedSize)
+            val percent = ((downloaded * 100L) / expectedSize)
                     .coerceIn(0L, 100L)
                     .toInt()
+            if (percent != lastReportedPercent || downloaded == expectedSize) {
                 setProgress(
                     workDataOf(
                         KEY_PROGRESS to percent,
@@ -152,7 +152,7 @@ class AppUpdateDownloadWorker @AssistedInject constructor(
                         KEY_TOTAL_BYTES to expectedSize
                     )
                 )
-                lastReport = downloaded
+                lastReportedPercent = percent
             }
         }
     }
@@ -160,7 +160,7 @@ class AppUpdateDownloadWorker @AssistedInject constructor(
     private fun hasSha256(file: File, expected: String): Boolean {
         val digest = MessageDigest.getInstance("SHA-256")
         file.inputStream().use { input ->
-            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            val buffer = ByteArray(IO_BUFFER_SIZE)
             while (true) {
                 val count = input.read(buffer)
                 if (count < 0) break
@@ -195,7 +195,7 @@ class AppUpdateDownloadWorker @AssistedInject constructor(
         const val KEY_APK_PATH = "apk_path"
         const val KEY_ERROR = "error"
 
-        private const val PROGRESS_STEP = 256 * 1024L
+        private const val IO_BUFFER_SIZE = 64 * 1024
         private val DOWNLOAD_PATH_PATTERN = Regex(
             "/releases/([0-9]+\\.[0-9]+\\.[0-9]+)/CalorieAI-v\\1\\.apk"
         )

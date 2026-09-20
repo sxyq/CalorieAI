@@ -55,17 +55,17 @@ val defaultAiApiUrl = readSecretProperty("default.ai.api.url", "DEFAULT_AI_API_U
 val defaultAiModelId = readSecretProperty("default.ai.model.id", "DEFAULT_AI_MODEL_ID")
     .ifBlank { "gpt-5.6-luna" }
 val updateCheckUrl = readBuildProperty("update.check.url", "UPDATE_CHECK_URL")
-    .ifBlank { "https://calorieai.sxyq27.online/android/stable/latest.json" }
+    .ifBlank { "http://101.132.250.38:80/android/stable/latest.json" }
 val updateDownloadBaseUrl = readBuildProperty(
     "update.download.base.url",
     "UPDATE_DOWNLOAD_BASE_URL"
-).ifBlank { "https://calorieai.sxyq27.online" }
-val domainUpdateCheckUrl = "https://calorieai.sxyq27.online/android/stable/latest.json"
-val domainUpdateDownloadBaseUrl = "https://calorieai.sxyq27.online"
+).ifBlank { "http://101.132.250.38:80" }
+val directUpdateCheckUrl = "http://101.132.250.38:80/android/stable/latest.json"
+val directUpdateDownloadBaseUrl = "http://101.132.250.38:80"
 require(
-    updateCheckUrl == domainUpdateCheckUrl && updateDownloadBaseUrl == domainUpdateDownloadBaseUrl
+    updateCheckUrl == directUpdateCheckUrl && updateDownloadBaseUrl == directUpdateDownloadBaseUrl
 ) {
-    "Update check and download URLs must use https://calorieai.sxyq27.online."
+    "Update check and download URLs must use http://101.132.250.38:80."
 }
 val bundledPaddleOcrRoot: String = (
     localProperties.getProperty("bundled.paddle.ocr.root")
@@ -104,8 +104,8 @@ android {
         applicationId = "com.calorieai.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 132
-        versionName = "1.3.2"
+        versionCode = 138
+        versionName = "1.3.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

@@ -26,6 +26,10 @@ class FoodRecordRepository @Inject constructor(
     fun getRecordsByDateRange(startTime: Long, endTime: Long): Flow<List<FoodRecord>> {
         return foodRecordDao.getRecordsBetween(startTime, endTime)
     }
+
+    fun getDailyCaloriesByDateRange(startTime: Long, endTime: Long): Flow<List<DailyCalorieData>> {
+        return foodRecordDao.getCalorieDataByDateRange(startTime, endTime)
+    }
     
     suspend fun getDailyCaloriesByDateRangeSync(startTime: Long, endTime: Long): List<DailyCalorieData> {
         return foodRecordDao.getCalorieDataByDateRangeSync(startTime, endTime)

@@ -3,6 +3,7 @@
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieai.app.data.repository.UserSettingsRepository
+import com.calorieai.app.ui.navigation.UiProfile
 import com.calorieai.app.service.notification.NotificationCapabilityManager
 import com.calorieai.app.service.notification.ReminderResyncCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -98,7 +100,11 @@ class NotificationSettingsViewModel @Inject constructor(
 
     private fun observeSettings() {
         viewModelScope.launch {
-            userSettingsRepository.getSettings().collectLatest { settings ->
+            combine(
+                userSettingsRepository.getSettings(),
+                userSettingsRepository.observeSimplifiedMode()
+            ) { settings, simplifiedMode -> settings to simplifiedMode }
+                .collectLatest { (settings, simplifiedMode) ->
                 if (settings == null) return@collectLatest
                 _uiState.value = applyCapabilityState(
                     NotificationSettingsUiState(
@@ -109,7 +115,7 @@ class NotificationSettingsViewModel @Inject constructor(
                         dinnerReminderTime = parseTime(settings.dinnerReminderTime, LocalTime.of(18, 0)),
                         enableGoalReminder = settings.enableGoalReminder,
                         enableStreakReminder = settings.enableStreakReminder,
-                        showWaterFeatures = settings.showWaterFeatures,
+                        showWaterFeatures = settings.showWaterFeatures && UiProfile(simplifiedMode).allowsWater,
                         enableWaterReminder = settings.enableWaterReminder,
                         waterReminderTimes = parseReminderTimes(settings.waterReminderTimesJson),
                         waterReminderIntervalMinutes = settings.waterReminderIntervalMinutes

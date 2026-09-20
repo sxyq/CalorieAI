@@ -22,6 +22,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.util.UUID
+import kotlin.math.max
+import kotlin.math.sqrt
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -36,6 +38,9 @@ class FoodImageAnalysisService @Inject constructor(
 
     companion object {
         private const val TAG = "FoodImageAnalysis"
+        private const val MAX_IMAGE_DIMENSION = 1280
+        private const val MAX_IMAGE_BYTES = 1024 * 1024
+        private const val JPEG_QUALITY = 82
 
         private const val SYSTEM_PROMPT = """你是一个专业的营养师，擅长通过图片识别食物并分析其营养成分。请仔细分析图片中的食物，提供详细的营养信息。
 
@@ -205,47 +210,74 @@ class FoodImageAnalysisService @Inject constructor(
         return aiImportConfigResolver.resolveImageConfig()
     }
     private fun uriToBase64(uri: Uri, context: Context): String? {
+        var original: Bitmap? = null
+        var uploadBitmap: Bitmap? = null
         return try {
-            val inputStream = context.contentResolver.openInputStream(uri)
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-            inputStream?.close()
-
-            if (bitmap == null) return null
-
-            val compressedBitmap = compressBitmap(bitmap, maxSizeKB = 1024)
-
+            val decoded = decodeSampledBitmap(uri, context) ?: return null
+            original = decoded
+            val compressedBitmap = scaleToMaxDimension(decoded, MAX_IMAGE_DIMENSION)
+            uploadBitmap = compressedBitmap
             val outputStream = ByteArrayOutputStream()
-            compressedBitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
-            val byteArray = outputStream.toByteArray()
+            compressedBitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, outputStream)
 
-            Base64.encodeToString(byteArray, Base64.NO_WRAP)
+            if (outputStream.size() > MAX_IMAGE_BYTES) {
+                val factor = sqrt(MAX_IMAGE_BYTES.toDouble() / outputStream.size().toDouble())
+                val resized = Bitmap.createScaledBitmap(
+                    compressedBitmap,
+                    max(1, (compressedBitmap.width * factor).toInt()),
+                    max(1, (compressedBitmap.height * factor).toInt()),
+                    true
+                )
+                if (compressedBitmap !== decoded) compressedBitmap.recycle()
+                uploadBitmap = resized
+                outputStream.reset()
+                resized.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, outputStream)
+            }
+
+            Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
         } catch (e: Exception) {
-            e.printStackTrace()
+            SecureLogger.e(TAG, "image_encode_failed", e)
             null
+        } finally {
+            // The bitmap is only used for this request and must not survive it.
+            runCatching {
+                val bitmapToRecycle = uploadBitmap
+                if (bitmapToRecycle != null && bitmapToRecycle !== original) bitmapToRecycle.recycle()
+                original?.recycle()
+            }
         }
     }
 
-    private fun compressBitmap(bitmap: Bitmap, maxSizeKB: Int): Bitmap {
-        var quality = 100
-        var compressedBitmap = bitmap
-
-        val outputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-
-        while (outputStream.size() / 1024 > maxSizeKB && quality > 50) {
-            outputStream.reset()
-            quality -= 10
-            bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+    private fun decodeSampledBitmap(uri: Uri, context: Context): Bitmap? {
+        val resolver = context.contentResolver
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        resolver.openInputStream(uri)?.use { input ->
+            BitmapFactory.decodeStream(input, null, bounds)
         }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
-        if (outputStream.size() / 1024 > maxSizeKB) {
-            val scaleFactor = Math.sqrt((maxSizeKB * 1024).toDouble() / outputStream.size())
-            val newWidth = (bitmap.width * scaleFactor).toInt()
-            val newHeight = (bitmap.height * scaleFactor).toInt()
-            compressedBitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+        var sample = 1
+        while (bounds.outWidth / sample > MAX_IMAGE_DIMENSION ||
+            bounds.outHeight / sample > MAX_IMAGE_DIMENSION
+        ) {
+            sample *= 2
         }
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        return resolver.openInputStream(uri)?.use { input ->
+            BitmapFactory.decodeStream(input, null, options)
+        }
+    }
 
-        return compressedBitmap
+    private fun scaleToMaxDimension(bitmap: Bitmap, maxDimension: Int): Bitmap {
+        val longest = max(bitmap.width, bitmap.height)
+        if (longest <= maxDimension) return bitmap
+        val scale = maxDimension.toFloat() / longest.toFloat()
+        return Bitmap.createScaledBitmap(
+            bitmap,
+            max(1, (bitmap.width * scale).toInt()),
+            max(1, (bitmap.height * scale).toInt()),
+            true
+        )
     }
 
     private fun parseAnalysisResult(content: String): FoodAnalysisResult {

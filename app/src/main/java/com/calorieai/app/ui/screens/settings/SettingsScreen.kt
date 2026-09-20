@@ -24,6 +24,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.calorieai.app.ui.navigation.UiProfileViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +41,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
+    val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -109,15 +113,17 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // AI配置
-            SettingGroupItem(
-                icon = Icons.Default.Psychology,
-                title = "AI配置",
-                subtitle = "OpenAI/Claude API设置",
-                onClick = onNavigateToAISettings
-            )
+            if (uiProfile.allowsAi) {
+                // AI配置
+                SettingGroupItem(
+                    icon = Icons.Default.Psychology,
+                    title = "AI配置",
+                    subtitle = "OpenAI/Claude API设置",
+                    onClick = onNavigateToAISettings
+                )
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             // 关于
             SettingGroupItem(

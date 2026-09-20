@@ -28,5 +28,5 @@ class FeatureVisibilityViewModel @Inject constructor(
 }
 
 data class FeatureVisibilityUiState(
-    val showWaterFeatures: Boolean = true
+    val showWaterFeatures: Boolean = false
 )

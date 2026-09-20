@@ -265,7 +265,7 @@ private fun takePhoto(
     
     val photoFile = File(
         context.cacheDir,
-        "nutrition_${System.currentTimeMillis()}.jpg"
+        "food_${System.currentTimeMillis()}.jpg"
     )
     
     val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()

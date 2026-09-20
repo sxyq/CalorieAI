@@ -55,7 +55,10 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
     }
 
     composable(Screen.Home.route) {
+        val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
+        val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
         HomeScreen(
+            uiProfile = uiProfile,
             onNavigateToAdd = {
                 navController.navigate(Screen.AddMethodSelector.createRoute(it))
             },
@@ -78,20 +81,27 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
     }
 
     composable(Screen.Overview.route) {
-        OverviewScreen(
-            onNavigateToStats = {
-                navController.navigate(Screen.Stats.route)
-            },
-            onNavigateToWeightHistory = {
-                navController.navigate(Screen.WeightHistory.route)
-            },
-            onNavigateToGoals = {
-                navController.navigate(Screen.HealthGoals.route)
-            }
-        )
+        val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
+        val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
+        if (!uiProfile.allowsOverview) {
+            LaunchedEffect(Unit) { navController.navigateBackToMain() }
+        } else {
+            OverviewScreen(
+                onNavigateToStats = {
+                    navController.navigate(Screen.Stats.route)
+                },
+                onNavigateToWeightHistory = {
+                    navController.navigate(Screen.WeightHistory.route)
+                },
+                onNavigateToGoals = {
+                    navController.navigate(Screen.HealthGoals.route)
+                }
+            )
+        }
     }
 
     composable(Screen.Functions.route) {
+        val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
         FunctionsScreen(
             onNavigateToFoodDiary = {
                 navController.navigate(Screen.AddMethodSelector.createRoute())
@@ -116,7 +126,8 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
             },
             onNavigateToSettings = {
                 navController.navigate(Screen.Settings.route)
-            }
+            },
+            uiProfileViewModel = uiProfileViewModel
         )
     }
 
@@ -207,36 +218,60 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
     }
 
     composable(Screen.FavoriteRecipes.route) {
+        val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
+        val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
         val previousRoute = navController.previousBackStackEntry?.destination?.route
         val showBackButton = previousRoute != null && previousRoute !in bottomNavScreens
-        FavoriteRecipesScreen(
-            onNavigateBack = {
-                navController.popBackStack()
-            },
-            onNavigateToFavoritesManager = {
-                navController.navigate(Screen.FavoriteRecipesManager.route) {
-                    launchSingleTop = true
-                }
-            },
-            onNavigateToMealPlanManager = {
-                navController.navigate(Screen.RecipePlanManager.route) {
-                    launchSingleTop = true
-                }
-            },
-            showBackButton = showBackButton
-        )
+        if (!uiProfile.allowsRecipes) {
+            LaunchedEffect(Unit) { navController.navigateBackToMain() }
+        } else {
+            FavoriteRecipesScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToFavoritesManager = {
+                    navController.navigate(Screen.FavoriteRecipesManager.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToMealPlanManager = {
+                    navController.navigate(Screen.RecipePlanManager.route) {
+                        launchSingleTop = true
+                    }
+                },
+                showBackButton = showBackButton
+            )
+        }
     }
 
     composable(Screen.FavoriteRecipesManager.route) {
-        FavoriteRecipesManagerScreen(onNavigateBack = { navController.popBackStack() })
+        val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
+        val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
+        if (!uiProfile.allowsRecipes) {
+            LaunchedEffect(Unit) { navController.navigateBackToMain() }
+        } else {
+            FavoriteRecipesManagerScreen(onNavigateBack = { navController.popBackStack() })
+        }
     }
 
     composable(Screen.PantryIngredientsManager.route) {
-        PantryIngredientsManagerScreen(onNavigateBack = { navController.popBackStack() })
+        val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
+        val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
+        if (!uiProfile.allowsRecipes) {
+            LaunchedEffect(Unit) { navController.navigateBackToMain() }
+        } else {
+            PantryIngredientsManagerScreen(onNavigateBack = { navController.popBackStack() })
+        }
     }
 
     composable(Screen.RecipePlanManager.route) {
-        MealPlanManagerScreen(onNavigateBack = { navController.popBackStack() })
+        val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
+        val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
+        if (!uiProfile.allowsRecipes) {
+            LaunchedEffect(Unit) { navController.navigateBackToMain() }
+        } else {
+            MealPlanManagerScreen(onNavigateBack = { navController.popBackStack() })
+        }
     }
 
     composable(
@@ -292,12 +327,16 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
             }
         )
     ) { backStackEntry ->
+        val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
+        val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
         val date = backStackEntry.arguments?.getString("date")
         val mealType = backStackEntry.arguments
             ?.getString("mealType")
             ?.let { raw -> runCatching { MealType.valueOf(raw) }.getOrNull() }
 
-        NutritionOcrImportScreen(
+        if (!uiProfile.allowsNutritionOcr) {
+            LaunchedEffect(Unit) { navController.navigateBackToMain() }
+        } else NutritionOcrImportScreen(
             selectedDate = date,
             selectedMealType = mealType,
             onNavigateBack = {
@@ -403,7 +442,11 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
     }
 
     composable(Screen.AISettings.route) {
-        AISettingsScreen(
+        val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
+        val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
+        if (!uiProfile.allowsAi) {
+            LaunchedEffect(Unit) { navController.navigateBackToMain() }
+        } else AISettingsScreen(
             onNavigateBack = {
                 navController.popBackStack()
             },
@@ -417,7 +460,13 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
     }
 
     composable(Screen.AIModelCallStats.route) {
-        AIModelCallStatsScreen(onNavigateBack = { navController.popBackStack() })
+        val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
+        val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
+        if (!uiProfile.allowsAi) {
+            LaunchedEffect(Unit) { navController.navigateBackToMain() }
+        } else {
+            AIModelCallStatsScreen(onNavigateBack = { navController.popBackStack() })
+        }
     }
 
     composable(
@@ -430,10 +479,14 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
             }
         )
     ) { backStackEntry ->
+        val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
+        val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
         val configId = backStackEntry.arguments
             ?.getString("configId")
             ?.let(android.net.Uri::decode)
-        AIConfigDetailScreen(
+        if (!uiProfile.allowsAi) {
+            LaunchedEffect(Unit) { navController.navigateBackToMain() }
+        } else AIConfigDetailScreen(
             configId = configId,
             onNavigateBack = {
                 navController.popBackStack()
@@ -455,8 +508,12 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
             }
         )
     ) { backStackEntry ->
+        val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
+        val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
         val sessionId = backStackEntry.arguments?.getString("sessionId")
-        AIChatScreen(
+        if (!uiProfile.allowsAi) {
+            LaunchedEffect(Unit) { navController.navigateBackToMain() }
+        } else AIChatScreen(
             initialSessionId = sessionId,
             onNavigateBack = {
                 navController.popBackStack()
@@ -497,8 +554,12 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
             }
         )
     ) { backStackEntry ->
+        val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
+        val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
         val date = backStackEntry.arguments?.getString("date")
-        ExerciseRecordScreen(
+        if (!uiProfile.allowsExercise) {
+            LaunchedEffect(Unit) { navController.navigateBackToMain() }
+        } else ExerciseRecordScreen(
             selectedDate = date,
             onNavigateBack = {
                 navController.popBackStack()
@@ -556,6 +617,14 @@ internal fun androidx.navigation.NavGraphBuilder.registerAppRoutes(
                     navController.popBackStack()
                 }
             )
+        }
+    }
+}
+
+private fun NavHostController.navigateBackToMain() {
+    if (!popBackStack(Screen.Main.route, inclusive = false)) {
+        navigate(Screen.Main.route) {
+            launchSingleTop = true
         }
     }
 }

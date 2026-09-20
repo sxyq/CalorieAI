@@ -54,6 +54,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.calorieai.app.ui.components.SettingsTopAppBar
 import com.calorieai.app.ui.components.liquidGlass
+import com.calorieai.app.ui.navigation.UiProfileViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calorieai.app.utils.MetabolicConstants
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -65,6 +67,8 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
+    val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
     var showAvatarPicker by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val avatarPickerLauncher = rememberLauncherForActivityResult(
@@ -165,20 +169,22 @@ fun ProfileScreen(
                 )
             }
 
-            ProfileSectionCard(
-                title = "饮水目标",
-                subtitle = "可手动管理参考饮水量，也可参考身体数据推荐值"
-            ) {
-                WaterGoalSection(
-                    dailyWaterGoal = uiState.dailyWaterGoal,
-                    suggestedWaterGoal = MetabolicConstants.calculateDailyWaterGoal(
-                        weight = uiState.weight,
-                        activityLevel = uiState.activityLevel,
-                        age = uiState.age,
-                        gender = uiState.gender
-                    ),
-                    onWaterGoalChange = viewModel::updateDailyWaterGoal
-                )
+            if (uiProfile.allowsWater) {
+                ProfileSectionCard(
+                    title = "饮水目标",
+                    subtitle = "可手动管理参考饮水量，也可参考身体数据推荐值"
+                ) {
+                    WaterGoalSection(
+                        dailyWaterGoal = uiState.dailyWaterGoal,
+                        suggestedWaterGoal = MetabolicConstants.calculateDailyWaterGoal(
+                            weight = uiState.weight,
+                            activityLevel = uiState.activityLevel,
+                            age = uiState.age,
+                            gender = uiState.gender
+                        ),
+                        onWaterGoalChange = viewModel::updateDailyWaterGoal
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))

@@ -61,7 +61,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calorieai.app.ui.navigation.FeatureVisibilityViewModel
+import com.calorieai.app.ui.navigation.UiProfileViewModel
 import com.calorieai.app.ui.feedback.rememberAppHapticController
 
 @Composable
@@ -73,9 +75,11 @@ fun AddMethodSelectorScreen(
     onNavigateToWeight: () -> Unit = {},
     onNavigateToExercise: () -> Unit = {},
     onNavigateToWaterHistory: () -> Unit = {},
-    featureVisibilityViewModel: FeatureVisibilityViewModel = hiltViewModel()
+    featureVisibilityViewModel: FeatureVisibilityViewModel = hiltViewModel(),
+    uiProfileViewModel: UiProfileViewModel = hiltViewModel()
 ) {
     val featureState by featureVisibilityViewModel.uiState.collectAsState()
+    val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
     val haptics = rememberAppHapticController()
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     var visible by remember { mutableStateOf(false) }
@@ -187,22 +191,28 @@ fun AddMethodSelectorScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        SecondaryMethodCard(
-                            icon = Icons.Default.MenuBook,
-                            title = "菜谱",
-                            subtitle = "快捷复用",
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                haptics.click()
-                                onNavigateToFavoriteRecipes()
-                            },
-                            isDark = isDark
-                        )
+                        if (uiProfile.allowsRecipes) {
+                            SecondaryMethodCard(
+                                icon = Icons.Default.MenuBook,
+                                title = "菜谱",
+                                subtitle = "快捷复用",
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    haptics.click()
+                                    onNavigateToFavoriteRecipes()
+                                },
+                                isDark = isDark
+                            )
+                        }
                         SecondaryMethodCard(
                             icon = Icons.Default.Scale,
                             title = "体重",
                             subtitle = "记录体重",
-                            modifier = Modifier.weight(1f),
+                            modifier = if (!uiProfile.allowsRecipes) {
+                                Modifier.fillMaxWidth()
+                            } else {
+                                Modifier.weight(1f)
+                            },
                             onClick = {
                                 haptics.click()
                                 onNavigateToWeight()
@@ -211,7 +221,7 @@ fun AddMethodSelectorScreen(
                         )
                     }
 
-                    if (featureState.showWaterFeatures) {
+                    if (uiProfile.allowsExercise && uiProfile.allowsWater && featureState.showWaterFeatures) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -239,7 +249,7 @@ fun AddMethodSelectorScreen(
                                 isDark = isDark
                             )
                         }
-                    } else {
+                    } else if (uiProfile.allowsExercise) {
                         SecondaryMethodCard(
                             icon = Icons.Default.FitnessCenter,
                             title = "运动",

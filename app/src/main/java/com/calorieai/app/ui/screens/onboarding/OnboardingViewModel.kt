@@ -16,12 +16,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 import kotlin.math.pow
 
 /**
  * 引导流程ViewModel
- * 管理6步引导流程的状态和数据
+ * 管理4步引导流程的状态和数据
  */
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
@@ -47,6 +48,8 @@ class OnboardingViewModel @Inject constructor(
     // 是否已完成
     private val _isCompleted = MutableStateFlow(false)
     val isCompleted: StateFlow<Boolean> = _isCompleted.asStateFlow()
+
+    private var pendingSave: Job? = null
 
     init {
         viewModelScope.launch {
@@ -201,6 +204,8 @@ class OnboardingViewModel @Inject constructor(
                 
                 // 保存到数据库
                 userSettingsRepository.saveSettings(userSettings)
+
+                pendingSave?.join()
                 
                 // 清理旧的引导草稿状态，避免和数据库中的完成状态分叉
                 onboardingDataStore.clearOnboardingState()
@@ -219,8 +224,10 @@ class OnboardingViewModel @Inject constructor(
      * 保存当前数据到DataStore
      */
     private fun saveData() {
-        viewModelScope.launch {
-            onboardingDataStore.saveOnboardingData(_onboardingData.value)
+        pendingSave?.cancel()
+        val snapshot = _onboardingData.value
+        pendingSave = viewModelScope.launch {
+            onboardingDataStore.saveOnboardingData(snapshot)
         }
     }
 

@@ -28,6 +28,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.ui.components.liquidGlass
 import com.calorieai.app.ui.components.interactiveScale
 import com.calorieai.app.ui.components.SettingsTopAppBar
+import com.calorieai.app.ui.navigation.UiProfile
 
 /**
  * 鐣岄潰澶栬璁剧疆椤甸潰
@@ -71,11 +72,20 @@ fun AppearanceSettingsScreen(
                 )
             }
 
-            SettingsSection(title = "饮水功能") {
+            SettingsSection(title = "显示模式") {
+                SimplifiedModeToggle(
+                    checked = uiState.simplifiedMode,
+                    onCheckedChange = viewModel::updateSimplifiedMode
+                )
+            }
+
+            if (!UiProfile(uiState.simplifiedMode).hidesWaterSettings) {
+                SettingsSection(title = "饮水功能") {
                 WaterFeatureToggle(
                     checked = uiState.showWaterFeatures,
                     onCheckedChange = viewModel::updateShowWaterFeatures
                 )
+                }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -225,6 +235,36 @@ private fun WaterFeatureToggle(
             )
             Text(
                 text = "关闭后会在首页、概览、记录入口等位置隐藏饮水模块",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+@Composable
+private fun SimplifiedModeToggle(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "简洁模式",
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = "只显示首页、我的、饮食、体重和核心统计",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

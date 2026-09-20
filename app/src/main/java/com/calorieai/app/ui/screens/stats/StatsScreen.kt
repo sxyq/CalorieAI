@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calorieai.app.data.model.ExerciseType
 import com.calorieai.app.data.model.NutritionCalculator
 import com.calorieai.app.data.model.NutritionReference
@@ -43,6 +44,7 @@ import com.calorieai.app.ui.components.charts.*
 import com.calorieai.app.ui.components.fadingTopEdge
 import com.calorieai.app.ui.components.interactiveScale
 import com.calorieai.app.ui.components.liquidGlass
+import com.calorieai.app.ui.navigation.UiProfileViewModel
 import com.calorieai.app.utils.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -59,7 +61,17 @@ fun StatsScreen(
     viewModel: StatsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val uiProfileViewModel: UiProfileViewModel = hiltViewModel()
+    val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
     var selectedTab by remember { mutableIntStateOf(0) }
+
+    if (uiProfile.showsSimplifiedStats) {
+        SimplifiedStatsScreen(
+            uiState = uiState,
+            onNavigateBack = onNavigateBack
+        )
+        return
+    }
 
     val tabs = listOf("概览统计", "趋势分析", "上月总结")
     val tabIcons = listOf(Icons.Default.Analytics, Icons.Default.Monitor, Icons.Default.Dashboard)
@@ -146,5 +158,69 @@ fun StatsScreen(
             }
         }
     }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SimplifiedStatsScreen(
+    uiState: StatsUiState,
+    onNavigateBack: () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("核心统计") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Spacer(modifier = Modifier.height(8.dp))
+            uiState.todayStats?.let { today ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        SimpleStatValue("已摄入", "${today.totalCalories} 千卡")
+                        SimpleStatValue("目标", "${today.targetCalories} 千卡")
+                        SimpleStatValue("剩余", "${today.remainingCalories} 千卡")
+                    }
+                }
+            }
+            SimplifiedStatsSection(uiState = uiState)
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun SimpleStatValue(label: String, value: String) {
+    Column {
+        Text(text = value, style = MaterialTheme.typography.titleMedium)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

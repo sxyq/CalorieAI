@@ -17,6 +17,7 @@ import com.calorieai.app.data.repository.FoodRecordRepository
 import com.calorieai.app.data.repository.PantryIngredientRepository
 import com.calorieai.app.data.repository.RecipePlanRepository
 import com.calorieai.app.data.repository.UserSettingsRepository
+import com.calorieai.app.ui.navigation.UiProfile
 import com.calorieai.app.data.repository.WeightRecordRepository
 import com.calorieai.app.domain.stats.StatsSnapshotUseCase
 import com.calorieai.app.domain.stats.StatsTrendUseCase
@@ -71,7 +72,8 @@ class StatsViewModel @Inject constructor(
                 favoriteRecipeRepository.getAllFavorites().distinctUntilChanged(),
                 pantryIngredientRepository.getAll().distinctUntilChanged(),
                 recipePlanRepository.getAll().distinctUntilChanged(),
-                userSettingsRepository.getSettings().distinctUntilChanged()
+                userSettingsRepository.getSettings().distinctUntilChanged(),
+                userSettingsRepository.observeSimplifiedMode().distinctUntilChanged()
             ) { recordsArray: Array<Any?> ->
                 @Suppress("UNCHECKED_CAST")
                 StatsSourceBundle(
@@ -82,7 +84,8 @@ class StatsViewModel @Inject constructor(
                     favoriteRecipes = recordsArray[4] as List<FavoriteRecipe>,
                     pantryIngredients = recordsArray[5] as List<PantryIngredient>,
                     recipePlans = recordsArray[6] as List<RecipePlan>,
-                    settings = recordsArray[7] as UserSettings?
+                    settings = recordsArray[7] as UserSettings?,
+                    simplifiedMode = recordsArray[8] as Boolean
                 )
             }.collectLatest { sources ->
                 val foodRecords = sources.foodRecords
@@ -92,6 +95,7 @@ class StatsViewModel @Inject constructor(
                 val pantryIngredients = sources.pantryIngredients
                 val recipePlans = sources.recipePlans
                 val settings = sources.settings
+                val simplifiedMode = sources.simplifiedMode
                 latestFoodRecords = foodRecords
                 latestExerciseRecords = exerciseRecords
                 latestSettings = settings
@@ -174,7 +178,7 @@ class StatsViewModel @Inject constructor(
                     weeklyWaterAverage = waterMetrics.weeklyWaterAverage,
                     monthlyWaterTotal = waterMetrics.monthlyWaterTotal,
                     waterTrendData = waterMetrics.waterTrendData,
-                    showWaterFeatures = settings?.showWaterFeatures ?: true
+                    showWaterFeatures = (settings?.showWaterFeatures ?: true) && UiProfile(simplifiedMode).allowsWater
                 )
             }
         }
@@ -360,7 +364,8 @@ private data class StatsSourceBundle(
     val favoriteRecipes: List<FavoriteRecipe>,
     val pantryIngredients: List<PantryIngredient>,
     val recipePlans: List<RecipePlan>,
-    val settings: UserSettings?
+    val settings: UserSettings?,
+    val simplifiedMode: Boolean
 )
 
 /**

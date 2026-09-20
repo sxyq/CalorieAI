@@ -112,7 +112,7 @@ class BackupService @Inject constructor(
     }
 
     private fun validateBackupVersion(backupData: BackupData) {
-        if (backupData.version > 7) {
+        if (backupData.version > CURRENT_BACKUP_VERSION) {
             throw IllegalStateException("备份版本(${backupData.version})高于当前应用支持的版本，请升级应用后重试")
         }
     }

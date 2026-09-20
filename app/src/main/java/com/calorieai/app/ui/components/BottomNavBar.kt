@@ -69,8 +69,10 @@ fun BottomNavBar(
     onItemLongPressed: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier,
     isDark: Boolean = false,
-    hazeState: dev.chrisbanes.haze.HazeState? = null
+    hazeState: dev.chrisbanes.haze.HazeState? = null,
+    isSimplifiedMode: Boolean = false
 ) {
+    if (items.isEmpty()) return
     val haptics = rememberAppHapticController()
     val navigationBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val containerHeight = remember(navigationBarInset) { 72.dp + navigationBarInset }
@@ -124,7 +126,9 @@ fun BottomNavBar(
 
             // Moving Indicator Layer
             // It calculates translationX purely based on the Pager's current page + offset.
-            val indicatorWidthPx = with(density) { 48.dp.toPx() }
+            val indicatorWidth = if (isSimplifiedMode) 56.dp else 48.dp
+            val indicatorHeight = if (isSimplifiedMode) 38.dp else 32.dp
+            val indicatorWidthPx = with(density) { indicatorWidth.toPx() }
             val centerOffsetPx = (itemWidthPx - indicatorWidthPx) / 2f
             val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
             
@@ -144,8 +148,8 @@ fun BottomNavBar(
             ) {
                 Box(
                     modifier = Modifier
-                        .width(48.dp)
-                        .height(32.dp)
+                        .width(indicatorWidth)
+                        .height(indicatorHeight)
                         .align(Alignment.CenterStart) // aligned correctly with translationX
                         .offset(y = (-7).dp)
                         .clip(CircleShape)
@@ -170,6 +174,7 @@ fun BottomNavBar(
                         onClick = { onItemSelected(index) },
                         onLongClick = onItemLongPressed?.let { handler -> { handler(index) } },
                         haptics = haptics,
+                        isSimplifiedMode = isSimplifiedMode,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -186,6 +191,7 @@ private fun NavBarItemContent(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     haptics: AppHapticController,
+    isSimplifiedMode: Boolean,
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -252,8 +258,10 @@ private fun NavBarItemContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Box(
-                modifier = Modifier.size(28.dp).offset(y = (-2).dp),
+                Box(
+                    modifier = Modifier
+                        .size(if (isSimplifiedMode) 34.dp else 28.dp)
+                        .offset(y = if (isSimplifiedMode) (-1).dp else (-2).dp),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -273,7 +281,7 @@ private fun NavBarItemContent(
 
             Text(
                 text = item.title,
-                fontSize = 11.sp,
+                fontSize = if (isSimplifiedMode) 14.sp else 11.sp,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                 color = textColor
             )

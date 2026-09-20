@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calorieai.app.data.model.FavoriteRecipe
 import com.calorieai.app.data.model.MealType
 import com.calorieai.app.data.model.NutritionReference
@@ -40,6 +41,7 @@ import com.calorieai.app.data.model.UserBodyProfile
 import com.calorieai.app.data.model.getMealTypeName
 import com.calorieai.app.ui.components.interactiveScale
 import com.calorieai.app.ui.components.liquidGlass
+import com.calorieai.app.ui.navigation.UiProfileViewModel
 import kotlinx.coroutines.flow.collectLatest
 
 /**
@@ -51,9 +53,11 @@ import kotlinx.coroutines.flow.collectLatest
 fun ManualAddScreen(
     selectedDate: String? = null,
     onNavigateBack: () -> Unit,
-    viewModel: ManualAddViewModel = hiltViewModel()
+    viewModel: ManualAddViewModel = hiltViewModel(),
+    uiProfileViewModel: UiProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(selectedDate) {
@@ -137,20 +141,22 @@ fun ManualAddScreen(
                     onValueChange = viewModel::updateCalories
                 )
 
-                FavoriteRecipeQuickEntryCard(
-                    favorites = uiState.favoriteRecipes,
-                    favoriteRecipeMealTypeMap = uiState.favoriteRecipeMealTypeMap,
-                    selectedMealType = uiState.favoriteMealType,
-                    showGramInput = uiState.showFavoriteQuickAddGramInput,
-                    gramInput = uiState.favoriteQuickAddGrams,
-                    onMealTypeSelected = viewModel::updateFavoriteMealType,
-                    onToggleGramInput = viewModel::toggleFavoriteQuickAddGramInput,
-                    onGramInputChange = viewModel::updateFavoriteQuickAddGrams,
-                    onResetGramInput = viewModel::resetFavoriteQuickAddGramsToDefault,
-                    onQuickAdd = { recipe ->
-                        viewModel.addFavoriteRecipeToToday(recipe)
-                    }
-                )
+                if (uiProfile.allowsRecipes) {
+                    FavoriteRecipeQuickEntryCard(
+                        favorites = uiState.favoriteRecipes,
+                        favoriteRecipeMealTypeMap = uiState.favoriteRecipeMealTypeMap,
+                        selectedMealType = uiState.favoriteMealType,
+                        showGramInput = uiState.showFavoriteQuickAddGramInput,
+                        gramInput = uiState.favoriteQuickAddGrams,
+                        onMealTypeSelected = viewModel::updateFavoriteMealType,
+                        onToggleGramInput = viewModel::toggleFavoriteQuickAddGramInput,
+                        onGramInputChange = viewModel::updateFavoriteQuickAddGrams,
+                        onResetGramInput = viewModel::resetFavoriteQuickAddGramsToDefault,
+                        onQuickAdd = { recipe ->
+                            viewModel.addFavoriteRecipeToToday(recipe)
+                        }
+                    )
+                }
 
                 // 餐次选择 - 横向滑动选择器
                 MealTypeSelector(

@@ -54,7 +54,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.calorieai.app.ui.navigation.FeatureVisibilityViewModel
+import com.calorieai.app.ui.navigation.UiProfile
+import com.calorieai.app.ui.navigation.UiProfileViewModel
 import com.calorieai.app.ui.theme.glassCardThemed
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,10 +70,12 @@ fun FunctionsScreen(
     onNavigateToAIAssistant: () -> Unit = {},
     onNavigateToRecipes: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
-    featureVisibilityViewModel: FeatureVisibilityViewModel = hiltViewModel()
+    featureVisibilityViewModel: FeatureVisibilityViewModel = hiltViewModel(),
+    uiProfileViewModel: UiProfileViewModel = hiltViewModel()
 ) {
     val isDark = isSystemInDarkTheme()
     val featureState by featureVisibilityViewModel.uiState.collectAsState()
+    val uiProfile by uiProfileViewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -135,7 +140,7 @@ fun FunctionsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                if (featureState.showWaterFeatures) {
+                if (uiProfile.allowsWater && featureState.showWaterFeatures) {
                     GlassFunctionCard(
                         title = "饮水记录",
                         subtitle = "保持水分充足",
@@ -147,17 +152,19 @@ fun FunctionsScreen(
                     )
                 }
 
-                GlassFunctionCard(
-                    title = "运动记录",
-                    subtitle = "记录运动消耗",
-                    icon = Icons.Default.DirectionsRun,
-                    gradientColors = GlassGradientColors.GREEN,
-                    onClick = onNavigateToExercise,
-                    modifier = Modifier.weight(1f),
-                    isDark = isDark
-                )
+                if (uiProfile.allowsExercise) {
+                    GlassFunctionCard(
+                        title = "运动记录",
+                        subtitle = "记录运动消耗",
+                        icon = Icons.Default.DirectionsRun,
+                        gradientColors = GlassGradientColors.GREEN,
+                        onClick = onNavigateToExercise,
+                        modifier = Modifier.weight(1f),
+                        isDark = isDark
+                    )
+                }
 
-                if (!featureState.showWaterFeatures) {
+                if (!uiProfile.allowsWater || !featureState.showWaterFeatures || !uiProfile.allowsExercise) {
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }
@@ -180,14 +187,16 @@ fun FunctionsScreen(
                 isDark = isDark
             )
 
-            GlassWideFunctionCard(
-                title = "AI 健康助手",
-                subtitle = "智能分析和个性化建议",
-                icon = Icons.Default.SmartToy,
-                gradientColors = GlassGradientColors.INDIGO,
-                onClick = onNavigateToAIAssistant,
-                isDark = isDark
-            )
+            if (uiProfile.allowsAi) {
+                GlassWideFunctionCard(
+                    title = "AI 健康助手",
+                    subtitle = "智能分析和个性化建议",
+                    icon = Icons.Default.SmartToy,
+                    gradientColors = GlassGradientColors.INDIGO,
+                    onClick = onNavigateToAIAssistant,
+                    isDark = isDark
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -198,14 +207,16 @@ fun FunctionsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            GlassCompactFunctionCard(
-                title = "健康菜谱",
-                subtitle = "发现营养美食",
-                icon = Icons.Default.MenuBook,
-                color = Color(0xFFEC407A),
-                onClick = onNavigateToRecipes,
-                isDark = isDark
-            )
+            if (uiProfile.allowsRecipes) {
+                GlassCompactFunctionCard(
+                    title = "健康菜谱",
+                    subtitle = "发现营养美食",
+                    icon = Icons.Default.MenuBook,
+                    color = Color(0xFFEC407A),
+                    onClick = onNavigateToRecipes,
+                    isDark = isDark
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
         }

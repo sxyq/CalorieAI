@@ -29,6 +29,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 @Singleton
 class NutritionRecognitionService @Inject constructor(
@@ -403,33 +404,70 @@ class NutritionRecognitionService @Inject constructor(
     }
 
     private fun imageUriToBase64(imageUri: Uri, context: Context): String? {
-        return runCatching {
-            val bitmap = context.contentResolver.openInputStream(imageUri)?.use(BitmapFactory::decodeStream)
-                ?: return@runCatching null
-            val compressed = compressBitmap(bitmap, maxSizeKb = 1024)
+        var original: Bitmap? = null
+        var uploadBitmap: Bitmap? = null
+        return try {
+            val decoded = decodeSampledBitmap(imageUri, context) ?: return null
+            original = decoded
+            val compressedBitmap = scaleToMaxDimension(decoded, MAX_IMAGE_DIMENSION)
+            uploadBitmap = compressedBitmap
             val outputStream = ByteArrayOutputStream()
-            compressed.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
+            compressedBitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, outputStream)
+
+            if (outputStream.size() > MAX_IMAGE_BYTES) {
+                val factor = sqrt(MAX_IMAGE_BYTES.toDouble() / outputStream.size().toDouble())
+                val resized = Bitmap.createScaledBitmap(
+                    compressedBitmap,
+                    max(1, (compressedBitmap.width * factor).toInt()),
+                    max(1, (compressedBitmap.height * factor).toInt()),
+                    true
+                )
+                if (compressedBitmap !== decoded) compressedBitmap.recycle()
+                uploadBitmap = resized
+                outputStream.reset()
+                resized.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, outputStream)
+            }
+
             Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
-        }.getOrNull()
+        } finally {
+            runCatching {
+                val bitmapToRecycle = uploadBitmap
+                if (bitmapToRecycle != null && bitmapToRecycle !== original) bitmapToRecycle.recycle()
+                original?.recycle()
+            }
+        }
     }
 
-    private fun compressBitmap(bitmap: Bitmap, maxSizeKb: Int): Bitmap {
-        var quality = 95
-        val outputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-
-        while (outputStream.size() / 1024 > maxSizeKb && quality > 55) {
-            outputStream.reset()
-            quality -= 10
-            bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+    private fun decodeSampledBitmap(uri: Uri, context: Context): Bitmap? {
+        val resolver = context.contentResolver
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        resolver.openInputStream(uri)?.use { input ->
+            BitmapFactory.decodeStream(input, null, bounds)
         }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
-        if (outputStream.size() / 1024 <= maxSizeKb) return bitmap
+        var sample = 1
+        while (bounds.outWidth / sample > MAX_IMAGE_DIMENSION ||
+            bounds.outHeight / sample > MAX_IMAGE_DIMENSION
+        ) {
+            sample *= 2
+        }
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        return resolver.openInputStream(uri)?.use { input ->
+            BitmapFactory.decodeStream(input, null, options)
+        }
+    }
 
-        val scaleFactor = kotlin.math.sqrt((maxSizeKb * 1024).toDouble() / outputStream.size().toDouble())
-        val newWidth = max(1, (bitmap.width * scaleFactor).toInt())
-        val newHeight = max(1, (bitmap.height * scaleFactor).toInt())
-        return Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+    private fun scaleToMaxDimension(bitmap: Bitmap, maxDimension: Int): Bitmap {
+        val longest = max(bitmap.width, bitmap.height)
+        if (longest <= maxDimension) return bitmap
+        val scale = maxDimension.toFloat() / longest.toFloat()
+        return Bitmap.createScaledBitmap(
+            bitmap,
+            max(1, (bitmap.width * scale).toInt()),
+            max(1, (bitmap.height * scale).toInt()),
+            true
+        )
     }
 
     private fun parseNutritionText(text: String): NutritionInfo {
@@ -564,6 +602,9 @@ class NutritionRecognitionService @Inject constructor(
     }
 
     companion object {
+        private const val MAX_IMAGE_DIMENSION = 1280
+        private const val MAX_IMAGE_BYTES = 1024 * 1024
+        private const val JPEG_QUALITY = 82
         private const val ENDPOINT_COOLDOWN_MS = 2 * 60 * 1000L
         private val NUTRITION_HINTS = listOf(
             "\u8425\u517b",

@@ -53,11 +53,14 @@ object AIConfigPresets {
     const val ID_LONGCAT_FLASH_THINKING = "longcat_flash_thinking"
     const val ID_LONGCAT_FLASH_LITE = "longcat_flash_lite"
 
+    /** One build-configured model id is shared by every default preset. */
+    val DEFAULT_MODEL_ID: String get() = BuildConfig.DEFAULT_AI_MODEL_ID
+
     private val templates = listOf(
-        PresetTemplate(ID_LONGCAT_FLASH_OMNI, "GPT-5.6 Luna（拍照）", AIProviderIcons.OPENAI, IconType.RESOURCE, AIProtocol.OPENAI, BuildConfig.DEFAULT_AI_API_URL, BuildConfig.DEFAULT_AI_MODEL_ID, true),
-        PresetTemplate(ID_LONGCAT_FLASH_CHAT, "GPT-5.6 Luna（对话）", AIProviderIcons.OPENAI, IconType.RESOURCE, AIProtocol.OPENAI, BuildConfig.DEFAULT_AI_API_URL, BuildConfig.DEFAULT_AI_MODEL_ID, false),
-        PresetTemplate(ID_LONGCAT_FLASH_THINKING, "GPT-5.6 Luna（思考）", AIProviderIcons.OPENAI, IconType.RESOURCE, AIProtocol.OPENAI, BuildConfig.DEFAULT_AI_API_URL, BuildConfig.DEFAULT_AI_MODEL_ID, false),
-        PresetTemplate(ID_LONGCAT_FLASH_LITE, "GPT-5.6 Luna（文本）", AIProviderIcons.OPENAI, IconType.RESOURCE, AIProtocol.OPENAI, BuildConfig.DEFAULT_AI_API_URL, BuildConfig.DEFAULT_AI_MODEL_ID, false)
+        PresetTemplate(ID_LONGCAT_FLASH_OMNI, "GPT-5.6 Luna（拍照）", AIProviderIcons.OPENAI, IconType.RESOURCE, AIProtocol.OPENAI, BuildConfig.DEFAULT_AI_API_URL, DEFAULT_MODEL_ID, true),
+        PresetTemplate(ID_LONGCAT_FLASH_CHAT, "GPT-5.6 Luna（对话）", AIProviderIcons.OPENAI, IconType.RESOURCE, AIProtocol.OPENAI, BuildConfig.DEFAULT_AI_API_URL, DEFAULT_MODEL_ID, false),
+        PresetTemplate(ID_LONGCAT_FLASH_THINKING, "GPT-5.6 Luna（思考）", AIProviderIcons.OPENAI, IconType.RESOURCE, AIProtocol.OPENAI, BuildConfig.DEFAULT_AI_API_URL, DEFAULT_MODEL_ID, false),
+        PresetTemplate(ID_LONGCAT_FLASH_LITE, "GPT-5.6 Luna（文本）", AIProviderIcons.OPENAI, IconType.RESOURCE, AIProtocol.OPENAI, BuildConfig.DEFAULT_AI_API_URL, DEFAULT_MODEL_ID, false)
     )
 
     private fun createPreset(template: PresetTemplate): AIConfig = AIConfig(

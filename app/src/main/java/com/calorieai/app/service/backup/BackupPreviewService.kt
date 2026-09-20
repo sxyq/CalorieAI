@@ -17,11 +17,12 @@ class BackupPreviewService @Inject constructor(
 
         fun mergeItem(
             label: String,
-            backupIds: Set<String>,
+            backupIds: List<String>,
             currentIds: Set<String>
         ): RestorePreviewItem {
-            val addCount = (backupIds - currentIds).size
-            val updateCount = (backupIds intersect currentIds).size
+            val distinctBackupIds = backupIds.toSet()
+            val addCount = (distinctBackupIds - currentIds).size
+            val updateCount = (distinctBackupIds intersect currentIds).size
             return RestorePreviewItem(
                 label = label,
                 backupCount = backupIds.size,
@@ -76,20 +77,20 @@ class BackupPreviewService @Inject constructor(
             )
 
             listOf(
-                mergeItem("饮食记录", backupData.foodRecords.map { it.id }.toSet(), snapshot.foodRecords.map { it.id }.toSet()),
-                mergeItem("运动记录", backupData.exerciseRecords.map { it.id }.toSet(), snapshot.exerciseRecords.map { it.id }.toSet()),
-                mergeItem("体重记录", backupData.weightRecords.map { it.id.toString() }.toSet(), snapshot.weightRecords.map { it.id.toString() }.toSet()),
-                mergeItem("饮水记录", backupData.waterRecords.map { it.id.toString() }.toSet(), snapshot.waterRecords.map { it.id.toString() }.toSet()),
-                mergeItem("收藏菜谱", backupData.favoriteRecipes.map { it.id }.toSet(), snapshot.favoriteRecipes.map { it.id }.toSet()),
-                mergeItem("食材库存", backupData.pantryIngredients.map { it.id }.toSet(), snapshot.pantryIngredients.map { it.id }.toSet()),
-                mergeItem("旧版菜谱指南(并入收藏)", backupData.legacyRecipeGuides.map { it.id }.toSet(), emptySet()),
-                mergeItem("菜单计划", backupData.recipePlans.map { it.id }.toSet(), snapshot.recipePlans.map { it.id }.toSet()),
-                mergeItem("AI对话历史", backupData.aiChatHistory.map { it.id.toString() }.toSet(), snapshot.aiChatHistory.map { it.id.toString() }.toSet()),
-                mergeItem("API调用日志", backupData.apiCallLogs.map { it.id }.toSet(), snapshot.apiCallLogs.map { it.id }.toSet()),
+                mergeItem("饮食记录", backupData.foodRecords.map { it.id }, snapshot.foodRecords.map { it.id }.toSet()),
+                mergeItem("运动记录", backupData.exerciseRecords.map { it.id }, snapshot.exerciseRecords.map { it.id }.toSet()),
+                mergeItem("体重记录", backupData.weightRecords.map { it.id.toString() }, snapshot.weightRecords.map { it.id.toString() }.toSet()),
+                mergeItem("饮水记录", backupData.waterRecords.map { it.id.toString() }, snapshot.waterRecords.map { it.id.toString() }.toSet()),
+                mergeItem("收藏菜谱", backupData.favoriteRecipes.map { it.id }, snapshot.favoriteRecipes.map { it.id }.toSet()),
+                mergeItem("食材库存", backupData.pantryIngredients.map { it.id }, snapshot.pantryIngredients.map { it.id }.toSet()),
+                mergeItem("旧版菜谱指南(并入收藏)", backupData.legacyRecipeGuides.map { it.id }, emptySet()),
+                mergeItem("菜单计划", backupData.recipePlans.map { it.id }, snapshot.recipePlans.map { it.id }.toSet()),
+                mergeItem("AI对话历史", backupData.aiChatHistory.map { it.id.toString() }, snapshot.aiChatHistory.map { it.id.toString() }.toSet()),
+                mergeItem("API调用日志", backupData.apiCallLogs.map { it.id }, snapshot.apiCallLogs.map { it.id }.toSet()),
                 settingsItem,
                 mergeItem(
                     "AI配置",
-                    if (backupData.includeAIConfigs) backupData.aiConfigs.map { it.id }.toSet() else emptySet(),
+                    if (backupData.includeAIConfigs) backupData.aiConfigs.map { it.id } else emptyList(),
                     snapshot.aiConfigs.map { it.id }.toSet()
                 )
             )

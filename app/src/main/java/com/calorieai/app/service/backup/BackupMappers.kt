@@ -241,7 +241,7 @@ internal fun FoodRecordBackup.toModel() = FoodRecord(
             calories = it.calories
         )
     },
-    mealType = MealType.valueOf(mealType),
+    mealType = runCatching { MealType.valueOf(mealType) }.getOrDefault(MealType.SNACK),
     recordTime = recordTime,
     iconUrl = iconUrl,
     iconLocalPath = iconLocalPath,
@@ -252,7 +252,7 @@ internal fun FoodRecordBackup.toModel() = FoodRecord(
 
 internal fun ExerciseRecordBackup.toModel() = ExerciseRecord(
     id = id,
-    exerciseType = ExerciseType.valueOf(exerciseType),
+    exerciseType = ExerciseType.getByName(exerciseType),
     durationMinutes = durationMinutes,
     caloriesBurned = caloriesBurned,
     notes = notes,
@@ -403,8 +403,8 @@ internal fun AIConfigBackup.toModel() = AIConfig(
     id = id,
     name = name,
     icon = icon,
-    iconType = IconType.valueOf(iconType),
-    protocol = AIProtocol.valueOf(protocol),
+    iconType = runCatching { IconType.valueOf(iconType) }.getOrDefault(IconType.EMOJI),
+    protocol = runCatching { AIProtocol.valueOf(protocol) }.getOrDefault(AIProtocol.OPENAI),
     apiUrl = apiUrl,
     apiKey = apiKey ?: "",
     modelId = modelId,

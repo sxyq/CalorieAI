@@ -26,25 +26,29 @@ class AppearanceSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             userSettingsRepository.getSettings().collect { settings ->
                 settings?.let {
-                    _uiState.value = AppearanceSettingsUiState(
-                        themeMode = ThemeMode.valueOf(it.themeMode),
-                        useDeadlinerStyle = it.useDeadlinerStyle,
-                        hideDividers = it.hideDividers,
-                        fontSize = FontSize.valueOf(it.fontSize),
-                        enableAnimations = it.enableAnimations,
-                        wallpaperType = try {
-                            WallpaperType.valueOf(it.wallpaperType)
-                        } catch (e: Exception) {
-                            WallpaperType.SOLID
-                        },
-                        wallpaperColor = it.wallpaperColor,
-                        wallpaperGradientStart = it.wallpaperGradientStart,
-                        wallpaperGradientEnd = it.wallpaperGradientEnd,
-                        wallpaperImageUri = it.wallpaperImageUri,
-                        showAIWidget = it.showAIWidget,
-                        showWaterFeatures = it.showWaterFeatures
-                    )
+                    _uiState.update {
+                        it.copy(
+                        themeMode = runCatching { ThemeMode.valueOf(settings.themeMode) }.getOrDefault(ThemeMode.SYSTEM),
+                        useDeadlinerStyle = settings.useDeadlinerStyle,
+                        hideDividers = settings.hideDividers,
+                        fontSize = runCatching { FontSize.valueOf(settings.fontSize) }.getOrDefault(FontSize.MEDIUM),
+                        enableAnimations = settings.enableAnimations,
+                        wallpaperType = runCatching { WallpaperType.valueOf(settings.wallpaperType) }
+                            .getOrDefault(WallpaperType.SOLID),
+                        wallpaperColor = settings.wallpaperColor,
+                        wallpaperGradientStart = settings.wallpaperGradientStart,
+                        wallpaperGradientEnd = settings.wallpaperGradientEnd,
+                        wallpaperImageUri = settings.wallpaperImageUri,
+                        showAIWidget = settings.showAIWidget,
+                        showWaterFeatures = settings.showWaterFeatures
+                        )
+                    }
                 }
+            }
+        }
+        viewModelScope.launch {
+            userSettingsRepository.observeSimplifiedMode().collect { enabled ->
+                _uiState.update { it.copy(simplifiedMode = enabled) }
             }
         }
     }
@@ -110,6 +114,13 @@ class AppearanceSettingsViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(showWaterFeatures = show)
         saveSettings()
     }
+
+    fun updateSimplifiedMode(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(simplifiedMode = enabled)
+        viewModelScope.launch {
+            userSettingsRepository.updateSimplifiedMode(enabled)
+        }
+    }
 }
 
 data class AppearanceSettingsUiState(
@@ -124,7 +135,8 @@ data class AppearanceSettingsUiState(
     val wallpaperGradientEnd: String? = null,
     val wallpaperImageUri: String? = null,
     val showAIWidget: Boolean = true,
-    val showWaterFeatures: Boolean = true
+    val showWaterFeatures: Boolean = true,
+    val simplifiedMode: Boolean = false
 )
 
 enum class WallpaperType {

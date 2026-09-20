@@ -11,17 +11,28 @@ import com.calorieai.app.data.model.WeightLossStrategy
 import com.calorieai.app.utils.MetabolicConstants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.edit
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class UserSettingsRepository @Inject constructor(
     private val userSettingsDao: UserSettingsDao,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val settingsDataStore: DataStore<Preferences>
 ) {
     private val settingsWriteMutex = Mutex()
+
+    private val simplifiedModeKey = booleanPreferencesKey("elderly_simplified_mode")
 
     private val encryptedPrefs: SharedPreferences by lazy {
         try {
@@ -41,6 +52,23 @@ class UserSettingsRepository @Inject constructor(
     }
 
     fun getSettings(): Flow<UserSettings?> = userSettingsDao.getSettings()
+
+    /**
+     * UI profile is kept in DataStore so enabling the simplified layout does not
+     * require a Room schema migration or alter health-domain settings.
+     */
+    fun observeSimplifiedMode(): Flow<Boolean> {
+        return settingsDataStore.data
+            .catch { emit(emptyPreferences()) }
+            .map { preferences -> preferences[simplifiedModeKey] ?: false }
+            .distinctUntilChanged()
+    }
+
+    suspend fun updateSimplifiedMode(enabled: Boolean) {
+        settingsDataStore.edit { preferences ->
+            preferences[simplifiedModeKey] = enabled
+        }
+    }
 
     suspend fun saveSettings(settings: UserSettings) {
         settingsWriteMutex.withLock {
