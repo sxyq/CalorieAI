@@ -72,9 +72,15 @@ web_root=/srv/calorieai-web
 sudo install -d -o root -g root -m 0755 \
     "$app_root" "$public_root" "$stable_root" "$release_root" "$staging_root" "$web_root"
 sudo install -d -o root -g root -m 0755 "$web_root"
-sudo install -d -o root -g root -m 0755 "$app_root/web"
-sudo find "$remote_context" -maxdepth 1 -type f -exec install -o root -g root -m 0644 {} "$app_root/" \;
-sudo find "$remote_context/web" -maxdepth 1 -type f -exec install -o root -g root -m 0644 {} "$app_root/web/" \;
+# Copy the complete context so nested web assets are available to both the
+# image build and the read-only runtime bind mount.
+sudo cp -a "$remote_context/." "$app_root/"
+sudo cp -a "$app_root/web/." "$web_root/"
+sudo find "$app_root" -type d -exec chmod 0755 {} +
+sudo find "$app_root" -type f -exec chmod 0644 {} +
+sudo find "$web_root" -type d -exec chmod 0755 {} +
+sudo find "$web_root" -type f -exec chmod 0644 {} +
+sudo chown -R root:root "$app_root" "$web_root"
 
 sudo docker compose -f "$app_root/docker-compose.yml" up -d --build calorieai-gateway
 sudo docker inspect --format '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' calorieai-gateway

@@ -92,7 +92,7 @@ else
 fi
 
 log "--- step 5: confirm update endpoint reachable from device ---"
-device_json=$("${ADB_CMD[@]}" shell "curl -s --max-time 15 https://calorieai.sxyq27.online/android/stable/latest.json" 2>/dev/null | tr -d '\r')
+device_json=$("${ADB_CMD[@]}" shell "curl -s --max-time 15 http://101.132.250.38:80/android/stable/latest.json" 2>/dev/null | tr -d '\r')
 if [[ -n "$device_json" && "$device_json" == *versionCode* ]]; then
     log "device fetched latest.json OK"
     printf '%s\n' "$device_json" | tee -a "$LOG"

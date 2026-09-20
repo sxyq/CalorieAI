@@ -12,10 +12,10 @@ Usage:
 
 Environment for a remote publish:
   UPDATE_SERVER_KEY   SSH private-key path
-  UPDATE_SERVER_HOST  SSH target, default ubuntu@124.222.153.108
-  UPDATE_CHECK_URL    manifest URL, default https://calorieai.sxyq27.online/android/stable/latest.json
+  UPDATE_SERVER_HOST  SSH target, default root@101.132.250.38
+  UPDATE_CHECK_URL    manifest URL, default http://101.132.250.38:80/android/stable/latest.json
   UPDATE_DOWNLOAD_BASE_URL
-                      APK base URL, default https://calorieai.sxyq27.online
+                      APK base URL, default http://101.132.250.38:80
   APKANALYZER         optional path to Android SDK apkanalyzer
   APKSIGNER           optional path to Android SDK apksigner
   MIN_SUPPORTED_VERSION_CODE  default 100
@@ -135,20 +135,20 @@ RELEASE_NOTES=${RELEASE_NOTES:-"Bug fixes and stability improvements."}
 verify_apk_identity
 
 APK_FILE="CalorieAI-v${VERSION_NAME}.apk"
-UPDATE_CHECK_URL=${UPDATE_CHECK_URL:-"https://calorieai.sxyq27.online/android/stable/latest.json"}
-UPDATE_DOWNLOAD_BASE_URL=${UPDATE_DOWNLOAD_BASE_URL:-"https://calorieai.sxyq27.online"}
+UPDATE_CHECK_URL=${UPDATE_CHECK_URL:-"http://101.132.250.38:80/android/stable/latest.json"}
+UPDATE_DOWNLOAD_BASE_URL=${UPDATE_DOWNLOAD_BASE_URL:-"http://101.132.250.38:80"}
 UPDATE_DOWNLOAD_BASE_URL=${UPDATE_DOWNLOAD_BASE_URL%/}
 
 case "$UPDATE_CHECK_URL" in
-    "https://calorieai.sxyq27.online/android/stable/latest.json") ;;
+    "http://101.132.250.38:80/android/stable/latest.json") ;;
     *) echo "unsupported UPDATE_CHECK_URL: $UPDATE_CHECK_URL" >&2; exit 1 ;;
 esac
 case "$UPDATE_DOWNLOAD_BASE_URL" in
-    "https://calorieai.sxyq27.online") ;;
+    "http://101.132.250.38:80") ;;
     *) echo "unsupported UPDATE_DOWNLOAD_BASE_URL: $UPDATE_DOWNLOAD_BASE_URL" >&2; exit 1 ;;
 esac
-if [[ "$UPDATE_CHECK_URL" != "https://calorieai.sxyq27.online/android/stable/latest.json" ||
-      "$UPDATE_DOWNLOAD_BASE_URL" != "https://calorieai.sxyq27.online" ]]; then
+if [[ "$UPDATE_CHECK_URL" != "http://101.132.250.38:80/android/stable/latest.json" ||
+      "$UPDATE_DOWNLOAD_BASE_URL" != "http://101.132.250.38:80" ]]; then
     echo "UPDATE_CHECK_URL and UPDATE_DOWNLOAD_BASE_URL must use the same endpoint pair" >&2
     exit 1
 fi
@@ -193,7 +193,7 @@ if $CHECK_ONLY; then
 fi
 
 SERVER_KEY=${UPDATE_SERVER_KEY:?UPDATE_SERVER_KEY is required for remote publish}
-SERVER_HOST=${UPDATE_SERVER_HOST:-ubuntu@124.222.153.108}
+SERVER_HOST=${UPDATE_SERVER_HOST:-root@101.132.250.38}
 [[ -f "$SERVER_KEY" ]] || { echo "SSH key not found" >&2; exit 1; }
 
 SSH_OPTS=(
